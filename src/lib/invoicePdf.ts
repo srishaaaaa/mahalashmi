@@ -183,24 +183,16 @@ export async function invoicePdfFileFromElement(
     windowHeight: element.scrollHeight,
   })
 
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
+  // Size the PDF page to the actual rendered content height instead of
+  // forcing a fixed A4 page — the invoice's height varies with item count,
+  // and clamping it to a fixed 297mm page split the total/footer onto a
+  // second sheet whenever the content ran even slightly long.
   const pageWidth = 210
-  const pageHeight = 297
   const imageHeight = (canvas.height * pageWidth) / canvas.width
   const image = canvas.toDataURL('image/png')
 
-  if (imageHeight <= pageHeight + 10) {
-    doc.addImage(image, 'PNG', 0, 0, pageWidth, Math.min(pageHeight, imageHeight), undefined, 'FAST')
-  } else {
-    let offset = 0
-    let page = 0
-    while (offset < imageHeight) {
-      if (page > 0) doc.addPage()
-      doc.addImage(image, 'PNG', 0, -offset, pageWidth, imageHeight, undefined, 'FAST')
-      offset += pageHeight
-      page += 1
-    }
-  }
+  const doc = new jsPDF({ unit: 'mm', format: [pageWidth, imageHeight], orientation: 'portrait' })
+  doc.addImage(image, 'PNG', 0, 0, pageWidth, imageHeight, undefined, 'FAST')
 
   return new File([doc.output('blob')], `Invoice-${formattedNo}.pdf`, { type: 'application/pdf' })
 }

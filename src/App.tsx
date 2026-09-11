@@ -7,6 +7,7 @@ import { clearLocalOrders } from './lib/ordersFallback'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { LowStockAlarmModal } from './components/dashboard/LowStockAlarmModal'
 import { useLowStockMonitor } from './hooks/useLowStockMonitor'
+import { alarmSound } from './lib/alarmAudio'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Pos = lazy(() => import('./pages/Pos'))
@@ -69,6 +70,22 @@ function AppShell() {
 
   const hasStaffOrAdminAccess = Boolean(isLoggedIn && (role === 'admin' || role === 'staff'))
   useLowStockMonitor(hasStaffOrAdminAccess)
+
+  // Unlock the alarm's AudioContext on the very first tap/click anywhere in
+  // the app (e.g. tapping the login button) so the low-stock beep isn't
+  // silently blocked later by the browser's autoplay policy — by the time
+  // the alarm actually needs to sound, it fires after an async stock-check
+  // fetch, which is too late to count as "inside a user gesture" on strict
+  // mobile browsers.
+  useEffect(() => {
+    const unlock = () => alarmSound.primeFromUserGesture()
+    document.addEventListener('pointerdown', unlock, { once: true })
+    document.addEventListener('keydown', unlock, { once: true })
+    return () => {
+      document.removeEventListener('pointerdown', unlock)
+      document.removeEventListener('keydown', unlock)
+    }
+  }, [])
 
   useEffect(() => {
     document.title = BRAND_EN

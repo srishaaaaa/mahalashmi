@@ -109,7 +109,7 @@ export function printThermalReceipt(data: ThermalReceiptData) {
                 <tr>
                   <td class="text-left item-name">
                     ${item.name} <br/>
-                    <span style="font-size: 9px;">${formatCurrency(item.price)} ${unit ? ` / ${unit}` : ''}</span>
+                    <span style="font-size: 9px; color: #444;">@ ${formatCurrency(item.price)}${unit ? ` / ${unit}` : ' each'}</span>
                   </td>
                   <td class="text-right">${item.qty}</td>
                   <td class="text-right">${formatCurrency(lineTotal)}</td>

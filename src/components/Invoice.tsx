@@ -1,6 +1,7 @@
 import React from 'react'
-import { BRAND_ADDRESS, BRAND_EMAIL, BRAND_EN, BRAND_INSTAGRAM, BRAND_PRIMARY_PHONE_DISPLAY } from '../lib/brand'
+import { BRAND_ADDRESS, BRAND_EMAIL, BRAND_EN, BRAND_INSTAGRAM, BRAND_LOGO, BRAND_PRIMARY_PHONE_DISPLAY } from '../lib/brand'
 import { formatCurrency, formatQuantityDisplay, normalizeStructuredOrderItem, formatInvoiceNo } from '../lib/retail'
+import { useSettingsStore } from '../store/store'
 
 export interface InvoiceItem {
   id?: number | string
@@ -70,6 +71,7 @@ export const Invoice: React.FC<InvoiceProps> = ({
 
   const statusColor = status === 'completed' ? '#2E7D32' : status === 'cancelled' ? '#dc2626' : '#d97706'
   const effectiveDelivery = deliveryCharge || shipping
+  const logoUrl = useSettingsStore(s => s.settings?.logoUrl) || BRAND_LOGO
 
   return (
     <div
@@ -81,8 +83,8 @@ export const Invoice: React.FC<InvoiceProps> = ({
     >
       {/* ── HEADER ────────────────────────────────────────────────── */}
       <div style={{ textAlign: 'center', borderBottom: '1px solid #B7E1BE', paddingBottom: 20, marginBottom: 20 }}>
-        <div style={{ width: 44, height: 44, margin: '0 auto 12px auto', background: '#0A0A0A', borderRadius: 12, border: '1px solid #2E7D32', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(46, 125, 50,0.15)' }}>
-          <span style={{ fontFamily: "Cinzel, serif", fontSize: 22, fontWeight: 900, color: '#2E7D32' }}>C</span>
+        <div style={{ width: 44, height: 44, margin: '0 auto 12px auto', borderRadius: 12, border: '1px solid #2E7D32', overflow: 'hidden', boxShadow: '0 4px 12px rgba(46, 125, 50,0.15)' }}>
+          <img src={logoUrl} alt={BRAND_EN} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
         <div style={{ fontSize: 24, fontWeight: 900, color: '#0A0A0A', letterSpacing: 2, textTransform: 'uppercase' }}>
           {BRAND_EN}

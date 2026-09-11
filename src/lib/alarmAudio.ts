@@ -118,6 +118,18 @@ class AlarmSoundManager {
   public isPlaying() {
     return this.isAlarmPlaying
   }
+
+  /**
+   * Creates/resumes the AudioContext synchronously inside a real user
+   * gesture (a click/touchstart), so it's already unlocked by the time the
+   * alarm actually needs to sound. Mobile browsers suspend a freshly-created
+   * AudioContext unless resume() happens directly inside a user gesture —
+   * the alarm normally starts after an async stock-check fetch resolves,
+   * which is too late for that on strict mobile Safari/Chrome policies.
+   */
+  public primeFromUserGesture() {
+    this.initContext()
+  }
 }
 
 export const alarmSound = new AlarmSoundManager()
