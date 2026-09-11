@@ -31,6 +31,7 @@ import { normalizePhone, toWhatsAppUrl } from '../lib/phone'
 import { useLangStore } from '../store/langStore'
 import { fetchVariantsByProduct, type ProductVariant } from '../services/variantService'
 import { BarcodeScannerInput, type ScannedItemPayload } from '../components/pos/BarcodeScannerInput'
+import { QuickAddScannedProductModal } from '../components/pos/QuickAddScannedProductModal'
 import { AddUnregisteredItemModal } from '../components/pos/AddUnregisteredItemModal'
 import { getOrCreateUnregisteredProduct } from '../services/productService'
 
@@ -133,6 +134,8 @@ export default function Pos(props: PosProps = {}) {
   const [activeCategory, setActiveCategory] = useState('All')
   const [items, setItems] = useState<PosItem[]>([])
   const [editingOfferId, setEditingOfferId] = useState<string | number | null>(null)
+  const [quickAddBarcode, setQuickAddBarcode] = useState('')
+  const [scanResetTick, setScanResetTick] = useState(0)
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '' })
   const [remarks, setRemarks] = useState('')
   const [referenceNumber, setReferenceNumber] = useState('')
@@ -403,7 +406,7 @@ export default function Pos(props: PosProps = {}) {
     try {
       const record = await barcodeService.lookupBarcode(clean)
       if (!record || !record.product) {
-        setError(`Barcode "${clean}" not recognized in catalog`)
+        setQuickAddBarcode(clean)
         return
       }
       const prod = record.product
@@ -1119,7 +1122,7 @@ export default function Pos(props: PosProps = {}) {
 
               {/* Barcode Scanner Bar */}
               <div className="w-full">
-                <BarcodeScannerInput onItemScanned={handleScannedItem} />
+                <BarcodeScannerInput onItemScanned={handleScannedItem} onNotFound={setQuickAddBarcode} clearSignal={scanResetTick} />
               </div>
 
               <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -1692,6 +1695,20 @@ export default function Pos(props: PosProps = {}) {
             <div className="mt-5 flex gap-3"><button type="button" onClick={() => { setDepositOpen(false); setError('') }} className="flex-1 rounded-xl border py-3 text-sm font-black">Cancel</button><button disabled={saving} className="flex-[1.5] rounded-xl bg-violet-700 py-3 text-sm font-black text-white disabled:opacity-50">{saving ? 'Saving…' : 'Confirm Deposit Order'}</button></div>
           </form>
         </div>
+      )}
+
+      {quickAddBarcode && (
+        <QuickAddScannedProductModal
+          barcode={quickAddBarcode}
+          categories={categories.filter(c => c !== 'All')}
+          onClose={() => { setQuickAddBarcode(''); setScanResetTick(t => t + 1) }}
+          onCreated={(item) => {
+            handleScannedItem(item)
+            setQuickAddBarcode('')
+            setScanResetTick(t => t + 1)
+            void fetchProducts()
+          }}
+        />
       )}
 
       {depositCreated && (

@@ -21,16 +21,22 @@ export interface ScannedItemPayload {
 
 export interface BarcodeScannerInputProps {
   onItemScanned: (item: ScannedItemPayload) => void
+  onNotFound?: (barcode: string) => void
+  /** Bump this (e.g. a counter) to clear the "not recognized" banner once the caller has resolved it elsewhere (e.g. via a quick-add-product modal). */
+  clearSignal?: number
   disabled?: boolean
 }
 
 export const BarcodeScannerInput: React.FC<BarcodeScannerInputProps> = ({
   onItemScanned,
+  onNotFound,
+  clearSignal,
   disabled = false,
 }) => {
   const [manualCode, setManualCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [unknownBarcode, setUnknownBarcode] = useState('')
   const [lastScannedName, setLastScannedName] = useState('')
 
   // Camera scanner state
@@ -119,6 +125,13 @@ export const BarcodeScannerInput: React.FC<BarcodeScannerInputProps> = ({
     }
   }
 
+  useEffect(() => {
+    if (clearSignal === undefined) return
+    setErrorMsg('')
+    setUnknownBarcode('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clearSignal])
+
   // Handle scanned barcode lookup
   const processBarcode = useCallback(async (barcodeVal: string) => {
     const clean = barcodeVal.trim()
@@ -126,6 +139,7 @@ export const BarcodeScannerInput: React.FC<BarcodeScannerInputProps> = ({
 
     setLoading(true)
     setErrorMsg('')
+    setUnknownBarcode('')
 
     try {
       const record = await barcodeService.lookupBarcode(clean)
@@ -133,6 +147,7 @@ export const BarcodeScannerInput: React.FC<BarcodeScannerInputProps> = ({
       if (!record || !record.product) {
         playBeep(false)
         setErrorMsg(`Barcode "${clean}" not recognized in ${BRAND_EN} catalog`)
+        setUnknownBarcode(clean)
         return
       }
 
@@ -159,6 +174,7 @@ export const BarcodeScannerInput: React.FC<BarcodeScannerInputProps> = ({
 
       playBeep(true)
       setLastScannedName(`${prod.name}${varnt?.variant_name ? ` (${varnt.variant_name})` : ''}`)
+      setUnknownBarcode('')
       onItemScanned(payload)
       setManualCode('')
 
@@ -388,9 +404,20 @@ export const BarcodeScannerInput: React.FC<BarcodeScannerInputProps> = ({
 
       {/* Error Notification Pill */}
       {errorMsg && (
-        <div className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-800 bg-rose-50 border border-rose-300 px-3 py-1 rounded-full animate-in fade-in duration-150">
-          <AlertCircle size={13} className="text-rose-600" />
-          {errorMsg}
+        <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-rose-800 bg-rose-50 border border-rose-300 px-3 py-1.5 rounded-2xl animate-in fade-in duration-150">
+          <span className="flex items-center gap-1.5 break-words">
+            <AlertCircle size={13} className="text-rose-600 shrink-0" />
+            {errorMsg}
+          </span>
+          {unknownBarcode && onNotFound && (
+            <button
+              type="button"
+              onClick={() => onNotFound(unknownBarcode)}
+              className="shrink-0 px-2.5 py-1 rounded-lg bg-[#0A0A0A] text-[#2E7D32] text-[11px] font-black hover:bg-[#1A1A1A] cursor-pointer"
+            >
+              + Add as New Product
+            </button>
+          )}
         </div>
       )}
 
