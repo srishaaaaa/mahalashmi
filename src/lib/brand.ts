@@ -4,7 +4,7 @@ export const BRAND_SHORT = 'Mahalashmi Stores'
 export const BRAND_SUBTITLE = 'Your Family Grocery Store'
 export const BRAND_MONOGRAM = 'MLS'
 export const BRAND_LOGO = '/mahalashmi-logo.jpeg'
-export const BRAND_PRODUCTION_DOMAIN = 'https://cen-gen-pos.vercel.app'
+export const BRAND_PRODUCTION_DOMAIN = 'https://mahalashmi.vercel.app'
 
 // Owner / Personal contact
 export const BRAND_OWNER_NAME = 'M. Senthamil'

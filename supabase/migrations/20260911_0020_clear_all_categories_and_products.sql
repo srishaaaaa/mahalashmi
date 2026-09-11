@@ -1,12 +1,15 @@
 -- ============================================================================
 -- Migration: 20260911_0020_clear_all_categories_and_products.sql
--- Description: Full clean slate — remove every remaining category and
---              product (including the system "Unregistered" category left
---              by migration 0019). The app recreates "Unregistered"
---              automatically the first time ad-hoc POS billing is used, so
---              this is safe. Add Mahalashmi Stores' real catalog through the
---              app's product management screen.
+-- Description: Originally did a one-time full clean slate (removed every
+--              category and product, including the system "Unregistered"
+--              category left by migration 0019) at the user's explicit
+--              request. That already happened on the live database.
+--              NEUTRALIZED to a no-op: this migration is unconditional
+--              ("DELETE FROM products; DELETE FROM categories;" with no
+--              WHERE clause), so re-running the combined schema file after
+--              this point would silently wipe the real catalog every time —
+--              which is exactly what happened and is why this was disabled.
+--              Do not re-enable; clear the catalog through the app's UI if
+--              ever needed again, not via a re-runnable migration.
 -- ============================================================================
-
-DELETE FROM public.products;
-DELETE FROM public.categories;
+SELECT 1;

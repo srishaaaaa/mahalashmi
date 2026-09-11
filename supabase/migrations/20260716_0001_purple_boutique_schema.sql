@@ -190,6 +190,10 @@ CREATE TABLE IF NOT EXISTS public.store_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ON CONFLICT DO NOTHING (not DO UPDATE): this seeds the row only on first
+-- creation. Re-running the combined schema after the store owner has since
+-- customized their name/phone/email/address via the Settings screen must
+-- never revert those edits back to this bootstrap default.
 INSERT INTO public.store_settings (id, name, owner_name, phone, email, address)
 VALUES (
   1,
@@ -199,13 +203,7 @@ VALUES (
   'senthamil75714@gmail.com',
   '5/85, Teacher''s Colony, Masinaickanpatty, Ayyothiyapattanam, Salem - 636103'
 )
-ON CONFLICT (id) DO UPDATE SET
-  name = EXCLUDED.name,
-  owner_name = EXCLUDED.owner_name,
-  phone = EXCLUDED.phone,
-  email = EXCLUDED.email,
-  address = EXCLUDED.address,
-  updated_at = NOW();
+ON CONFLICT (id) DO NOTHING;
 
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN

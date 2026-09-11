@@ -53,6 +53,8 @@ export interface Product {
   /** Special offer / free gift configured for this product, e.g. "Buy 1 Get 1 Free" or "Free gift: sample sachet". */
   hasSpecialOffer?: boolean
   specialOfferNote?: string | null
+  /** Store's cost of giving away the free gift/offer (for margin tracking), separate from the note text. */
+  specialOfferCost?: number | null
 
   // POS inventory fields
   sku?: string
@@ -290,6 +292,7 @@ const mapDbProduct = (input: unknown, categoriesById: Record<string, string> = {
     hasVariants: Boolean(p.has_variants),
     hasSpecialOffer: Boolean(p.has_special_offer),
     specialOfferNote: readString(p.special_offer_note) || null,
+    specialOfferCost: p.special_offer_cost != null ? toNumber(p.special_offer_cost, 0) : null,
 
     // POS inventory mapping
     sku: readString(p.sku),

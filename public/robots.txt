@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://cen-gen-pos.vercel.app/sitemap.xml
+Sitemap: https://mahalashmi.vercel.app/sitemap.xml

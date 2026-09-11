@@ -42,6 +42,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
   const [hasVariants, setHasVariants] = useState<boolean>(false)
   const [hasSpecialOffer, setHasSpecialOffer] = useState<boolean>(false)
   const [specialOfferNote, setSpecialOfferNote] = useState<string>('')
+  const [specialOfferCost, setSpecialOfferCost] = useState<string>('')
 
   // Variants Rows for dynamic addition
   const [variantRows, setVariantRows] = useState<VariantInputRow[]>([])
@@ -68,6 +69,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     setHasVariants(false)
     setHasSpecialOffer(false)
     setSpecialOfferNote('')
+    setSpecialOfferCost('')
     setVariantRows([])
     setStatusMessage(null)
   }
@@ -86,6 +88,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     setHasVariants(Boolean(p.hasVariants))
     setHasSpecialOffer(Boolean(p.hasSpecialOffer))
     setSpecialOfferNote(p.specialOfferNote || '')
+    setSpecialOfferCost(p.specialOfferCost != null ? String(p.specialOfferCost) : '')
     setStatusMessage(null)
 
     if (p.hasVariants) {
@@ -223,6 +226,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               has_variants: false,
               has_special_offer: hasSpecialOffer,
               special_offer_note: specialOfferNote.trim(),
+              special_offer_cost: hasSpecialOffer ? (Number(specialOfferCost) || 0) : 0,
               stock_quantity: inputStock,
               stock: inputStock,
             })
@@ -359,6 +363,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               has_variants: true,
               has_special_offer: hasSpecialOffer,
               special_offer_note: specialOfferNote.trim(),
+              special_offer_cost: hasSpecialOffer ? (Number(specialOfferCost) || 0) : 0,
               stock_quantity: totalVariantStock,
               stock: totalVariantStock,
             })
@@ -390,6 +395,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               has_variants: false,
               has_special_offer: hasSpecialOffer,
               special_offer_note: specialOfferNote.trim(),
+              special_offer_cost: hasSpecialOffer ? (Number(specialOfferCost) || 0) : 0,
               stock_quantity: inputStock,
               stock: inputStock,
               is_active: true,
@@ -456,6 +462,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               has_variants: true,
               has_special_offer: hasSpecialOffer,
               special_offer_note: specialOfferNote.trim(),
+              special_offer_cost: hasSpecialOffer ? (Number(specialOfferCost) || 0) : 0,
               stock_quantity: totalVariantStock,
               stock: totalVariantStock,
               is_active: true,
@@ -825,13 +832,30 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                 </label>
               </div>
               {hasSpecialOffer && (
-                <input
-                  type="text"
-                  placeholder="e.g. Buy 1 Get 1 Free, or Free sample gift with purchase"
-                  value={specialOfferNote}
-                  onChange={(e) => setSpecialOfferNote(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[#2E7D32]"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wide text-gray-500 mb-1">Offer / Gift Note</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Buy 1 Get 1 Free, or Free sample gift with purchase"
+                      value={specialOfferNote}
+                      onChange={(e) => setSpecialOfferNote(e.target.value)}
+                      className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[#2E7D32]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wide text-gray-500 mb-1">Gift Cost (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0"
+                      value={specialOfferCost}
+                      onChange={(e) => setSpecialOfferCost(e.target.value)}
+                      className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[#2E7D32]"
+                    />
+                  </div>
+                </div>
               )}
             </div>
 

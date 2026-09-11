@@ -551,6 +551,10 @@ END;
 $$;
 
 -- 10. Update Store Settings Default to CLAD
+-- Guarded to only fire once, transitioning from the exact 0001 bootstrap
+-- values: re-running the combined schema after the owner has customized
+-- their store settings (or after this step already ran) must not touch
+-- the row again.
 UPDATE public.store_settings
 SET name = 'CLAD',
     owner_name = 'Rubi krishna',
@@ -558,6 +562,6 @@ SET name = 'CLAD',
     email = 'cladclothing26@gmail.com',
     address = 'Manapparai, Trichy, Tamil Nadu - 621 306',
     updated_at = NOW()
-WHERE id = 1;
+WHERE id = 1 AND name = 'Mahalashmi Stores' AND owner_name = 'M. Senthamil';
 
 COMMIT;

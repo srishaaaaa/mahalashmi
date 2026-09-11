@@ -10,7 +10,6 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       includeAssets: [
-        'favicon.svg',
         'mahalashmi-logo.jpeg',
         'product-placeholder.svg',
         'robots.txt',
@@ -26,12 +25,6 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         icons: [
-          {
-            src: '/favicon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any',
-          },
           {
             src: '/mahalashmi-logo.jpeg',
             sizes: '512x512',

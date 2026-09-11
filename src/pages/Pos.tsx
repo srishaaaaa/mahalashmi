@@ -528,6 +528,11 @@ export default function Pos(props: PosProps = {}) {
     setItems(cur => cur.map((item) => item.id === id ? { ...item, specialOfferNote: note } : item))
   }
 
+  const updateItemOfferCost = (id: string | number, cost: string) => {
+    const parsed = cost.trim() === '' ? null : Math.max(0, Number(cost) || 0)
+    setItems(cur => cur.map((item) => item.id === id ? { ...item, specialOfferCost: parsed } : item))
+  }
+
   const bumpQty = (id: string | number, delta: number) => {
     setItems(cur => {
       const ex = cur.find(i => i.id === id)
@@ -712,6 +717,7 @@ export default function Pos(props: PosProps = {}) {
           category: item.category || null,
           note: item.note || null,
           specialOfferNote: item.specialOfferNote || null,
+          specialOfferCost: item.specialOfferCost ?? null,
         })),
         shipping: Number(shipping || 0),
         status: 'completed',
@@ -879,6 +885,7 @@ export default function Pos(props: PosProps = {}) {
       price: item.price,
       offerPrice: item.offerPrice,
       special_offer_note: item.specialOfferNote,
+      special_offer_cost: item.specialOfferCost,
     }))
 
     return (
@@ -949,7 +956,10 @@ export default function Pos(props: PosProps = {}) {
                     <span className="font-bold">{formatCurrency(item.lineTotal)}</span>
                   </div>
                   {item.specialOfferNote && (
-                    <p className="mt-0.5 text-[11px] font-bold text-amber-800 break-words">🎁 {item.specialOfferNote}</p>
+                    <p className="mt-0.5 text-[11px] font-bold text-amber-800 break-words">
+                      🎁 {item.specialOfferNote}
+                      {item.specialOfferCost != null && item.specialOfferCost > 0 ? ` (Cost ₹${item.specialOfferCost})` : ''}
+                    </p>
                   )}
                 </div>
               ))}
@@ -1182,26 +1192,51 @@ export default function Pos(props: PosProps = {}) {
                             <p className="text-[16px] font-bold text-[#111111] break-words">{item.name} {item.variantName ? `- ${item.variantName}` : ''}</p>
                           </div>
                         )}
-                        {(item.hasSpecialOffer || item.specialOfferNote) && (
+                        {(item.hasSpecialOffer || item.specialOfferNote || item.specialOfferCost) && (
                           <div className="mt-2">
                             {editingOfferId === item.id ? (
-                              <input
-                                autoFocus
-                                type="text"
-                                value={item.specialOfferNote || ''}
-                                onChange={e => updateItemOffer(item.id, e.target.value)}
-                                onBlur={() => setEditingOfferId(null)}
-                                placeholder="e.g. Free gift: sample sachet"
-                                className="w-full h-10 px-3 bg-white border border-[#2E7D32] rounded-lg text-[13px] font-bold text-[#111111] focus:outline-none"
-                              />
+                              <div className="flex flex-col gap-1.5">
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  value={item.specialOfferNote || ''}
+                                  onChange={e => updateItemOffer(item.id, e.target.value)}
+                                  placeholder="e.g. Free gift: sample sachet"
+                                  className="w-full h-10 px-3 bg-white border border-[#2E7D32] rounded-lg text-[13px] font-bold text-[#111111] focus:outline-none"
+                                />
+                                <div className="flex items-center gap-2 rounded-lg border border-[#2E7D32] bg-white px-3 h-10">
+                                  <span className="text-[11px] font-black text-amber-800 shrink-0">Gift Cost ₹</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={item.specialOfferCost ?? ''}
+                                    onChange={e => updateItemOfferCost(item.id, e.target.value)}
+                                    onBlur={() => setEditingOfferId(null)}
+                                    placeholder="0"
+                                    className="flex-1 min-w-0 text-[13px] font-bold text-[#111111] focus:outline-none"
+                                  />
+                                </div>
+                              </div>
                             ) : (
-                              <button
-                                type="button"
-                                onClick={() => setEditingOfferId(item.id)}
-                                className="w-full text-left px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-[12px] font-bold text-amber-900 break-words"
-                              >
-                                🎁 {item.specialOfferNote || 'Tap to add offer / gift note'}
-                              </button>
+                              <div className="flex items-stretch gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingOfferId(item.id)}
+                                  className="flex-1 min-w-0 text-left px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-[12px] font-bold text-amber-900 break-words"
+                                >
+                                  🎁 {item.specialOfferNote || 'Tap to apply free gifts and offers'}
+                                </button>
+                                {item.specialOfferCost != null && item.specialOfferCost > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingOfferId(item.id)}
+                                    className="shrink-0 px-2.5 py-2 rounded-lg bg-amber-100 border border-amber-200 text-[11px] font-black text-amber-900 whitespace-nowrap"
+                                  >
+                                    Cost ₹{item.specialOfferCost}
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
                         )}
@@ -1269,25 +1304,50 @@ export default function Pos(props: PosProps = {}) {
                           </span>
                         )}
                       </div>
-                      {(item.hasSpecialOffer || item.specialOfferNote) && (
+                      {(item.hasSpecialOffer || item.specialOfferNote || item.specialOfferCost) && (
                         editingOfferId === item.id ? (
-                          <input
-                            autoFocus
-                            type="text"
-                            value={item.specialOfferNote || ''}
-                            onChange={e => updateItemOffer(item.id, e.target.value)}
-                            onBlur={() => setEditingOfferId(null)}
-                            placeholder="e.g. Free gift: sample sachet"
-                            className="w-full mx-3 h-8 px-2.5 bg-white border border-[#2E7D32] rounded-md text-[12px] font-bold text-[#111111] focus:outline-none"
-                          />
+                          <div className="flex items-center gap-1.5 mx-3">
+                            <input
+                              autoFocus
+                              type="text"
+                              value={item.specialOfferNote || ''}
+                              onChange={e => updateItemOffer(item.id, e.target.value)}
+                              placeholder="e.g. Free gift: sample sachet"
+                              className="flex-1 min-w-0 h-8 px-2.5 bg-white border border-[#2E7D32] rounded-md text-[12px] font-bold text-[#111111] focus:outline-none"
+                            />
+                            <div className="flex items-center gap-1 shrink-0 rounded-md border border-[#2E7D32] bg-white px-2 h-8">
+                              <span className="text-[10px] font-black text-amber-800">₹</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={item.specialOfferCost ?? ''}
+                                onChange={e => updateItemOfferCost(item.id, e.target.value)}
+                                onBlur={() => setEditingOfferId(null)}
+                                placeholder="0"
+                                className="w-16 text-[12px] font-bold text-[#111111] focus:outline-none"
+                              />
+                            </div>
+                          </div>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => setEditingOfferId(item.id)}
-                            className="mx-3 text-left px-2.5 py-1 rounded-md bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-900 break-words w-fit max-w-[calc(100%-1.5rem)]"
-                          >
-                            🎁 {item.specialOfferNote || 'Tap to add offer / gift note'}
-                          </button>
+                          <div className="flex items-center gap-1.5 mx-3 w-fit max-w-[calc(100%-1.5rem)]">
+                            <button
+                              type="button"
+                              onClick={() => setEditingOfferId(item.id)}
+                              className="min-w-0 text-left px-2.5 py-1 rounded-md bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-900 break-words"
+                            >
+                              🎁 {item.specialOfferNote || 'Tap to apply free gifts and offers'}
+                            </button>
+                            {item.specialOfferCost != null && item.specialOfferCost > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setEditingOfferId(item.id)}
+                                className="shrink-0 px-2 py-1 rounded-md bg-amber-100 border border-amber-200 text-[10px] font-black text-amber-900 whitespace-nowrap"
+                              >
+                                Cost ₹{item.specialOfferCost}
+                              </button>
+                            )}
+                          </div>
                         )
                       )}
                     </div>

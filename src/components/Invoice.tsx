@@ -18,6 +18,7 @@ export interface InvoiceItem {
   price: number
   offerPrice?: number | null
   special_offer_note?: string | null
+  special_offer_cost?: number | null
 }
 
 export interface InvoiceProps {
@@ -165,6 +166,7 @@ export const Invoice: React.FC<InvoiceProps> = ({
                     {(normalized.special_offer_note || item.special_offer_note) && (
                       <div style={{ fontSize: 10, fontWeight: 700, color: '#92400E', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 6, padding: '2px 6px', marginTop: 4, display: 'inline-block' }}>
                         🎁 {normalized.special_offer_note || item.special_offer_note}
+                        {(normalized.special_offer_cost ?? item.special_offer_cost) ? ` (Cost ₹${normalized.special_offer_cost ?? item.special_offer_cost})` : ''}
                       </div>
                     )}
                   </td>

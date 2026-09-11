@@ -25,6 +25,8 @@ export type StructuredOrderItem = {
   note?: string | null
   /** Special offer / free gift given with this line item at billing time, e.g. "Free gift: sample sachet". */
   special_offer_note?: string | null
+  /** Store's cost of giving away that free gift/offer, separate from the note text. */
+  special_offer_cost?: number | null
 }
 
 type UnitFactors = Record<string, number>
@@ -414,6 +416,7 @@ export const buildStructuredOrderItem = (input: {
   category?: string | null
   note?: string | null
   specialOfferNote?: string | null
+  specialOfferCost?: number | null
 }): StructuredOrderItem => {
   const safeQuantity = normalizeSelectedQuantity(
     input.quantity,
@@ -444,6 +447,7 @@ export const buildStructuredOrderItem = (input: {
     category: input.category || null,
     note: input.note ? String(input.note) : null,
     special_offer_note: input.specialOfferNote ? String(input.specialOfferNote) : null,
+    special_offer_cost: input.specialOfferCost != null ? clampTo(toNumber(input.specialOfferCost, 0), 0) : null,
   }
 }
 
@@ -491,5 +495,6 @@ export const normalizeStructuredOrderItem = (raw: Record<string, unknown>): Stru
     source: raw.source === 'manual' || raw.is_manual === true ? 'manual' : 'catalogue',
     note: raw.note ? String(raw.note) : (raw.manual_note ? String(raw.manual_note) : null),
     special_offer_note: raw.special_offer_note ? String(raw.special_offer_note) : null,
+    special_offer_cost: raw.special_offer_cost != null ? toNumber(raw.special_offer_cost, 0) : null,
   }
 }
