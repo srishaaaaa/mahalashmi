@@ -1,0 +1,223 @@
+import React, { useState } from 'react'
+import { X, Plus, Info, Check } from 'lucide-react'
+import {
+  type BarcodeSettings,
+  type LabelSizeConfig,
+  DEFAULT_LABEL_SIZES,
+  getStoredCustomSizes,
+  saveStoredBarcodeSettings,
+} from '../../lib/barcode'
+import { BRAND_MONOGRAM } from '../../lib/brand'
+import { CreateCustomSizeModal } from './CreateCustomSizeModal'
+
+interface BarcodeSettingsDrawerProps {
+  isOpen: boolean
+  onClose: () => void
+  settings: BarcodeSettings
+  onUpdateSettings: (newSettings: BarcodeSettings) => void
+}
+
+export const BarcodeSettingsDrawer: React.FC<BarcodeSettingsDrawerProps> = ({
+  isOpen,
+  onClose,
+  settings,
+  onUpdateSettings,
+}) => {
+  const [customSizes, setCustomSizes] = useState<LabelSizeConfig[]>(getStoredCustomSizes())
+  const [showCustomModal, setShowCustomModal] = useState(false)
+
+  if (!isOpen) return null
+
+  const handlePrinterChange = (type: 'label' | 'regular') => {
+    const updated: BarcodeSettings = { ...settings, printerType: type }
+    saveStoredBarcodeSettings(updated)
+    onUpdateSettings(updated)
+  }
+
+  const handleSizeChange = (sizeId: string) => {
+    const updated: BarcodeSettings = { ...settings, selectedSizeId: sizeId }
+    saveStoredBarcodeSettings(updated)
+    onUpdateSettings(updated)
+  }
+
+  const handleFieldToggle = (
+    field: 'showSalePrice' | 'showCompanyName' | 'showItemName' | 'showDiscount'
+  ) => {
+    const updated: BarcodeSettings = { ...settings, [field]: !settings[field] }
+    saveStoredBarcodeSettings(updated)
+    onUpdateSettings(updated)
+  }
+
+  const allSizes = [...DEFAULT_LABEL_SIZES, ...customSizes]
+
+  return (
+    <>
+      <div className="fixed inset-0 z-[110] flex justify-end bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="w-full max-w-sm bg-white h-full shadow-2xl flex flex-col border-l border-gray-200 animate-in slide-in-from-right duration-200">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-[#0A0A0A] text-white">
+            <h3 className="text-sm font-black tracking-wide text-white">Barcode Settings</h3>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
+            >
+              <X size={15} />
+            </button>
+          </div>
+
+          {/* Drawer Body */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-6">
+            {/* Section 1: Printer */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-black uppercase tracking-wider text-gray-800">
+                  Printer
+                </span>
+                <span className="text-[10px] text-gray-400 font-bold italic">
+                  Select any 1 option
+                </span>
+              </div>
+              <div className="space-y-2 bg-[#FBFAF6] p-3 rounded-xl border border-gray-200">
+                <label className="flex items-center gap-2.5 text-xs font-bold text-gray-700 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="printerType"
+                    checked={settings.printerType === 'label'}
+                    onChange={() => handlePrinterChange('label')}
+                    className="accent-[#0A0A0A] w-4 h-4 cursor-pointer"
+                  />
+                  Label Printer (Thermal)
+                </label>
+                <label className="flex items-center gap-2.5 text-xs font-bold text-gray-700 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="printerType"
+                    checked={settings.printerType === 'regular'}
+                    onChange={() => handlePrinterChange('regular')}
+                    className="accent-[#0A0A0A] w-4 h-4 cursor-pointer"
+                  />
+                  Regular Printer (A4 Sheet)
+                </label>
+              </div>
+            </div>
+
+            {/* Section 2: Size */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-black uppercase tracking-wider text-gray-800">
+                  Size
+                </span>
+                <span className="text-[10px] text-gray-400 font-bold italic">
+                  Select any 1 option
+                </span>
+              </div>
+              <div className="space-y-2.5 bg-[#FBFAF6] p-3 rounded-xl border border-gray-200">
+                {allSizes.map((size) => (
+                  <label
+                    key={size.id}
+                    className="flex items-center justify-between gap-2 text-xs font-bold text-gray-700 cursor-pointer hover:text-black"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="radio"
+                        name="labelSize"
+                        checked={settings.selectedSizeId === size.id}
+                        onChange={() => handleSizeChange(size.id)}
+                        className="accent-[#0A0A0A] w-4 h-4 cursor-pointer"
+                      />
+                      <span>{size.name}</span>
+                    </div>
+                    {size.isCustom && (
+                      <span className="text-[9px] font-black uppercase tracking-wider bg-[#0A0A0A] text-[#2E7D32] px-1.5 py-0.5 rounded">
+                        Custom
+                      </span>
+                    )}
+                  </label>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => setShowCustomModal(true)}
+                  className="mt-2 flex items-center gap-1.5 text-xs font-black text-blue-600 hover:text-blue-800 hover:underline pt-2 border-t border-gray-200 w-full cursor-pointer"
+                >
+                  <Plus size={13} />
+                  Create Custom Size <Info size={12} className="text-gray-400" />
+                </button>
+              </div>
+            </div>
+
+            {/* Section 3: Additional Fields */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-black uppercase tracking-wider text-gray-800">
+                  Additional Fields
+                </span>
+              </div>
+              <div className="space-y-2.5 bg-[#FBFAF6] p-3 rounded-xl border border-gray-200">
+                <label className="flex items-center gap-2.5 text-xs font-bold text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.showSalePrice}
+                    onChange={() => handleFieldToggle('showSalePrice')}
+                    className="accent-[#0A0A0A] w-4 h-4 rounded cursor-pointer"
+                  />
+                  Sale Price (₹)
+                </label>
+                <label className="flex items-center gap-2.5 text-xs font-bold text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.showCompanyName}
+                    onChange={() => handleFieldToggle('showCompanyName')}
+                    className="accent-[#0A0A0A] w-4 h-4 rounded cursor-pointer"
+                  />
+                  Company Name ({BRAND_MONOGRAM})
+                </label>
+                <label className="flex items-center gap-2.5 text-xs font-bold text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.showItemName}
+                    onChange={() => handleFieldToggle('showItemName')}
+                    className="accent-[#0A0A0A] w-4 h-4 rounded cursor-pointer"
+                  />
+                  Item Name
+                </label>
+                <label className="flex items-center gap-2.5 text-xs font-bold text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.showDiscount}
+                    onChange={() => handleFieldToggle('showDiscount')}
+                    className="accent-[#0A0A0A] w-4 h-4 rounded cursor-pointer"
+                  />
+                  Discount / MRP
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Drawer Footer */}
+          <div className="p-4 border-t border-gray-200 bg-white">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full py-2.5 rounded-xl bg-[#0A0A0A] text-[#2E7D32] border border-[#2E7D32] font-black text-xs uppercase tracking-wider hover:bg-[#1A1A1A] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+            >
+              <Check size={14} /> Done
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {showCustomModal && (
+        <CreateCustomSizeModal
+          isOpen={showCustomModal}
+          onClose={() => setShowCustomModal(false)}
+          onCreated={(newSize) => {
+            setCustomSizes(getStoredCustomSizes())
+            handleSizeChange(newSize.id)
+          }}
+        />
+      )}
+    </>
+  )
+}
