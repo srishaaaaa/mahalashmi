@@ -30,6 +30,7 @@ dist-ssr
 .vercel
 screenshots/
 .claude/
+barcode-samples/
 fix*.cjs
 gen_logo.cjs
 safe_fix.cjs
