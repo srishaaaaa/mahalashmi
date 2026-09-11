@@ -10,7 +10,6 @@ import {
   RefreshCw,
   BarChart3,
   Tag,
-  PackagePlus,
   Box,
   Edit2,
   Trash2,

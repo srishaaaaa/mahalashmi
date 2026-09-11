@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { useAlarmStore, type LowStockItem } from '../store/alarmStore'
 
@@ -6,7 +6,7 @@ export function useLowStockMonitor(enabled: boolean = true) {
   const setLowStockItems = useAlarmStore((state) => state.setLowStockItems)
   const isCheckingRef = useRef(false)
 
-  const checkStockLevels = async () => {
+  const checkStockLevels = useCallback(async () => {
     if (!enabled || isCheckingRef.current) return
     isCheckingRef.current = true
 
@@ -94,7 +94,7 @@ export function useLowStockMonitor(enabled: boolean = true) {
     } finally {
       isCheckingRef.current = false
     }
-  }
+  }, [enabled, setLowStockItems])
 
   useEffect(() => {
     if (!enabled) return
@@ -126,6 +126,6 @@ export function useLowStockMonitor(enabled: boolean = true) {
       clearInterval(interval)
       void supabase.removeChannel(realtimeChannel)
     }
-  }, [enabled])
+  }, [enabled, checkStockLevels])
 }
 

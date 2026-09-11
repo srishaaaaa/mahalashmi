@@ -4,7 +4,7 @@ import { isSupabaseConfigured } from '../lib/supabase'
 import { supabase } from '../lib/supabase'
 import { fetchAllCategories, fetchAllProducts } from '../services/productService'
 import { fetchAllVariants, type ProductVariant } from '../services/variantService'
-import { BRAND_ADDRESS, BRAND_EN, BRAND_PHONE_DISPLAY, BRAND_LOGO, BRAND_INSTAGRAM, BRAND_OWNER_NAME } from '../lib/brand'
+import { BRAND_ADDRESS, BRAND_EN, BRAND_PHONE_DISPLAY, BRAND_INSTAGRAM, BRAND_OWNER_NAME } from '../lib/brand'
 import {
   calculateLineTotal,
   normalizeSelectedQuantity,

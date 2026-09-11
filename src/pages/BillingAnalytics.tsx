@@ -41,7 +41,6 @@ const RMIcon = ({ size = 16, className = '' }: { size?: number; className?: stri
 )
 import { useAuthStore, useProductStore, type Product } from '../store/store'
 import { formatCurrency, normalizeOrderMode, toNumber } from '../lib/retail'
-import { BRAND_EN } from '../lib/brand'
 
 type BillingOrder = {
   id: string

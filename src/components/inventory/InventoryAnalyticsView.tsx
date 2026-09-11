@@ -32,7 +32,7 @@ export const InventoryAnalyticsView: React.FC = () => {
   const [filterType, setFilterType] = useState<string>('all')
   const [search, setSearch] = useState('')
 
-  const computeDateRange = () => {
+  const computeDateRange = useCallback(() => {
     const now = new Date()
     if (range === 'today') {
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
@@ -47,7 +47,7 @@ export const InventoryAnalyticsView: React.FC = () => {
       return { start, end: undefined }
     }
     return { start: undefined, end: undefined }
-  }
+  }, [range])
 
   const loadAnalytics = useCallback(async () => {
     setLoading(true)
@@ -60,7 +60,7 @@ export const InventoryAnalyticsView: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [range])
+  }, [computeDateRange])
 
   useEffect(() => {
     void loadAnalytics()

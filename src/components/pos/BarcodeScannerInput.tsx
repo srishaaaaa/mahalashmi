@@ -129,7 +129,6 @@ export const BarcodeScannerInput: React.FC<BarcodeScannerInputProps> = ({
     if (clearSignal === undefined) return
     setErrorMsg('')
     setUnknownBarcode('')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clearSignal])
 
   // Handle scanned barcode lookup
@@ -247,18 +246,6 @@ export const BarcodeScannerInput: React.FC<BarcodeScannerInputProps> = ({
       window.removeEventListener('keydown', handleKeyDown, true)
     }
   }, [processBarcode])
-
-  // Touch Device Detection Helper
-  const isTouchDevice = () => {
-    return 'ontouchstart' in window || navigator.maxTouchPoints > 0
-  }
-
-  // Handle Input Bar Click on Touch Devices
-  const handleInputBarClick = () => {
-    if (isTouchDevice()) {
-      setIsCameraOpen(true)
-    }
-  }
 
   // Camera scanner lifecycle & decoding
   useEffect(() => {

@@ -195,7 +195,6 @@ export default function Pos(props: PosProps = {}) {
   }, [fetchProducts, fetchVariants])
 
   // ── Derived data ──────────────────────────────────────────────────────
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const categories = useMemo(() => {
     // Use DB active categories in sort_order; fall back to product categories if DB returns nothing
     if (dbCategories.length > 0) return ['All', ...dbCategories]

@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState, useMemo, useRef, type FormEvent } from 'react'
 import {
   BarChart2, Trash2, Edit2, List, ShoppingCart, LayoutDashboard,
-  Box, AlertCircle, ArrowUp, ArrowDown, Power, Download, TrendingUp, TrendingDown,
+  Box, AlertCircle, Power, Download, TrendingUp, TrendingDown,
   Package, Search, RefreshCw, ShieldCheck, ShieldOff, Trophy,
-  MessageCircle, ChevronDown, Eye, FileText, Printer, MoreVertical, X, Layers, Receipt, Settings,
+  MessageCircle, ChevronDown, Eye, FileText, Printer, X, Layers, Receipt, Settings,
 } from 'lucide-react'
 
 // Custom Malaysian Ringgit icon — replaces the generic dollar-sign icon
@@ -36,22 +36,18 @@ const RMIcon = ({ size = 16, className = '' }: { size?: number; className?: stri
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { debounce } from '../lib/debounce'
-import { useAuthStore, useProductStore, useAdminAuthStore, useSettingsStore, type Product } from '../store/store'
-import { uploadProductImage } from '../lib/storage'
-import { formatCurrency, normalizeOrderMode, normalizeUnitType, toNumber, type UnitType } from '../lib/retail'
+import { useAuthStore, useProductStore, useAdminAuthStore, useSettingsStore } from '../store/store'
+import { formatCurrency, normalizeOrderMode, toNumber } from '../lib/retail'
 import { normalizeStructuredOrderItem, formatInvoiceNo } from '../lib/retail'
 import { Invoice } from '../components/Invoice'
 import { printThermalReceipt } from '../lib/thermalPrint'
 import { buildProfessionalWhatsAppMessage } from '../lib/whatsappMessage'
 import { invoicePdfFile } from '../lib/invoicePdf'
 // toWhatsAppUrl removed - using direct link building in handlers
-import { createVariant, updateVariant, deleteVariant, setDefaultVariant, type ProductVariant } from '../services/variantService'
-import { useVariantStore } from '../store/store'
 import Pos from './Pos'
 import AdvanceOrders from './AdvanceOrders'
 import type { AdvanceOrder } from '../services/advanceOrderService'
 import { InventoryTable } from '../components/inventory/InventoryTable'
-import { CategoryManagerView } from '../components/inventory/CategoryManagerView'
 import { ExpensesView } from '../components/expenses/ExpensesView'
 import { expenseService, type ExpenseRecord } from '../services/expenseService'
 import { useNavigationStore } from '../store/navigationStore'
@@ -71,7 +67,6 @@ import {
   Bar,
 } from 'recharts'
 
-type Category = { id: string | number; name_en: string; name_ta: string; is_active?: boolean; sort_order?: number }
 type DashboardOrder = {
   id: string; invoice_no: string; customer_name: string; phone: string; address: string
   created_at: string; total: number; status: string; order_mode: string; order_type: string; user_id: string | null; items: unknown
@@ -89,7 +84,7 @@ type DashboardCoupon = {
   usage_count: number
   min_order_value: number
 }
-type TabKey = 'overview' | 'whatsapp' | 'pos_analytics' | 'billing' | 'advance_orders' | 'inventory' | 'expenses' | 'products' | 'categories' | 'coupons' | 'users' | 'history' | 'settings'
+type TabKey = 'overview' | 'whatsapp' | 'pos_analytics' | 'billing' | 'advance_orders' | 'inventory' | 'expenses' | 'coupons' | 'users' | 'history' | 'settings'
 type PosAnalyticsTab = 'revenue' | 'today' | 'products' | 'categories' | 'coupons'
 type ProfileUser = { id: string; email: string; name: string; mobile: string; role: string; created_at: string }
 
@@ -123,18 +118,6 @@ const getOrderTotal = (order: { total: unknown; items: unknown; shipping?: unkno
   )
 }
 
-const emptyForm = {
-  name: '', nameTa: '', category: '', categoryId: null as string | number | null,
-  remedy: [] as string[], price: 0, offerPrice: '' as string | number,
-  purchasePrice: '' as string | number, mrp: '' as string | number,
-  sku: '', barcode: '',
-  unitType: 'unit' as UnitType, unitLabel: 'piece', baseQuantity: 1,
-  stockQuantity: 100, stockUnit: 'piece', allowDecimalQuantity: false,
-  predefinedOptionsText: '', isActive: true, sortOrder: 0, stock: 100,
-  description: '', descriptionTa: '', benefits: '', benefitsTa: '', image: '',
-  hasVariants: false,
-}
-
 const exportCSV = (orders: DashboardOrder[]) => {
   const header = ['Order Ref', 'Customer', 'Phone', 'Date', 'Total (INR)', 'Order Type', 'Status']
   const rows = orders.map(o => [
@@ -150,20 +133,6 @@ const exportCSV = (orders: DashboardOrder[]) => {
   a.download = `orders_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   URL.revokeObjectURL(url)
-}
-
-const UNIT_TYPE_OPTIONS: { value: UnitType; label: string; hint: string }[] = [
-  { value: 'unit',   label: 'Unit (piece)',    hint: 'e.g. Soap, biscuit packet, matchbox' },
-  { value: 'weight', label: 'Weight (g / kg)', hint: 'For weight-based grocery items' },
-  { value: 'volume', label: 'Volume (ml / L)', hint: 'e.g. Oil or liquid products' },
-  { value: 'bundle', label: 'Bundle / Set',    hint: 'e.g. Pooja kit, Herbal pack' },
-]
-
-const DEFAULT_OPTIONS_FOR_TYPE: Record<UnitType, string> = {
-  unit:   '',
-  weight: '100g, 250g, 500g, 1kg',
-  volume: '250ml, 500ml, 1L',
-  bundle: '',
 }
 
 export default function Dashboard() {
@@ -208,32 +177,14 @@ export default function Dashboard() {
 
   const [posAnalyticsTab, setPosAnalyticsTab] = useState<PosAnalyticsTab>('revenue')
   const [exportingPdf, setExportingPdf] = useState(false)
-  const [inventorySearch, setInventorySearch] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [imageUploading, setImageUploading] = useState(false)
-  const [productNotice, setProductNotice] = useState('')
-  const [cats, setCats]     = useState<Category[]>([])
+  const [, setLoading] = useState(false)
   const [orders, setOrders] = useState<DashboardOrder[]>([])
   const [orderItems, setOrderItems] = useState<DashboardOrderItem[]>([])
-  const [editingProd, setEditingProd] = useState<Product | null>(null)
-  const [prodForm, setProdForm] = useState(emptyForm)
-  const [newCat, setNewCat] = useState({ name_en: '', name_ta: '' })
-  const [editingCategoryId, setEditingCategoryId] = useState<string | number | null>(null)
-  const [categoryNotice, setCategoryNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [categoryManagerOpen, setCategoryManagerOpen] = useState(false)
-  const [openCategoryMenuId, setOpenCategoryMenuId] = useState<string | number | null>(null)
   const [coupons, setCoupons] = useState<DashboardCoupon[]>([])
   const [couponForm, setCouponForm] = useState({ code: '', percentage: 10, expiry_date: '', usage_limit: '', min_order_value: '' })
   const [couponSaveError, setCouponSaveError] = useState('')
   const [couponSaveSuccess, setCouponSaveSuccess] = useState('')
   const [editingCouponId, setEditingCouponId] = useState<number | null>(null)
-
-  // Variant management state
-  const { getVariants, refetchVariants } = useVariantStore()
-  const [variantForm, setVariantForm] = useState({ name: '', sizeLabel: '', price: '', purchasePrice: '', mrp: '', sku: '', barcode: '', stock: '50', weightValue: '', weightUnit: '', isDefault: false })
-  const [editingVariantId, setEditingVariantId] = useState<string | null>(null)
-  const [variantNotice, setVariantNotice] = useState('')
-  const [variantLoading, setVariantLoading] = useState(false)
 
   const [analyticsTab, setAnalyticsTab] = useState('revenue')
 
@@ -260,13 +211,6 @@ export default function Dashboard() {
     }
   })
 
-  // Categories are a master list. Products reference this list through
-  // category_id; product text is only a legacy display fallback.
-  const activeCategories = useMemo(
-    () => cats.filter(category => category.is_active !== false),
-    [cats]
-  )
-
   // Analytics global date filter
   const [analyticsDatePreset, setAnalyticsDatePreset] = useState<'all' | 'today' | 'week' | 'month' | 'year' | 'custom'>('all')
   const [analyticsDateFrom, setAnalyticsDateFrom] = useState('')
@@ -285,10 +229,6 @@ export default function Dashboard() {
 
   const isAdmin = true // bypassed for local demo
   const l = (en: string, _ta?: string) => en
-
-  const toErr = (err: unknown, fb: string) =>
-    err instanceof Error ? err.message
-    : (err && typeof err === 'object' && 'message' in err) ? String((err as {message?:unknown}).message) || fb : fb
 
   useEffect(() => {
     if (role === 'staff') {
@@ -757,8 +697,7 @@ export default function Dashboard() {
     setLoading(true)
     try {
       const productsPromise = fetchProducts(true)
-      const [cRes, oRes, couponRes, expList] = await Promise.all([
-        supabase.from('categories').select('id, name_en, name_ta, is_active, sort_order').order('sort_order'),
+      const [oRes, couponRes, expList] = await Promise.all([
         supabase.from('orders')
           .select('id, invoice_no, customer_name, phone, address, created_at, total, status, order_mode, order_type, user_id, items, coupon_code, discount_amount, manual_discount_amount, delivery_charge, total_gst, gst_amount, payment_mode, payment_method, invoice_pdf_url, remarks, reference_number')
           .order('created_at', { ascending: false })
@@ -768,10 +707,8 @@ export default function Dashboard() {
           .order('created_at', { ascending: false }),
         expenseService.getExpenses(),
       ])
-      if (cRes.error) throw cRes.error
       if (oRes.error) throw oRes.error
       const mappedOrders = (oRes.data || []).map(r => toDashboardOrder(r as Record<string, unknown>))
-      setCats((cRes.data || []) as Category[])
       setOrders(mappedOrders)
       setSearchResults(mappedOrders.filter(o => normalizeOrderType(o.order_type) !== 'online_request').slice(0, 100))
       setCoupons((couponRes.data || []) as DashboardCoupon[])
@@ -1217,276 +1154,6 @@ export default function Dashboard() {
       setSearchResults([])
     } finally {
       setSearchLoading(false)
-    }
-  }
-
-  // ΓöÇΓöÇ Product CRUD ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-  const handleSaveProd = async (e: FormEvent) => {
-    e.preventDefault()
-    setProductNotice('')
-    setLoading(true)
-    try {
-      const unitType = normalizeUnitType(prodForm.unitType)
-
-      // Parse predefined options from text
-      let predefined_options: unknown[] = []
-      if (prodForm.predefinedOptionsText.trim() && (unitType === 'weight' || unitType === 'volume')) {
-        const baseUnit = unitType === 'weight' ? 'g' : 'ml'
-        predefined_options = prodForm.predefinedOptionsText.split(',').map(s => s.trim()).filter(Boolean).map(raw => {
-          const m = raw.match(/^([0-9.]+)\s*(g|kg|ml|l)?$/i)
-          if (!m) return null
-          let qty = parseFloat(m[1])
-          const unit = (m[2] || baseUnit).toLowerCase()
-          if (unit === 'kg') qty *= 1000
-          if (unit === 'l')  qty *= 1000
-          const label = unit === 'kg' ? `${parseFloat(m[1])}kg` : unit === 'l' ? `${parseFloat(m[1])}L` : `${qty}${baseUnit}`
-          return { quantity: qty, unit: baseUnit, label }
-        }).filter(Boolean)
-      }
-
-      const payload = {
-        name: prodForm.name.trim(), name_ta: prodForm.nameTa.trim(), tamil_name: prodForm.nameTa.trim(),
-        category: prodForm.category.trim(), category_id: prodForm.categoryId || null,
-        remedy: prodForm.remedy, price: toNumber(prodForm.price, 0),
-        offer_price: prodForm.offerPrice === '' ? null : toNumber(prodForm.offerPrice, 0),
-        purchase_price: prodForm.purchasePrice === '' ? null : toNumber(prodForm.purchasePrice, 0),
-        mrp: prodForm.mrp === '' ? null : toNumber(prodForm.mrp, 0),
-        sku: prodForm.sku || null,
-        barcode: prodForm.barcode || null,
-        unit_type: unitType, unit_label: prodForm.unitLabel,
-        base_quantity: toNumber(prodForm.baseQuantity, 1),
-        stock_quantity: toNumber(prodForm.stockQuantity, 0),
-        stock: Math.floor(toNumber(prodForm.stockQuantity, 0)),
-        allow_decimal_quantity: prodForm.allowDecimalQuantity,
-        predefined_options: predefined_options.length > 0 ? predefined_options : [],
-        is_active: prodForm.isActive, sort_order: toNumber(prodForm.sortOrder, 0),
-        has_variants: !!(prodForm as Record<string, unknown>).hasVariants,
-        description: prodForm.description, benefits: prodForm.benefits,
-        image_url: prodForm.image || '/product-placeholder.svg',
-        image:     prodForm.image || '/product-placeholder.svg',
-      }
-
-      const { error } = editingProd
-        ? await supabase.from('products').update(payload).eq('id', editingProd.id)
-        : await supabase.from('products').insert(payload)
-      if (error) throw error
-      setProductNotice(editingProd ? 'Product updated!' : 'Product added!')
-      setEditingProd(null); setProdForm(emptyForm)
-      await loadData()
-    } catch (err) { setProductNotice(toErr(err, 'Error saving product')) }
-    finally { setLoading(false) }
-  }
-
-  const handleEdit = (p: Product) => {
-    setEditingProd(p)
-    const optText = (p.predefinedOptions || []).map(o => o.label).join(', ')
-    setProdForm({
-      name: p.name, nameTa: p.nameTa || p.tamilName || '', category: p.category,
-      categoryId: p.categoryId ?? null, remedy: p.remedy || [],
-      price: p.price, offerPrice: p.offerPrice || '',
-      purchasePrice: p.purchasePrice || '', mrp: p.mrp || '',
-      sku: p.sku || '', barcode: p.barcode || '',
-      unitType: p.unitType,
-      unitLabel: p.unitLabel, baseQuantity: p.baseQuantity,
-      stockQuantity: p.stockQuantity || p.stock, stockUnit: p.stockUnit,
-      allowDecimalQuantity: p.allowDecimalQuantity, predefinedOptionsText: optText,
-      isActive: p.isActive, sortOrder: p.sortOrder, stock: p.stock,
-      description: p.description, descriptionTa: p.descriptionTa || '',
-      benefits: p.benefits || '', benefitsTa: p.benefitsTa || '',
-      image: p.image || p.imageUrl || '',
-      hasVariants: p.hasVariants ?? false,
-    } as typeof prodForm)
-    setVariantNotice('')
-    setEditingVariantId(null)
-    setVariantForm({ name: '', sizeLabel: '', price: '', purchasePrice: '', mrp: '', sku: '', barcode: '', stock: '50', weightValue: '', weightUnit: '', isDefault: false })
-    setTab('products')
-  }
-
-  const handleToggleActive = async (p: Product) => {
-    const { error } = await supabase.from('products').update({ is_active: !p.isActive }).eq('id', p.id)
-    if (error) { setProductNotice(error.message); return }
-    setProductNotice(`Product ${p.isActive ? 'deactivated' : 'activated'}`)
-    await loadData()
-  }
-
-  const handleDeleteProd = async (id: string | number) => {
-    if (!window.confirm('Permanently deactivate this product?')) return
-    const { error } = await supabase.from('products').update({ is_active: false }).eq('id', id)
-    if (error) { setProductNotice(error.message); return }
-    setProductNotice('Product deactivated'); await loadData()
-  }
-
-  const handleSaveVariant = async (e: import('react').FormEvent) => {
-    e.preventDefault()
-    if (!editingProd) return
-    setVariantLoading(true)
-    setVariantNotice('')
-    const price = Number(variantForm.price)
-    const stock = Number(variantForm.stock)
-    if (!variantForm.name.trim()) { setVariantNotice('Variant name required'); setVariantLoading(false); return }
-    if (!(price > 0)) { setVariantNotice('Enter valid price'); setVariantLoading(false); return }
-    try {
-      const payload = {
-        productId:   String(editingProd.id),
-        variantName: variantForm.name.trim(),
-        sizeLabel:   variantForm.sizeLabel.trim() || null,
-        price,
-        stock,
-        purchasePrice: variantForm.purchasePrice ? Number(variantForm.purchasePrice) : null,
-        mrp:         variantForm.mrp ? Number(variantForm.mrp) : null,
-        sku:         variantForm.sku.trim() || null,
-        barcode:     variantForm.barcode.trim() || null,
-        weightValue: variantForm.weightValue ? Number(variantForm.weightValue) : null,
-        weightUnit:  variantForm.weightUnit.trim() || null,
-        isDefault:   variantForm.isDefault,
-        sortOrder:   getVariants(String(editingProd.id)).length,
-      }
-      if (editingVariantId) {
-        const { error } = await updateVariant(editingVariantId, payload)
-        if (error) throw new Error(error)
-        setVariantNotice('Variant updated!')
-      } else {
-        const { error } = await createVariant(payload)
-        if (error) throw new Error(error)
-        setVariantNotice('Variant added!')
-        // Ensure product has_variants = true
-        if (!editingProd.hasVariants) {
-          await supabase.from('products').update({ has_variants: true }).eq('id', editingProd.id)
-        }
-      }
-      setVariantForm({ name: '', sizeLabel: '', price: '', purchasePrice: '', mrp: '', sku: '', barcode: '', stock: '50', weightValue: '', weightUnit: '', isDefault: false })
-      setEditingVariantId(null)
-      await refetchVariants()
-    } catch (err) { setVariantNotice(toErr(err, 'Error saving variant')) }
-    finally { setVariantLoading(false) }
-  }
-
-  const handleDeleteVariant = async (variantId: string) => {
-    if (!window.confirm('Remove this variant?')) return
-    const { error } = await deleteVariant(variantId)
-    if (error) { setVariantNotice(error); return }
-    setVariantNotice('Variant removed')
-    await refetchVariants()
-  }
-
-  const handleSetDefault = async (variantId: string) => {
-    if (!editingProd) return
-    const { error } = await setDefaultVariant(variantId, String(editingProd.id))
-    if (!error) { setVariantNotice('Default updated'); await refetchVariants() }
-  }
-
-  const startEditVariant = (v: ProductVariant) => {
-    setEditingVariantId(v.id)
-    setVariantForm({
-      name: v.variantName, sizeLabel: v.sizeLabel || '', price: String(v.price),
-      purchasePrice: String(v.purchasePrice || ''), mrp: String(v.mrp || ''),
-      sku: v.sku || '', barcode: v.barcode || '',
-      stock: String(v.stock), weightValue: String(v.weightValue || ''), weightUnit: v.weightUnit || '', isDefault: !!v.isDefault
-    })
-    setVariantNotice('')
-  }
-
-  const handleUploadImage = async (file?: File) => {
-    if (!file) return
-    setImageUploading(true)
-    try { const url = await uploadProductImage(file); setProdForm(p => ({ ...p, image: url })); setProductNotice('Image uploaded!') }
-    catch (err) { setProductNotice(toErr(err, 'Upload failed')) }
-    finally { setImageUploading(false) }
-  }
-
-  const onAddCat = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!newCat.name_en.trim()) return
-    const payload = { ...newCat, name_en: newCat.name_en.trim() }
-    const { error } = editingCategoryId === null
-      ? await supabase.from('categories').insert({ ...payload, is_active: true })
-      : await supabase.from('categories').update(payload).eq('id', editingCategoryId)
-    if (error) {
-      setCategoryNotice({ type: 'error', text: error.message || 'Could not add category.' })
-      return
-    }
-    const wasEditing = editingCategoryId !== null
-    setNewCat({ name_en: '', name_ta: '' })
-    setEditingCategoryId(null)
-    setCategoryNotice({ type: 'success', text: wasEditing ? 'Category updated successfully.' : 'Category added successfully.' })
-    await loadData()
-  }
-
-  const deleteCat = async (c: Category) => {
-    if (!window.confirm(`Delete "${c.name_en}"? This cannot be undone.`)) return
-    const { error: linkedProductsError } = await supabase
-      .from('products')
-      .update({ category: 'Uncategorized', category_id: null })
-      .eq('category_id', c.id)
-    if (linkedProductsError) {
-      setCategoryNotice({ type: 'error', text: linkedProductsError.message || 'Could not unlink products from category.' })
-      return
-    }
-    const { error: legacyProductsError } = await supabase
-      .from('products')
-      .update({ category: 'Uncategorized', category_id: null })
-      .eq('category', c.name_en)
-    if (legacyProductsError) {
-      setCategoryNotice({ type: 'error', text: legacyProductsError.message || 'Could not sync products.' })
-      return
-    }
-    const { error } = await supabase.from('categories').delete().eq('id', c.id)
-    if (error) {
-      setCategoryNotice({ type: 'error', text: error.message || 'Could not delete category.' })
-      return
-    }
-    if (prodForm.categoryId === c.id || prodForm.category === c.name_en) {
-      setProdForm(form => ({ ...form, category: '', categoryId: null }))
-    }
-    setCategoryNotice({ type: 'success', text: `"${c.name_en}" deleted.` })
-    await loadData()
-  }
-
-  const toggleCat = async (c: Category) => {
-    // Optimistic update
-    setCats(prev => prev.map(cat => cat.id === c.id ? { ...cat, is_active: !c.is_active } : cat))
-    const { error } = await supabase.from('categories').update({ is_active: !c.is_active }).eq('id', c.id)
-    if (error) {
-      setCategoryNotice({ type: 'error', text: 'Failed to update category status.' })
-      // Revert on error
-      setCats(prev => prev.map(cat => cat.id === c.id ? { ...cat, is_active: c.is_active } : cat))
-    }
-  }
-
-  const moveCat = async (c: Category, dir: 'up' | 'down') => {
-    const currentIndex = cats.findIndex(cat => cat.id === c.id)
-    if (dir === 'up' && currentIndex > 0) {
-      const prevCat = cats[currentIndex - 1]
-      const normalizedCats = cats.map((cat, i) => ({ ...cat, sort_order: i * 10 }))
-      const currentNormalized = normalizedCats[currentIndex]
-      const prevNormalized = normalizedCats[currentIndex - 1]
-      
-      const temp = currentNormalized.sort_order
-      currentNormalized.sort_order = prevNormalized.sort_order
-      prevNormalized.sort_order = temp
-      
-      setCats(normalizedCats.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)))
-      
-      await Promise.all([
-        supabase.from('categories').update({ sort_order: currentNormalized.sort_order }).eq('id', c.id),
-        supabase.from('categories').update({ sort_order: prevNormalized.sort_order }).eq('id', prevCat.id)
-      ])
-    } else if (dir === 'down' && currentIndex < cats.length - 1) {
-      const nextCat = cats[currentIndex + 1]
-      const normalizedCats = cats.map((cat, i) => ({ ...cat, sort_order: i * 10 }))
-      const currentNormalized = normalizedCats[currentIndex]
-      const nextNormalized = normalizedCats[currentIndex + 1]
-      
-      const temp = currentNormalized.sort_order
-      currentNormalized.sort_order = nextNormalized.sort_order
-      nextNormalized.sort_order = temp
-      
-      setCats(normalizedCats.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)))
-      
-      await Promise.all([
-        supabase.from('categories').update({ sort_order: currentNormalized.sort_order }).eq('id', c.id),
-        supabase.from('categories').update({ sort_order: nextNormalized.sort_order }).eq('id', nextCat.id)
-      ])
     }
   }
 
@@ -3364,531 +3031,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ΓöÇΓöÇ INVENTORY TAB ΓöÇΓöÇ */}
-        {tab === 'products' && (
-          <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-            {/* Product Form */}
-            <div className="xl:col-span-2">
-              <form onSubmit={handleSaveProd} className="bg-white rounded-2xl border border-borderLight p-6 shadow-sm space-y-5">
-                <h3 className="text-[18px] font-black text-[#111111]">{editingProd ? l('Edit Product', 'திருத்து') : l('Add Product', 'சேர்க்கவும்')}</h3>
-
-                {productNotice && (
-                  <div className={`p-3 rounded-xl text-[13px] font-bold text-center ${productNotice.includes('!') && !productNotice.toLowerCase().includes('error') && !productNotice.toLowerCase().includes('fail') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                    {productNotice}
-                  </div>
-                )}
-
-                {/* Product Type */}
-                <div>
-                  <label className="block text-[11px] font-black uppercase text-[#6B7280] tracking-wider mb-2">{l('Product Type', 'பொருள் வகை')} *</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {UNIT_TYPE_OPTIONS.map(opt => (
-                      <button key={opt.value} type="button"
-                        onClick={() => {
-                          const defaults = DEFAULT_OPTIONS_FOR_TYPE[opt.value]
-                          const unitLabel = opt.value === 'weight' ? 'g' : opt.value === 'volume' ? 'ml' : opt.value === 'bundle' ? 'bundle' : 'piece'
-                          const baseQty = opt.value === 'weight' ? 100 : opt.value === 'volume' ? 250 : 1
-                          setProdForm(f => ({ ...f, unitType: opt.value, unitLabel, baseQuantity: baseQty, predefinedOptionsText: defaults, allowDecimalQuantity: opt.value === 'weight' || opt.value === 'volume' }))
-                        }}
-                        className={`p-3 rounded-xl text-left border-2 transition-colors ${prodForm.unitType === opt.value ? 'border-[#2E7D32] bg-[#0A0A0A]/5' : 'border-[#F3F4F6] hover:border-[#D1D5DB]'}`}>
-                        <p className={`text-[13px] font-black ${prodForm.unitType === opt.value ? 'text-[#0A0A0A]' : 'text-[#111111]'}`}>{opt.label}</p>
-                        <p className="text-[11px] text-[#6B7280] leading-tight mt-1">{opt.hint}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <label className="block text-[11px] font-black uppercase text-[#6B7280] tracking-wider mb-1">{l('Product Name', 'பொருள் பெயர்')} *</label>
-                    <input required className="w-full px-4 py-2.5 bg-[#FAFAFA] border border-[#F3F4F6] focus:border-[#2E7D32] rounded-xl text-[13px] font-bold outline-none transition-colors"
-                      placeholder="e.g. Manjal Podi" value={prodForm.name} onChange={e => setProdForm(f => ({...f, name: e.target.value}))} />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-[11px] font-black uppercase text-[#6B7280] tracking-wider mb-1">{l('Tamil Name', 'தமிழ் பெயர்')}</label>
-                    <input className="w-full px-4 py-2.5 bg-[#FAFAFA] border border-[#F3F4F6] focus:border-[#2E7D32] rounded-xl text-[13px] font-bold outline-none transition-colors"
-                      placeholder="எ.கா. மஞ்சள் பொடி" value={prodForm.nameTa} onChange={e => setProdForm(f => ({...f, nameTa: e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-black uppercase text-[#6B7280] tracking-wider mb-1">{l('Price (INR)', 'விலை (INR)')} *</label>
-                    <input required type="number" min="0" step="0.01"
-                      className="w-full px-4 py-2.5 bg-[#FAFAFA] border border-[#F3F4F6] focus:border-[#2E7D32] rounded-xl text-[13px] font-bold outline-none transition-colors"
-                      value={prodForm.price} onChange={e => setProdForm(f => ({...f, price: Number(e.target.value)}))} />
-                    <p className="text-[11px] text-[#6B7280] mt-1">
-                      {prodForm.unitType === 'weight' ? `Per ${prodForm.baseQuantity}g` : prodForm.unitType === 'volume' ? `Per ${prodForm.baseQuantity}ml` : 'Per piece/bundle'}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-black uppercase text-[#6B7280] tracking-wider mb-1">{l('Purchase Price (INR)', 'வாங்கிய விலை')} *</label>
-                    <input required type="number" min="0" step="0.01"
-                      className="w-full px-4 py-2.5 bg-[#FAFAFA] border border-[#F3F4F6] focus:border-[#2E7D32] rounded-xl text-[13px] font-bold outline-none transition-colors"
-                      value={prodForm.purchasePrice} onChange={e => setProdForm(f => ({...f, purchasePrice: Number(e.target.value)}))} />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-black uppercase text-[#6B7280] tracking-wider mb-1">{l('MRP (INR)', 'MRP (INR)')}</label>
-                    <input type="number" min="0" step="0.01"
-                      className="w-full px-4 py-2.5 bg-[#FAFAFA] border border-[#F3F4F6] focus:border-[#2E7D32] rounded-xl text-[13px] font-bold outline-none transition-colors"
-                      placeholder="Maximum Retail Price"
-                      value={prodForm.mrp} onChange={e => setProdForm(f => ({...f, mrp: e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-black uppercase text-[#6B7280] tracking-wider mb-1">{l('Offer Price (INR)', 'சலுகை விலை')}</label>
-                    <input type="number" min="0" step="0.01"
-                      className="w-full px-4 py-2.5 bg-[#FAFAFA] border border-[#F3F4F6] focus:border-[#2E7D32] rounded-xl text-[13px] font-bold outline-none transition-colors"
-                      placeholder="Leave blank for no discount"
-                      value={prodForm.offerPrice} onChange={e => setProdForm(f => ({...f, offerPrice: e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-black uppercase text-[#6B7280] tracking-wider mb-1">{l('SKU', 'SKU')}</label>
-                    <input className="w-full px-4 py-2.5 bg-[#FAFAFA] border border-[#F3F4F6] focus:border-[#2E7D32] rounded-xl text-[13px] font-bold outline-none transition-colors"
-                      placeholder="e.g. MP-100G" value={prodForm.sku} onChange={e => setProdForm(f => ({...f, sku: e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-black uppercase text-[#6B7280] tracking-wider mb-1">{l('Barcode', 'பார்கோடு')}</label>
-                    <input className="w-full px-4 py-2.5 bg-[#FAFAFA] border border-[#F3F4F6] focus:border-[#2E7D32] rounded-xl text-[13px] font-bold outline-none transition-colors"
-                      placeholder="e.g. 8998765432100" value={prodForm.barcode} onChange={e => setProdForm(f => ({...f, barcode: e.target.value}))} />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-black uppercase text-[#6B7280] tracking-wider mb-1">{l('Stock', 'இருப்பு')} *</label>
-                    <input required type="number" min="0"
-                      className="w-full px-4 py-2.5 bg-[#FAFAFA] border border-[#F3F4F6] focus:border-[#2E7D32] rounded-xl text-[13px] font-bold outline-none transition-colors"
-                      value={prodForm.stockQuantity} onChange={e => setProdForm(f => ({...f, stockQuantity: Number(e.target.value)}))} />
-                  </div>
-                  <div className="col-span-2 sm:col-span-1">
-                    <label className="block text-[11px] font-black uppercase text-[#6B7280] tracking-wider mb-1">{l('Category', 'வகை')} *</label>
-                    <select required className="w-full min-w-0 h-11 px-4 py-2.5 bg-[#FAFAFA] border border-[#F3F4F6] focus:border-[#2E7D32] rounded-xl text-[13px] font-bold outline-none transition-colors touch-manipulation"
-                      value={prodForm.category}
-                      onChange={e => {
-                        const sel = cats.find(c => c.name_en === e.target.value)
-                        setProdForm(f => ({ ...f, category: e.target.value, categoryId: sel?.id || null }))
-                      }}>
-                      <option value="">{l('Select category...', 'வகை தேர்வு செய்யுங்கள்...')}</option>
-                      {cats.map(c => <option key={c.id} value={c.name_en}>{c.name_en}</option>)}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => setCategoryManagerOpen(open => !open)}
-                      className="mt-2 text-[11px] font-black text-[#0A0A0A] hover:underline"
-                    >
-                      {categoryManagerOpen ? 'Hide categories' : 'Manage categories'}
-                    </button>
-                    {categoryManagerOpen && (
-                      <div className="mt-2 rounded-xl border border-[#E5E7EB]/60 bg-white p-2 space-y-1">
-                        {cats.length === 0 ? (
-                          <p className="px-2 py-1 text-[11px] text-[#6B7280]">No categories available.</p>
-                        ) : activeCategories.map(c => (
-                          <div key={c.id} className="relative flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-red-50">
-                            <span className="break-words text-[12px] font-bold text-[#111111]">{c.name_en}</span>
-                            <button
-                              type="button"
-                              onClick={() => setOpenCategoryMenuId(id => id === c.id ? null : c.id)}
-                              className="shrink-0 rounded-lg p-1.5 text-[#6B7280] hover:bg-white hover:text-[#111111]"
-                              aria-label={`Actions for ${c.name_en}`}
-                            >
-                              <MoreVertical size={14} />
-                            </button>
-                            {openCategoryMenuId === c.id && (
-                              <div className="absolute right-2 top-9 z-20 min-w-28 rounded-xl border border-[#E5E7EB]/60 bg-white p-1 shadow-lg">
-                                <button type="button" onClick={() => { setEditingCategoryId(c.id); setNewCat({ name_en: c.name_en, name_ta: c.name_ta || '' }); setOpenCategoryMenuId(null) }} className="block w-full rounded-lg px-3 py-2 text-left text-[11px] font-bold text-[#111111] hover:bg-[#F9FAFB]">Edit / Rename</button>
-                                <button type="button" onClick={() => { setOpenCategoryMenuId(null); void deleteCat(c) }} className="block w-full rounded-lg px-3 py-2 text-left text-[11px] font-bold text-red-600 hover:bg-red-50">Delete</button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Predefined Options (weight/volume only) */}
-                {(prodForm.unitType === 'weight' || prodForm.unitType === 'volume') && (
-                  <div>
-                    <label className="block text-[11px] font-black uppercase text-[#6B7280] tracking-wider mb-1">
-                      Size Options (comma-separated)
-                    </label>
-                    <input className="w-full px-4 py-2.5 bg-[#FAFAFA] border border-[#F3F4F6] focus:border-[#2E7D32] rounded-xl text-[13px] font-bold outline-none transition-colors"
-                      placeholder={prodForm.unitType === 'weight' ? '100g, 250g, 500g, 1kg' : '250ml, 500ml, 1L'}
-                      value={prodForm.predefinedOptionsText}
-                      onChange={e => setProdForm(f => ({...f, predefinedOptionsText: e.target.value}))} />
-                    <p className="text-[11px] text-[#6B7280] mt-1">{l('These become the selectable size buttons on the product card.', 'இவை பொருள் அட்டையில் அளவு பொத்தான்களாக காட்டப்படும்.')}</p>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-[11px] font-black uppercase text-[#6B7280] tracking-wider mb-1">{l('Description', 'விளக்கம்')}</label>
-                  <textarea rows={2} className="w-full px-4 py-2.5 bg-[#FAFAFA] border border-[#F3F4F6] focus:border-[#2E7D32] rounded-xl text-[13px] font-bold outline-none transition-colors resize-none"
-                    placeholder="Short product description..." value={prodForm.description}
-                    onChange={e => setProdForm(f => ({...f, description: e.target.value}))} />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black uppercase text-[#6B7280] tracking-wider mb-1">{l('Benefits / Health Tags', 'நன்மைகள்')}</label>
-                  <input className="w-full px-4 py-2.5 bg-[#FAFAFA] border border-[#F3F4F6] focus:border-[#2E7D32] rounded-xl text-[13px] font-bold outline-none transition-colors"
-                    placeholder="Immunity, Digestion (comma-separated)"
-                    value={prodForm.benefits}
-                    onChange={e => setProdForm(f => ({...f, benefits: e.target.value}))} />
-                </div>
-
-                {/* Image */}
-                <div className="space-y-3">
-                  <label className="block text-[11px] font-black uppercase text-[#6B7280] tracking-wider">{l('Product Image', 'படம்')}</label>
-                  <input className="w-full px-4 py-2.5 bg-[#FAFAFA] border border-[#F3F4F6] focus:border-[#2E7D32] rounded-xl text-[13px] font-bold outline-none transition-colors"
-                    placeholder="https://... (image URL)"
-                    value={prodForm.image} onChange={e => setProdForm(f => ({...f, image: e.target.value}))} />
-                  <input type="file" accept="image/*"
-                    className="w-full px-4 py-2 bg-[#FAFAFA] border border-[#F3F4F6] rounded-xl text-[12px] text-[#6B7280]"
-                    onChange={e => void handleUploadImage(e.target.files?.[0])} />
-                  {imageUploading && <p className="text-[12px] text-[#0A0A0A] font-bold">{l('Uploading image...', 'படம் பதிவேற்றுகிறது...')}</p>}
-                  {prodForm.image && (
-                    <div className="w-20 h-20 rounded-xl overflow-hidden bg-[#FAFAFA] border border-borderLight shadow-sm">
-                      <img src={prodForm.image} alt="preview" className="w-full h-full object-cover" />
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3 pt-2">
-                  <input type="checkbox" id="isActive" checked={prodForm.isActive}
-                    onChange={e => setProdForm(f => ({...f, isActive: e.target.checked}))}
-                    className="w-4 h-4 text-[#0A0A0A] rounded focus:ring-maroon-dark accent-maroon-dark"
-                  />
-                  <label htmlFor="isActive" className="text-[14px] font-bold text-[#111111]">{l('Active (visible in store)', 'கடையில் காட்டு')}</label>
-                </div>
-                <div className="flex items-center gap-3">
-                  <input type="checkbox" id="hasVariants"
-                    checked={!!prodForm.hasVariants}
-                    onChange={e => setProdForm(f => ({...f, hasVariants: e.target.checked} as typeof f))}
-                    className="w-4 h-4 text-[#0A0A0A] rounded focus:ring-maroon-dark accent-maroon-dark"
-                  />
-                  <label htmlFor="hasVariants" className="text-[14px] font-bold text-[#111111]">
-                    {l('Has Variants (brands/sizes)', 'வகைகள் உள்ளன')}
-                  </label>
-                </div>
-
-                <div className="flex gap-3 pt-3 border-t border-borderLight">
-                  <button type="submit" disabled={loading}
-                    className="flex-grow py-3 bg-[#0A0A0A] hover:bg-[#721528] text-white font-black rounded-xl disabled:opacity-60 transition-colors shadow-sm text-[13px]">
-                    {loading ? l('Saving...','சேமிக்கிறது...') : editingProd ? l('Update Product','புதுப்பி') : l('Add Product','சேர்க்கவும்')}
-                  </button>
-                  <button type="button" onClick={() => { setEditingProd(null); setProdForm(emptyForm); setProductNotice('') }}
-                    className="px-6 py-3 bg-[#F3F4F6] text-[#111111] font-bold rounded-xl hover:bg-[#E5E7EB] transition-colors text-[13px]">
-                    Reset
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* Product List */}
-            <div className="xl:col-span-3">
-              <div className="bg-white rounded-2xl border border-borderLight shadow-sm overflow-hidden flex flex-col h-full">
-                <div className="px-6 py-5 border-b border-borderLight flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white">
-                  <div>
-                    <h3 className="text-[18px] font-black text-[#111111]">{l('Products', 'பொருட்கள்')} <span className="text-[#6B7280] font-medium text-[16px]">({products.length})</span></h3>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]" />
-                      <input
-                        type="text"
-                        placeholder={l('Search items...', 'பொருட்களை தேட...')}
-                        value={inventorySearch}
-                        onChange={e => setInventorySearch(e.target.value)}
-                        className="pl-10 pr-4 py-2 rounded-xl border border-[#F3F4F6] text-[13px] bg-[#FAFAFA] focus:bg-white outline-none focus:border-[#2E7D32] w-[180px] lg:w-[240px] transition-colors shadow-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="md:hidden flex-1 divide-y divide-[#F3F4F6] bg-white overflow-y-auto">
-                  {products.filter(p => !inventorySearch || p.name.toLowerCase().includes(inventorySearch.toLowerCase()) || p.tamilName?.toLowerCase().includes(inventorySearch.toLowerCase()) || p.category?.toLowerCase().includes(inventorySearch.toLowerCase())).map(p => (
-                    <div key={p.id} className={`px-4 py-3 flex items-center gap-3 ${!p.isActive ? 'opacity-60' : ''}`}>
-                      <div className="w-10 h-10 rounded-xl overflow-hidden bg-[#FAFAFA] border border-[#F3F4F6] shrink-0 shadow-sm" onClick={() => handleEdit(p)}>
-                        <img src={p.image || p.imageUrl || ''} alt={p.name}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                      </div>
-                      <div className="min-w-0 flex-1" onClick={() => handleEdit(p)}>
-                        <p className="font-bold text-[#111111] text-[13px] break-words">{p.name}</p>
-                        <p className="text-[11px] text-[#6B7280] mt-0.5 break-words">
-                          {[p.category, p.unitType, formatCurrency(p.price)].filter(Boolean).join(' · ')}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className={`inline-block text-[12px] font-bold px-2 py-0.5 rounded-md ${toNumber(p.stockQuantity ?? p.stock, 0) < 10 ? 'text-red-500 bg-red-50' : 'text-[#111111]'}`}>
-                          {toNumber(p.stockQuantity ?? p.stock, 0)}
-                        </span>
-                        <div className="flex items-center justify-end gap-1.5 mt-1.5">
-                          <button onClick={() => handleEdit(p)} title="Edit product" className="p-2 text-[#6B7280] hover:text-[#0A0A0A] hover:bg-[#0A0A0A]/5 rounded-lg transition-colors shadow-sm bg-white border border-[#F3F4F6]">
-                            <Edit2 size={14} />
-                          </button>
-                          <button onClick={() => void handleToggleActive(p)} title={p.isActive ? 'Deactivate' : 'Activate'} className={`p-2 rounded-lg transition-colors shadow-sm bg-white border border-[#F3F4F6] ${p.isActive ? 'text-amber-500 hover:bg-amber-50' : 'text-green-600 hover:bg-green-50'}`}>
-                            <Power size={14} />
-                          </button>
-                          <button onClick={() => void handleDeleteProd(p.id)} title="Delete product" className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shadow-sm bg-white border border-[#F3F4F6]">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="hidden md:block overflow-x-auto flex-1 bg-white">
-                  <table className="w-full min-w-[640px] text-left border-collapse">
-                    <thead className="bg-[#FAFAFA] text-[11px] uppercase tracking-wider text-[#6B7280] border-b border-borderLight">
-                      <tr>
-                        <th className="px-6 py-4 font-black">{l('Product Name', 'பொருள்')}</th>
-                        <th className="px-4 py-4 font-black">{l('Type', 'வகை')}</th>
-                        <th className="px-4 py-4 font-black">{l('Stock', 'இருப்பு')}</th>
-                        <th className="px-4 py-4 font-black">{l('Price', 'விலை')}</th>
-                        <th className="px-6 py-4 font-black text-right">{l('Actions', 'நடவடிக்கை')}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-[14px] divide-y divide-[#F3F4F6] bg-white">
-                      {products.filter(p => !inventorySearch || p.name.toLowerCase().includes(inventorySearch.toLowerCase()) || p.tamilName?.toLowerCase().includes(inventorySearch.toLowerCase()) || p.category?.toLowerCase().includes(inventorySearch.toLowerCase())).map(p => (
-                        <tr key={p.id} className={`hover:bg-[#FAFAFA] transition-colors cursor-pointer ${!p.isActive ? 'opacity-60' : ''}`}>
-                          <td className="px-6 py-4" onClick={() => handleEdit(p)}>
-                            <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 rounded-xl overflow-hidden bg-[#FAFAFA] border border-[#F3F4F6] shrink-0 shadow-sm">
-                                <img src={p.image || p.imageUrl || ''} alt={p.name}
-                                  className="w-full h-full object-cover"
-                                  loading="lazy"
-                                  onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="font-bold text-[#111111] break-words max-w-[200px]">{p.name}</p>
-                                <p className="text-[12px] text-[#6B7280] mt-0.5">{p.category}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4">
-                            <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${
-                              p.unitType === 'weight' ? 'bg-[#E0F2FE] text-[#0369A1]' :
-                              p.unitType === 'volume' ? 'bg-[#F3E8FF] text-[#7E22CE]' :
-                              p.unitType === 'bundle' ? 'bg-[#FFEDD5] text-[#C2410C]' :
-                              'bg-[#F3F4F6] text-[#4B5563]'
-                            }`}>{p.unitType}</span>
-                          </td>
-                          <td className="px-4 py-4 font-bold">
-                            <span className={toNumber(p.stockQuantity ?? p.stock, 0) < 10 ? 'text-red-500 bg-red-50 px-2 py-0.5 rounded-md' : 'text-[#111111]'}>
-                              {toNumber(p.stockQuantity ?? p.stock, 0)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4 font-bold text-[#111111]">{formatCurrency(p.price)}</td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button onClick={() => handleEdit(p)} title="Edit product" className="p-2 text-[#6B7280] hover:text-[#0A0A0A] hover:bg-[#0A0A0A]/5 rounded-lg transition-colors shadow-sm bg-white border border-[#F3F4F6]">
-                                <Edit2 size={16} />
-                              </button>
-                              <button onClick={() => void handleToggleActive(p)} title={p.isActive ? 'Deactivate' : 'Activate'} className={`p-2 rounded-lg transition-colors shadow-sm bg-white border border-[#F3F4F6] ${p.isActive ? 'text-amber-500 hover:bg-amber-50' : 'text-green-600 hover:bg-green-50'}`}>
-                                <Power size={16} />
-                              </button>
-                              <button onClick={() => void handleDeleteProd(p.id)} title="Delete product" className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shadow-sm bg-white border border-[#F3F4F6]">
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            {/* Variant Management Panel - shown when editing a variant product */}
-            {editingProd && (
-              <div className="xl:col-span-5 bg-white rounded-2xl border border-borderLight p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-[18px] font-black text-[#111111]">
-                    {l('Variants', 'வகைகள்')} - <span className="text-[#6B7280]">{editingProd.name}</span>
-                    {!editingProd.hasVariants && (
-                      <span className="ml-3 text-[12px] font-bold text-amber-700 bg-amber-50 px-3 py-1 rounded-full">
-                        {l('Enable "Has Variants" above to manage variants', '"வகைகள் உள்ளன" இயக்கவும்')}
-                      </span>
-                    )}
-                  </h3>
-                  {variantNotice && (
-                    <span className={`text-[13px] font-bold px-3 py-1.5 rounded-xl ${variantNotice.toLowerCase().includes('error') || variantNotice.toLowerCase().includes('required') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                      {variantNotice}
-                    </span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                  {/* Add / Edit variant form */}
-                  <form onSubmit={handleSaveVariant} className="space-y-4 bg-[#FAFAFA] rounded-2xl p-5 border border-[#F3F4F6]">
-                    <h4 className="text-[13px] font-black uppercase tracking-wider text-[#111111]">
-                      {editingVariantId ? l('Edit Variant', 'வகை திருத்து') : l('Add Variant', 'வகை சேர்')}
-                    </h4>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="col-span-2">
-                        <label className="block text-[11px] font-black uppercase tracking-wider text-[#6B7280] mb-1">{l('Variant Name *', 'வகை பெயர் *')}</label>
-                        <input required
-                          className="w-full px-4 py-2.5 bg-white rounded-xl border border-[#D1D5DB] text-[13px] font-bold outline-none focus:border-[#2E7D32] transition-colors shadow-sm"
-                          placeholder={l('e.g. Cycle Brand / 25g', 'e.g. Cycle Brand / 25g')}
-                          value={variantForm.name}
-                          onChange={e => setVariantForm(f => ({...f, name: e.target.value}))} />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-black uppercase tracking-wider text-[#6B7280] mb-1">{l('Size Label', 'அளவு பட்டை')}</label>
-                        <input
-                          className="w-full px-4 py-2.5 bg-white rounded-xl border border-[#D1D5DB] text-[13px] font-bold outline-none focus:border-[#2E7D32] transition-colors shadow-sm"
-                          placeholder="25g / 250ml / 1 pack"
-                          value={variantForm.sizeLabel}
-                          onChange={e => setVariantForm(f => ({...f, sizeLabel: e.target.value}))} />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-black uppercase tracking-wider text-[#6B7280] mb-1">{l('Purchase Price (INR)', 'வாங்கிய விலை')}</label>
-                        <input type="number" min="0" step="0.01"
-                          className="w-full px-4 py-2.5 bg-white rounded-xl border border-[#D1D5DB] text-[13px] font-bold outline-none focus:border-[#2E7D32] transition-colors shadow-sm"
-                          placeholder="30"
-                          value={variantForm.purchasePrice}
-                          onChange={e => setVariantForm(f => ({...f, purchasePrice: e.target.value}))} />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-black uppercase tracking-wider text-[#6B7280] mb-1">{l('MRP (INR)', 'MRP (INR)')}</label>
-                        <input type="number" min="0" step="0.01"
-                          className="w-full px-4 py-2.5 bg-white rounded-xl border border-[#D1D5DB] text-[13px] font-bold outline-none focus:border-[#2E7D32] transition-colors shadow-sm"
-                          placeholder="50"
-                          value={variantForm.mrp}
-                          onChange={e => setVariantForm(f => ({...f, mrp: e.target.value}))} />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-black uppercase tracking-wider text-[#6B7280] mb-1">{l('Selling Price (INR) *', 'விற்பனை விலை *')}</label>
-                        <input required type="number" min="0" step="0.01"
-                          className="w-full px-4 py-2.5 bg-white rounded-xl border border-[#D1D5DB] text-[13px] font-bold outline-none focus:border-[#2E7D32] transition-colors shadow-sm"
-                          placeholder="40"
-                          value={variantForm.price}
-                          onChange={e => setVariantForm(f => ({...f, price: e.target.value}))} />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-black uppercase tracking-wider text-[#6B7280] mb-1">{l('SKU', 'SKU')}</label>
-                        <input className="w-full px-4 py-2.5 bg-white rounded-xl border border-[#D1D5DB] text-[13px] font-bold outline-none focus:border-[#2E7D32] transition-colors shadow-sm"
-                          placeholder="SKU-123"
-                          value={variantForm.sku}
-                          onChange={e => setVariantForm(f => ({...f, sku: e.target.value}))} />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-black uppercase tracking-wider text-[#6B7280] mb-1">{l('Barcode', 'பார்கோடு')}</label>
-                        <input className="w-full px-4 py-2.5 bg-white rounded-xl border border-[#D1D5DB] text-[13px] font-bold outline-none focus:border-[#2E7D32] transition-colors shadow-sm"
-                          placeholder="890..."
-                          value={variantForm.barcode}
-                          onChange={e => setVariantForm(f => ({...f, barcode: e.target.value}))} />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-black uppercase tracking-wider text-[#6B7280] mb-1">{l('Stock *', 'இருப்பு *')}</label>
-                        <input required type="number" min="0"
-                          className="w-full px-4 py-2.5 bg-white rounded-xl border border-[#D1D5DB] text-[13px] font-bold outline-none focus:border-[#2E7D32] transition-colors shadow-sm"
-                          placeholder="50"
-                          value={variantForm.stock}
-                          onChange={e => setVariantForm(f => ({...f, stock: e.target.value}))} />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-black uppercase tracking-wider text-[#6B7280] mb-1">{l('Weight/Vol Value', 'எடை மதிப்பு')}</label>
-                        <input type="number" min="0" step="0.001"
-                          className="w-full px-4 py-2.5 bg-white rounded-xl border border-[#D1D5DB] text-[13px] font-bold outline-none focus:border-[#2E7D32] transition-colors shadow-sm"
-                          placeholder="250"
-                          value={variantForm.weightValue}
-                          onChange={e => setVariantForm(f => ({...f, weightValue: e.target.value}))} />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-black uppercase tracking-wider text-[#6B7280] mb-1">{l('Unit', 'அலகு')}</label>
-                        <select
-                          className="w-full px-4 py-2.5 bg-white rounded-xl border border-[#D1D5DB] text-[13px] font-bold outline-none focus:border-[#2E7D32] transition-colors shadow-sm appearance-none"
-                          value={variantForm.weightUnit}
-                          onChange={e => setVariantForm(f => ({...f, weightUnit: e.target.value}))}>
-                          <option value="">-</option>
-                          <option value="g">g (grams)</option>
-                          <option value="kg">kg</option>
-                          <option value="ml">ml</option>
-                          <option value="L">L (litres)</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 pt-2">
-                      <input type="checkbox" id="varIsDefault" checked={variantForm.isDefault}
-                        onChange={e => setVariantForm(f => ({...f, isDefault: e.target.checked}))}
-                        className="w-4 h-4 text-[#0A0A0A] rounded focus:ring-maroon-dark accent-maroon-dark"
-                      />
-                      <label htmlFor="varIsDefault" className="text-[13px] font-bold text-[#111111]">{l('Default variant (shown first)', 'முதல் வகை (முதலில் காட்டு)')}</label>
-                    </div>
-
-                    <div className="flex gap-3 pt-2">
-                      <button type="submit" disabled={variantLoading}
-                        className="flex-grow py-3 bg-[#111111] hover:bg-[#333333] text-white font-black text-[13px] rounded-xl disabled:opacity-60 transition-colors shadow-sm">
-                        {variantLoading ? l('Saving...', 'சேமிக்கிறது...') : editingVariantId ? l('Update Variant', 'புதுப்பி') : l('Add Variant', 'சேர்')}
-                      </button>
-                      {editingVariantId && (
-                        <button type="button"
-                          onClick={() => { setEditingVariantId(null); setVariantForm({ name: '', sizeLabel: '', price: '', purchasePrice: '', mrp: '', sku: '', barcode: '', stock: '50', weightValue: '', weightUnit: '', isDefault: false }); setVariantNotice('') }}
-                          className="px-6 py-3 bg-white border border-[#D1D5DB] text-[#111111] font-bold text-[13px] rounded-xl hover:bg-[#F3F4F6] transition-colors shadow-sm">
-                          {l('Cancel', 'ரத்து')}
-                        </button>
-                      )}
-                    </div>
-                  </form>
-
-                  {/* Current variants list */}
-                  <div className="bg-[#FAFAFA] rounded-2xl p-5 border border-[#F3F4F6]">
-                    <h4 className="text-[13px] font-black uppercase tracking-wider text-[#111111] mb-4">
-                      {l('Current Variants', 'தற்போதைய வகைகள்')} <span className="text-[#6B7280]">({getVariants(String(editingProd.id)).length})</span>
-                    </h4>
-                    {getVariants(String(editingProd.id)).length === 0 ? (
-                      <p className="text-[13px] text-[#6B7280] text-center py-8 bg-white border border-[#F3F4F6] rounded-xl">
-                        {l('No variants yet - add one using the form.', 'வகைகள் இல்லை - படிவத்தில் சேர்க்கவும்.')}
-                      </p>
-                    ) : (
-                      <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-                        {getVariants(String(editingProd.id)).map((v: ProductVariant) => (
-                          <div key={v.id}
-                            className={`flex items-center justify-between gap-3 p-4 rounded-xl border transition-colors bg-white shadow-sm ${editingVariantId === v.id ? 'border-[#2E7D32] ring-1 ring-maroon-dark/20' : 'border-[#F3F4F6] hover:border-[#D1D5DB]'}`}>
-                            <div className="flex items-center gap-3 min-w-0">
-                              {v.isDefault && (
-                                <span className="w-5 h-5 rounded-full bg-[#0A0A0A] text-white text-[10px] font-black flex items-center justify-center shrink-0">★</span>
-                              )}
-                              <div className="min-w-0">
-                                <p className="text-[14px] font-bold text-[#111111] break-words">{v.variantName}</p>
-                                <p className="text-[12px] text-[#6B7280] mt-0.5">
-                                  <span className="font-bold text-[#111111]">{formatCurrency(v.price)}</span>{v.sizeLabel ? ` · ${v.sizeLabel}` : ''} · {l('Stock', 'இருப்பு')}: <span className="font-bold">{v.stock}</span>
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              {!v.isDefault && (
-                                <button onClick={() => void handleSetDefault(v.id)}
-                                  className="px-2 py-1.5 text-[#6B7280] hover:text-[#0A0A0A] hover:bg-[#0A0A0A]/5 rounded-lg text-[10px] font-black uppercase transition-colors">
-                                  {l('Set Default', 'முதல்')}
-                                </button>
-                              )}
-                              <button onClick={() => startEditVariant(v)}
-                                className="p-2 text-[#6B7280] hover:text-[#111111] hover:bg-[#F3F4F6] rounded-lg transition-colors">
-                                <Edit2 size={16} />
-                              </button>
-                              <button onClick={() => void handleDeleteVariant(v.id)}
-                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── CATEGORIES TAB (Unified Taxonomy Manager) ── */}
-        {tab === 'categories' && (
-          <div className="w-full space-y-6">
-            <CategoryManagerView />
-          </div>
-        )}
-
-        {/* ── COUPONS TAB ── */}
         {/* ── COUPONS TAB ── */}
         {tab === 'coupons' && (
           <div className="space-y-4">

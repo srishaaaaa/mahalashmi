@@ -26,19 +26,25 @@ export default function StoreSettingsView() {
 
   useEffect(() => { void fetchSettings() }, [fetchSettings])
 
-  useEffect(() => {
-    if (!settings) return
-    setForm({
-      name: settings.name,
-      ownerName: settings.ownerName,
-      phone: settings.phone,
-      email: settings.email,
-      address: settings.address,
-      instagramHandle: settings.instagramHandle,
-      gstEnabled: settings.gstEnabled,
-      lowStockThreshold: settings.lowStockThreshold,
-    })
-  }, [settings])
+  // Sync the editable form from freshly-fetched/updated settings. Done during
+  // render (not in an effect) per React's "adjusting state when a prop
+  // changes" pattern, so it doesn't trigger an extra cascading render pass.
+  const [prevSettings, setPrevSettings] = useState(settings)
+  if (settings !== prevSettings) {
+    setPrevSettings(settings)
+    if (settings) {
+      setForm({
+        name: settings.name,
+        ownerName: settings.ownerName,
+        phone: settings.phone,
+        email: settings.email,
+        address: settings.address,
+        instagramHandle: settings.instagramHandle,
+        gstEnabled: settings.gstEnabled,
+        lowStockThreshold: settings.lowStockThreshold,
+      })
+    }
+  }
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault()

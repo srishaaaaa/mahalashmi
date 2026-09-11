@@ -112,7 +112,7 @@ function AppShell() {
     return () => {
       void supabase.removeChannel(productChannel)
     }
-  }, [fetchProducts, fetchVariants])
+  }, [fetchProducts, fetchVariants, fetchSettings])
 
   return (
     <div className="h-screen w-full max-w-[100vw] overflow-hidden bg-bgMain print:block print:h-auto print:overflow-visible">
