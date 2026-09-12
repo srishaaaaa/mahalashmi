@@ -1,8 +1,18 @@
 import { jsPDF } from 'jspdf'
-import { BRAND_ADDRESS, BRAND_EN, BRAND_PHONE_DISPLAY, BRAND_PRIMARY_PHONE_DISPLAY } from './brand'
+import { BRAND_ADDRESS, BRAND_EN, BRAND_PHONE_DISPLAY } from './brand'
 import { getActiveLogo } from './activeLogo'
 import { formatCurrency } from './retail'
 import type { AdvanceOrder } from '../services/advanceOrderService'
+import { useSettingsStore } from '../store/store'
+
+function getShopInfo() {
+  const storeSettings = useSettingsStore.getState().settings
+  return {
+    name: storeSettings?.name || BRAND_EN,
+    address: storeSettings?.address || BRAND_ADDRESS,
+    phone: storeSettings?.phone || BRAND_PHONE_DISPLAY,
+  }
+}
 
 const esc = (value: string) => value.replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char] || char))
 
@@ -16,16 +26,17 @@ const pdfMoney = (value: number): string => {
 }
 
 export function advanceReceiptPdf(order: AdvanceOrder) {
+  const shop = getShopInfo()
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   doc.setFillColor('#0A0A0A'); doc.rect(0, 0, 210, 5, 'F')
   const activeLogo = getActiveLogo()
   if (activeLogo) {
     try { doc.addImage(activeLogo.base64, activeLogo.format, 16, 10, 12, 12) } catch (_err) { /* ignore missing logo */ }
   }
-  doc.setTextColor('#111111'); doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.text(BRAND_EN.toUpperCase(), 38, 20)
+  doc.setTextColor('#111111'); doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.text(shop.name.toUpperCase(), 38, 20)
   doc.setTextColor('#6b7280'); doc.setFontSize(8); doc.text('ADVANCE RECEIPT - NOT A TAX INVOICE', 38, 26)
 
-  doc.setFont('helvetica', 'normal'); doc.text(BRAND_ADDRESS, 194, 20, { align: 'right', maxWidth: 76 }); doc.text(BRAND_PRIMARY_PHONE_DISPLAY, 194, 30, { align: 'right' })
+  doc.setFont('helvetica', 'normal'); doc.text(shop.address, 194, 20, { align: 'right', maxWidth: 76 }); doc.text(shop.phone, 194, 30, { align: 'right' })
   doc.setDrawColor('#2E7D32'); doc.line(16, 38, 194, 38)
   doc.setTextColor('#111827'); doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.text(order.deposit_id, 16, 51)
   doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor('#6b7280'); doc.text(`Created: ${new Date(order.created_at).toLocaleString('en-IN')}`, 194, 51, { align: 'right' })
@@ -43,6 +54,7 @@ export function advanceReceiptPdf(order: AdvanceOrder) {
 }
 
 export function printAdvanceReceipt(order: AdvanceOrder) {
+  const shop = getShopInfo()
   const frame = document.createElement('iframe')
   frame.style.cssText = 'position:fixed;width:0;height:0;border:0;right:0;bottom:0'
   document.body.appendChild(frame)
@@ -82,9 +94,9 @@ export function printAdvanceReceipt(order: AdvanceOrder) {
   .balance-row { font-size: 14px; font-weight: bold; }
 </style>
 </head><body>
-<div class="c big">${esc(BRAND_EN)}</div>
-<div class="c" style="font-size:10px;color:#555;">${esc(BRAND_ADDRESS)}</div>
-<div class="c" style="font-size:10px;color:#555;">${esc(BRAND_PHONE_DISPLAY)}</div>
+<div class="c big">${esc(shop.name)}</div>
+<div class="c" style="font-size:10px;color:#555;">${esc(shop.address)}</div>
+<div class="c" style="font-size:10px;color:#555;">${esc(shop.phone)}</div>
 <div class="line"></div>
 <div class="c big">ADVANCE RECEIPT</div>
 <div class="c" style="font-size:10px;">Not a final tax invoice</div>

@@ -71,7 +71,13 @@ export const Invoice: React.FC<InvoiceProps> = ({
 
   const statusColor = status === 'completed' ? '#2E7D32' : status === 'cancelled' ? '#dc2626' : '#d97706'
   const effectiveDelivery = deliveryCharge || shipping
-  const logoUrl = useSettingsStore(s => s.settings?.logoUrl) || BRAND_LOGO
+  const storeSettings = useSettingsStore(s => s.settings)
+  const logoUrl = storeSettings?.logoUrl || BRAND_LOGO
+  const shopName = storeSettings?.name || BRAND_EN
+  const shopAddress = storeSettings?.address || BRAND_ADDRESS
+  const shopPhone = storeSettings?.phone || BRAND_PRIMARY_PHONE_DISPLAY
+  const shopEmail = storeSettings?.email || BRAND_EMAIL
+  const shopInstagram = storeSettings?.instagramHandle || BRAND_INSTAGRAM
 
   return (
     <div
@@ -84,21 +90,21 @@ export const Invoice: React.FC<InvoiceProps> = ({
       {/* ── HEADER ────────────────────────────────────────────────── */}
       <div style={{ textAlign: 'center', borderBottom: '1px solid #B7E1BE', paddingBottom: 20, marginBottom: 20 }}>
         <div style={{ width: 44, height: 44, margin: '0 auto 12px auto', borderRadius: 12, border: '1px solid #2E7D32', overflow: 'hidden', boxShadow: '0 4px 12px rgba(46, 125, 50,0.15)' }}>
-          <img src={logoUrl} alt={BRAND_EN} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={logoUrl} alt={shopName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
         <div style={{ fontSize: 24, fontWeight: 900, color: '#0A0A0A', letterSpacing: 2, textTransform: 'uppercase' }}>
-          {BRAND_EN}
+          {shopName}
         </div>
         <div style={{ fontSize: 11, color: '#4b5563', marginTop: 4, fontWeight: 500, paddingLeft: 8, paddingRight: 8 }}>
-          {BRAND_ADDRESS}
+          {shopAddress}
         </div>
         <div style={{ fontSize: 13, fontWeight: 900, color: '#0A0A0A', marginTop: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
           INVOICE: #{formattedInvoiceNo}
         </div>
         <div style={{ fontSize: 11, color: '#4b5563', marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span>📞 {BRAND_PRIMARY_PHONE_DISPLAY}</span>
-          <span>✉️ {BRAND_EMAIL}</span>
-          <span>📷 @{BRAND_INSTAGRAM}</span>
+          <span>📞 {shopPhone}</span>
+          <span>✉️ {shopEmail}</span>
+          <span>📷 @{shopInstagram}</span>
         </div>
         <div
           style={{
@@ -236,8 +242,8 @@ export const Invoice: React.FC<InvoiceProps> = ({
           display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
         }}
       >
-        <div style={{ fontSize: 12, fontWeight: 800, color: '#0A0A0A' }}>Thank you for shopping at {BRAND_EN}!</div>
-        <div style={{ fontSize: 10, color: '#777', marginTop: 2 }}>Follow us on Instagram: @{BRAND_INSTAGRAM}</div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: '#0A0A0A' }}>Thank you for shopping at {shopName}!</div>
+        <div style={{ fontSize: 10, color: '#777', marginTop: 2 }}>Follow us on Instagram: @{shopInstagram}</div>
         {onPrintReceipt && (
           <button
             type="button"

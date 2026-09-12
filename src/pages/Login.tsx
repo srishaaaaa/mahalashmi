@@ -38,7 +38,9 @@ export default function Login() {
   const { lang } = useLangStore()
   const l = (en: string, ta: string) => lang === 'ta' ? ta : en
   const redirectPath = new URLSearchParams(location.search).get('redirect') || '/'
-  const logoUrl = useSettingsStore(s => s.settings?.logoUrl) || BRAND_LOGO
+  const storeSettings = useSettingsStore(s => s.settings)
+  const logoUrl = storeSettings?.logoUrl || BRAND_LOGO
+  const shopName = storeSettings?.name || BRAND_EN
 
   const [loading,   setLoading]   = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
@@ -100,9 +102,9 @@ export default function Login() {
         {/* Brand */}
         <div className="flex flex-col items-center mb-6">
           <div className="mb-3 inline-flex items-center justify-center w-12 h-12 rounded-full overflow-hidden border border-[#2E7D32]/40 shadow-md">
-            <img src={logoUrl} alt={BRAND_EN} className="w-full h-full object-cover" />
+            <img src={logoUrl} alt={shopName} className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-xl font-bold font-headline text-textMain text-center">{BRAND_EN}</h1>
+          <h1 className="text-xl font-bold font-headline text-textMain text-center">{shopName}</h1>
           <p className="text-[12px] text-textMuted mt-0.5 text-center">{BRAND_TA}</p>
           {redirectPath !== '/' && (
             <p className="mt-2.5 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">

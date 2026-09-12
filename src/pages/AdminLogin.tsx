@@ -11,7 +11,9 @@ export default function AdminLogin() {
   const { lang } = useLangStore()
   const l = (en: string, ta: string) => lang === 'ta' ? ta : en
   const login = useAdminAuthStore((state) => state.login)
-  const logoUrl = useSettingsStore(s => s.settings?.logoUrl) || BRAND_LOGO
+  const storeSettings = useSettingsStore(s => s.settings)
+  const logoUrl = storeSettings?.logoUrl || BRAND_LOGO
+  const shopName = storeSettings?.name || BRAND_EN
 
   const [portalId, setPortalId] = useState('')
   const [password, setPassword] = useState('')
@@ -43,8 +45,8 @@ export default function AdminLogin() {
         <div className="hidden flex-col justify-between bg-[#0A0A0A] border-r border-[#2E7D32]/20 p-6 lg:p-8 text-white lg:flex overflow-y-auto hide-scrollbar">
           <div>
             <div className="mb-5 inline-flex items-center gap-2 rounded-2xl bg-[#141414] border border-[#2E7D32]/40 px-3.5 py-2 shadow-xl">
-              <span className="w-6 h-6 rounded-full overflow-hidden shrink-0"><img src={logoUrl} alt={BRAND_EN} className="w-full h-full object-cover" /></span>
-              <span className="text-xs font-black tracking-widest text-white uppercase">{BRAND_EN}</span>
+              <span className="w-6 h-6 rounded-full overflow-hidden shrink-0"><img src={logoUrl} alt={shopName} className="w-full h-full object-cover" /></span>
+              <span className="text-xs font-black tracking-widest text-white uppercase">{shopName}</span>
             </div>
             <p className="text-[10px] font-black uppercase tracking-[0.26em] text-[#2E7D32]">{BRAND_SUBTITLE}</p>
             <h2 className="mt-3 max-w-xs text-2xl lg:text-3xl font-black leading-tight tracking-tight text-white">Everything you need to run retail billing clearly.</h2>
@@ -56,7 +58,7 @@ export default function AdminLogin() {
           {/* Brand */}
           <div className="mb-4 sm:mb-5 flex flex-col items-center text-center lg:items-start lg:text-left">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#1B5E20]">{BRAND_SUBTITLE}</p>
-            <h1 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-[#0A0A0A]">{BRAND_EN}</h1>
+            <h1 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-[#0A0A0A]">{shopName}</h1>
             <p className="mt-0.5 text-xs font-semibold text-[#7A786F]">{BRAND_TA}</p>
             <p className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-[#2E7D32] bg-[#FBFAF6] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#0A0A0A]">
               <ShieldCheck size={12} className="text-[#1B5E20]" />
@@ -135,7 +137,7 @@ export default function AdminLogin() {
               ) : (
                 <>
                   <Lock size={14} />
-                  {l(`Sign In to ${BRAND_EN} Portal`, `${BRAND_EN} போர்ட்டலில் உள்நுழை`)}
+                  {l(`Sign In to ${shopName} Portal`, `${shopName} போர்ட்டலில் உள்நுழை`)}
                 </>
               )}
             </button>
