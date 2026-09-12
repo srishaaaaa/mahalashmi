@@ -69,7 +69,7 @@ export const BarcodeSheetPreviewModal: React.FC<BarcodeSheetPreviewModalProps> =
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-[#0A0A0A] text-white">
           <div>
             <h3 className="text-base font-black tracking-wide text-white">Preview</h3>
-            <p className="text-xs text-[#2E7D32] font-semibold">
+            <p className="text-xs text-[#D4AF37] font-semibold">
               {individualLabels.length} Labels ({sizeConfig.name})
             </p>
           </div>
@@ -161,7 +161,7 @@ export const BarcodeSheetPreviewModal: React.FC<BarcodeSheetPreviewModalProps> =
                 onClose()
                 onPrint()
               }}
-              className="px-6 py-2.5 rounded-xl bg-[#0A0A0A] border border-[#2E7D32] text-[#2E7D32] text-xs font-black uppercase tracking-wider hover:bg-[#1A1A1A] transition-all shadow-md flex items-center gap-2 cursor-pointer"
+              className="px-6 py-2.5 rounded-xl bg-[#0A0A0A] border border-[#D4AF37] text-[#D4AF37] text-xs font-black uppercase tracking-wider hover:bg-[#1A1A1A] transition-all shadow-md flex items-center gap-2 cursor-pointer"
             >
               <Printer size={15} /> Print Labels
             </button>

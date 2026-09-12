@@ -726,7 +726,7 @@ export default function ProductDetailModal({
                                     className={[
                                       'rounded-full border px-4 py-2 text-[12px] font-black transition-all whitespace-nowrap',
                                       isSel ? 'border-[#111111] bg-[#111111] text-white'
-                                            : 'border-[#ead7b7]/80 bg-[#f7f4ed] text-[#111111] hover:border-[#2E7D32]',
+                                            : 'border-[#ead7b7]/80 bg-[#f7f4ed] text-[#111111] hover:border-[#D4AF37]',
                                     ].join(' ')}
                                   >
                                     {g}
@@ -758,7 +758,7 @@ export default function ProductDetailModal({
                                           ? 'border-[#111111] bg-[#111111] text-white'
                                           : oos
                                           ? 'cursor-not-allowed opacity-40 border-gray-200 text-[#999]'
-                                          : 'border-[#ead7b7]/80 bg-[#f7f4ed] text-[#111111] hover:border-[#2E7D32]',
+                                          : 'border-[#ead7b7]/80 bg-[#f7f4ed] text-[#111111] hover:border-[#D4AF37]',
                                       ].join(' ')}
                                     >
                                       {v.variantName}

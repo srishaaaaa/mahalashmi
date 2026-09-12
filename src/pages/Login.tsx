@@ -99,7 +99,7 @@ export default function Login() {
 
         {/* Brand */}
         <div className="flex flex-col items-center mb-6">
-          <div className="mb-3 inline-flex items-center justify-center w-12 h-12 rounded-full overflow-hidden border border-[#2E7D32]/40 shadow-md">
+          <div className="mb-3 inline-flex items-center justify-center w-12 h-12 rounded-full overflow-hidden border border-[#D4AF37]/40 shadow-md">
             <img src={logoUrl} alt={BRAND_EN} className="w-full h-full object-cover" />
           </div>
           <h1 className="text-xl font-bold font-headline text-textMain text-center">{BRAND_EN}</h1>

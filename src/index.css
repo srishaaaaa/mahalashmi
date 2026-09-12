@@ -6,10 +6,10 @@
   :root {
     --brand-black: #0A0A0A;
     --brand-black-surface: #141414;
-    --brand-gold: #2E7D32;
-    --brand-gold-hover: #256428;
-    --brand-gold-light: #EAF6EC;
-    --brand-gold-border: #B7E1BE;
+    --brand-gold: #D4AF37;
+    --brand-gold-hover: #B8952E;
+    --brand-gold-light: #FBF3DC;
+    --brand-gold-border: #E8D9A0;
     --brand-surface: #FBFAF6;
     --brand-text-dark: #111111;
     --brand-text-muted: #6B7280;
@@ -68,7 +68,7 @@
     height: 100%;
     background-color: #FBFAF6;
     background-image:
-      radial-gradient(circle at top left, rgba(46, 125, 50, 0.06), transparent 34%),
+      radial-gradient(circle at top left, rgba(212, 175, 55, 0.06), transparent 34%),
       radial-gradient(circle at top right, rgba(10, 10, 10, 0.04), transparent 28%);
     color: #111111;
     font-family: 'DM Sans', 'Outfit', 'Noto Sans Tamil', system-ui, -apple-system, sans-serif;
@@ -178,11 +178,11 @@
   }
 
   .surface-panel {
-    @apply rounded-2xl border border-[#B7E1BE]/40 bg-white shadow-soft;
+    @apply rounded-2xl border border-[#E8D9A0]/40 bg-white shadow-soft;
   }
 
   .surface-panel-compact {
-    @apply rounded-xl border border-[#B7E1BE]/40 bg-white shadow-soft;
+    @apply rounded-xl border border-[#E8D9A0]/40 bg-white shadow-soft;
   }
 
   .mobile-chip {
@@ -190,11 +190,11 @@
   }
 
   .mobile-cta-bar {
-    @apply border-t border-[#B7E1BE]/50 bg-white/95 backdrop-blur pb-[calc(env(safe-area-inset-bottom)+0.75rem)];
+    @apply border-t border-[#E8D9A0]/50 bg-white/95 backdrop-blur pb-[calc(env(safe-area-inset-bottom)+0.75rem)];
   }
 
   .mobile-section-title {
-    @apply text-[11px] font-black uppercase tracking-[0.24em] text-[#1B5E20];
+    @apply text-[11px] font-black uppercase tracking-[0.24em] text-[#8A6D1E];
   }
 
   .mobile-page-shell {
@@ -202,11 +202,11 @@
   }
 
   .btn-primary {
-    @apply px-6 py-3 rounded-xl bg-[#0A0A0A] text-[#2E7D32] border border-[#2E7D32] font-bold hover:bg-[#1A1A1A] transition-all;
+    @apply px-6 py-3 rounded-xl bg-[#0A0A0A] text-[#D4AF37] border border-[#D4AF37] font-bold hover:bg-[#1A1A1A] transition-all;
   }
 
   .btn-secondary {
-    @apply px-6 py-3 rounded-xl border border-[#B7E1BE] bg-white text-[#111111] font-bold hover:bg-gray-50 transition-colors;
+    @apply px-6 py-3 rounded-xl border border-[#E8D9A0] bg-white text-[#111111] font-bold hover:bg-gray-50 transition-colors;
   }
 
   .btn-small {
@@ -237,7 +237,7 @@
   max-width: 100vw;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at top left, rgba(46, 125, 50, 0.05), transparent 30%),
+    radial-gradient(circle at top left, rgba(212, 175, 55, 0.05), transparent 30%),
     #FBFAF6;
 }
 

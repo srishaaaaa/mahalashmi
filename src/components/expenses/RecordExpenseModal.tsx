@@ -61,11 +61,11 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full max-h-[92vh] border border-[#B7E1BE] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-150">
+      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full max-h-[92vh] border border-[#E8D9A0] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="shrink-0 px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-[#FBFAF6]">
           <div className="flex items-center gap-2">
-            <Tag size={17} className="text-[#2E7D32]" />
+            <Tag size={17} className="text-[#D4AF37]" />
             <h3 className="text-sm font-bold text-[#0A0A0A]">
               Record Expense
             </h3>
@@ -171,7 +171,7 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="flex-[1.5] h-11 rounded-xl bg-[#0A0A0A] border border-[#2E7D32] text-[#2E7D32] text-xs font-bold hover:bg-[#1A1A1A] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="flex-[1.5] h-11 rounded-xl bg-[#0A0A0A] border border-[#D4AF37] text-[#D4AF37] text-xs font-bold hover:bg-[#1A1A1A] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {loading ? 'Saving...' : 'Save Expense'}
             </button>

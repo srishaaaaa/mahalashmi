@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { SoundProvider } from './context/SoundContext'
 
 // Suppress benign Chrome extension / message channel disconnect noise
 if (typeof window !== 'undefined') {
@@ -28,7 +29,9 @@ if (typeof window !== 'undefined') {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <SoundProvider>
+      <App />
+    </SoundProvider>
   </StrictMode>,
 )
 
