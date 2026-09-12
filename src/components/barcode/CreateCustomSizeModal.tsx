@@ -174,7 +174,7 @@ export const CreateCustomSizeModal: React.FC<CreateCustomSizeModalProps> = ({
               <span className="text-[11px] font-black uppercase tracking-wider text-gray-600 mb-2">
                 Preview (i)
               </span>
-              <div className="w-full min-h-[220px] rounded-2xl bg-[#FFF9E6] border border-[#B7E1BE] p-5 flex items-center justify-center relative shadow-inner overflow-hidden">
+              <div className="w-full min-h-[220px] rounded-2xl bg-[#FFF9E6] border border-[#E8D9A0] p-5 flex items-center justify-center relative shadow-inner overflow-hidden">
                 {/* Labels Layout */}
                 <div className="flex items-center justify-center gap-3">
                   {Array.from({ length: labelsPerRow }).map((_, idx) => (
@@ -238,7 +238,7 @@ export const CreateCustomSizeModal: React.FC<CreateCustomSizeModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-xl bg-[#0A0A0A] border border-[#2E7D32] text-[#2E7D32] text-xs font-black uppercase tracking-wider hover:bg-[#1A1A1A] transition-all shadow-md cursor-pointer"
+              className="px-6 py-2.5 rounded-xl bg-[#0A0A0A] border border-[#D4AF37] text-[#D4AF37] text-xs font-black uppercase tracking-wider hover:bg-[#1A1A1A] transition-all shadow-md cursor-pointer"
             >
               Save Custom Size
             </button>

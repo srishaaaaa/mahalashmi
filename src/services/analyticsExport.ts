@@ -219,19 +219,19 @@ export async function exportAnalyticsToPDF({
   container.innerHTML = `
     <div style="width: 100%; box-sizing: border-box;">
       <!-- Header Banner -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #2E7D32; padding-bottom: 16px; margin-bottom: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #D4AF37; padding-bottom: 16px; margin-bottom: 20px;">
         <div>
           <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 32px; height: 32px; border-radius: 8px; background: #0A0A0A; border: 1.5px solid #2E7D32; display: flex; align-items: center; justify-content: center; color: #2E7D32; font-weight: 900; font-size: 16px; font-family: serif;">C</div>
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: #0A0A0A; border: 1.5px solid #D4AF37; display: flex; align-items: center; justify-content: center; color: #D4AF37; font-weight: 900; font-size: 16px; font-family: serif;">C</div>
             <div>
               <h1 style="margin: 0; font-size: 20px; font-weight: 900; letter-spacing: 0.5px; color: #0A0A0A; text-transform: uppercase;">${BRAND_EN}</h1>
-              <p style="margin: 2px 0 0 0; font-size: 10px; font-weight: 700; color: #1B5E20;">Executive POS & Store Analytics Intelligence</p>
+              <p style="margin: 2px 0 0 0; font-size: 10px; font-weight: 700; color: #8A6D1E;">Executive POS & Store Analytics Intelligence</p>
             </div>
           </div>
           <p style="margin: 8px 0 0 0; font-size: 9px; color: #666;">${BRAND_ADDRESS} • Tel: ${BRAND_PHONE_DISPLAY}</p>
         </div>
         <div style="text-align: right;">
-          <span style="display: inline-block; padding: 4px 10px; background: #0A0A0A; color: #2E7D32; font-size: 10px; font-weight: 800; border-radius: 6px; text-transform: uppercase; margin-bottom: 4px;">
+          <span style="display: inline-block; padding: 4px 10px; background: #0A0A0A; color: #D4AF37; font-size: 10px; font-weight: 800; border-radius: 6px; text-transform: uppercase; margin-bottom: 4px;">
             ${activeTab.toUpperCase()} VIEW
           </span>
           <p style="margin: 0; font-size: 10px; font-weight: 700; color: #333;">Period: <span style="color: #0A0A0A; font-weight: 900;">${filterText}</span></p>
@@ -241,7 +241,7 @@ export async function exportAnalyticsToPDF({
 
       <!-- KPI Summary Cards Grid -->
       <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
-        <div style="background: #FBF9F4; border: 1px solid #B7E1BE; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between;">
+        <div style="background: #FBF9F4; border: 1px solid #E8D9A0; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #666; margin-bottom: 4px;">Total Revenue</div>
           <div style="font-size: 15px; font-weight: 900; color: #0A0A0A; line-height: 1.2;">${formatCurrency(data.totalCompletedRevenue)}</div>
           <div style="font-size: 8px; color: #10B981; font-weight: 700; margin-top: 4px;">POS & Walk-in sales</div>
@@ -251,12 +251,12 @@ export async function exportAnalyticsToPDF({
           <div style="font-size: 15px; font-weight: 900; color: ${data.isProfitable ? '#059669' : '#E11D48'}; line-height: 1.2;">${formatCurrency(Math.abs(data.netProfit))}</div>
           <div style="font-size: 8px; color: #666; font-weight: 700; margin-top: 4px;">Rev − ${formatCurrency(data.totalExpenses)} Exp</div>
         </div>
-        <div style="background: #FBF9F4; border: 1px solid #B7E1BE; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between;">
+        <div style="background: #FBF9F4; border: 1px solid #E8D9A0; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #666; margin-bottom: 4px;">Completed Bills</div>
           <div style="font-size: 15px; font-weight: 900; color: #0A0A0A; line-height: 1.2;">${data.completedOrders} Orders</div>
-          <div style="font-size: 8px; color: #1B5E20; font-weight: 700; margin-top: 4px;">Avg ${formatCurrency(data.averageRevenuePerBill)}/bill</div>
+          <div style="font-size: 8px; color: #8A6D1E; font-weight: 700; margin-top: 4px;">Avg ${formatCurrency(data.averageRevenuePerBill)}/bill</div>
         </div>
-        <div style="background: #FBF9F4; border: 1px solid #B7E1BE; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between;">
+        <div style="background: #FBF9F4; border: 1px solid #E8D9A0; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #666; margin-bottom: 4px;">Total Items Sold</div>
           <div style="font-size: 15px; font-weight: 900; color: #0A0A0A; line-height: 1.2;">${Math.round(data.totalProductsSold)} Pcs</div>
           <div style="font-size: 8px; color: #6366F1; font-weight: 700; margin-top: 4px;">Top: ${data.bestProduct.slice(0, 14)}</div>
@@ -273,7 +273,7 @@ export async function exportAnalyticsToPDF({
             </h3>
             <p style="margin: 2px 0 0 0; font-size: 9px; color: #6B7280;">Visual daily distribution of sales revenue</p>
           </div>
-          <div style="font-size: 9.5px; font-weight: 800; color: #1B5E20; background: #FBFAF6; border: 1px solid #B7E1BE; padding: 3px 8px; border-radius: 6px;">
+          <div style="font-size: 9.5px; font-weight: 800; color: #8A6D1E; background: #FBFAF6; border: 1px solid #E8D9A0; padding: 3px 8px; border-radius: 6px;">
             ${activeTab === 'today' ? `Peak Hour: ${formatCurrency(maxHourlyRev)}` : `Week Peak: ${formatCurrency(maxWeeklyRev)}`}
           </div>
         </div>
@@ -409,7 +409,7 @@ export async function exportAnalyticsToPDF({
                       <span style="color: #0A0A0A; font-weight: 900;">${formatCurrency(c.revenue)} (${percent}%)</span>
                     </div>
                     <div style="width: 100%; height: 5px; background: #F3F4F6; border-radius: 3px; overflow: hidden;">
-                      <div style="width: ${percent}%; height: 100%; background: #2E7D32; border-radius: 3px;"></div>
+                      <div style="width: ${percent}%; height: 100%; background: #D4AF37; border-radius: 3px;"></div>
                     </div>
                   </div>
                 `
@@ -424,10 +424,10 @@ export async function exportAnalyticsToPDF({
       ${
         data.topCoupons.length > 0
           ? `
-        <div style="background: #FBFAF6; border: 1px solid #B7E1BE; border-radius: 12px; padding: 10px 12px; margin-bottom: 16px;">
+        <div style="background: #FBFAF6; border: 1px solid #E8D9A0; border-radius: 12px; padding: 10px 12px; margin-bottom: 16px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <div style="font-size: 10px; font-weight: 900; color: #0A0A0A; text-transform: uppercase;">Coupon & Promotional Discount Insights</div>
-            <div style="font-size: 8.5px; font-weight: 800; color: #1B5E20;">Total Savings: ${formatCurrency(data.totalCouponDiscounts)}</div>
+            <div style="font-size: 8.5px; font-weight: 800; color: #8A6D1E;">Total Savings: ${formatCurrency(data.totalCouponDiscounts)}</div>
           </div>
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             ${data.topCoupons

@@ -12,6 +12,7 @@ import { supabase } from '../../lib/supabase'
 import { useProductStore, type Product } from '../../store/store'
 import { fetchVariantsByProduct } from '../../services/variantService'
 import { inventoryService, type CategoryRecord } from '../../services/inventoryService'
+import { useSound } from '../../context/SoundContext'
 
 export interface VariantInputRow {
   id: string
@@ -25,6 +26,7 @@ export interface VariantInputRow {
 
 export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ onStockUpdated }) => {
   const { products, fetchProducts } = useProductStore()
+  const { play } = useSound()
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [search, setSearch] = useState('')
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
@@ -155,9 +157,11 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
       await fetchProducts(true)
       resetForm()
       onStockUpdated?.()
+      play('success')
       setStatusMessage({ type: 'success', text: `Product "${prodName}" deleted successfully.` })
     } catch (err) {
       console.error('Failed to delete product:', err)
+      play('error')
       setStatusMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to delete product' })
     } finally {
       setLoading(false)
@@ -261,6 +265,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
             )
           }
 
+          play('success')
           setStatusMessage({
             type: 'success',
             text: `Product "${trimmedName}" updated successfully with ${inputStock} stock units! Ready in POS Catalog.`,
@@ -369,6 +374,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
             })
             .eq('id', selectedProductId)
 
+          play('success')
           setStatusMessage({
             type: 'success',
             text: `Product "${trimmedName}" updated with ${totalVariantStock} total variant stock units! Ready in POS Catalog.`,
@@ -432,6 +438,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
             })
           }
 
+          play('success')
           setStatusMessage({
             type: 'success',
             text: `Product "${trimmedName}" created with ${inputStock} stock units! Immediately ready in catalog & billing.`,
@@ -521,6 +528,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
             }
           }
 
+          play('success')
           setStatusMessage({
             type: 'success',
             text: `Multi-variant product "${trimmedName}" created with ${totalVariantStock} total units! Immediately ready in catalog & billing.`,
@@ -533,6 +541,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
       onStockUpdated?.()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'An error occurred while saving'
+      play('error')
       setStatusMessage({ type: 'error', text: msg })
     } finally {
       setLoading(false)
@@ -579,7 +588,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                 key={p.id}
                 onClick={() => startEditProduct(p)}
                 className={`group p-3.5 hover:bg-[#FBFAF6] cursor-pointer flex items-center justify-between transition-colors ${
-                  selectedProductId === Number(p.id) ? 'bg-[#FFF9E6] border-l-4 border-[#2E7D32]' : ''
+                  selectedProductId === Number(p.id) ? 'bg-[#FFF9E6] border-l-4 border-[#D4AF37]' : ''
                 }`}
               >
                 <div className="min-w-0 pr-2">
@@ -621,7 +630,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
         <div className="px-5 py-3.5 sm:px-6 sm:py-4 bg-white border-b border-gray-200 flex items-center justify-between shrink-0">
           <div>
             <h3 className="text-sm font-bold text-black flex items-center gap-2">
-              <Package size={16} className="text-[#2E7D32]" />
+              <Package size={16} className="text-[#D4AF37]" />
               {selectedProductId ? 'Edit Product & Stock Details' : 'Add New Product to Catalog'}
             </h3>
             <p className="text-[11px] text-gray-500 font-semibold">
@@ -828,7 +837,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                     onChange={(e) => setHasSpecialOffer(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2E7D32]" />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]" />
                 </label>
               </div>
               {hasSpecialOffer && (
@@ -840,7 +849,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                       placeholder="e.g. Buy 1 Get 1 Free, or Free sample gift with purchase"
                       value={specialOfferNote}
                       onChange={(e) => setSpecialOfferNote(e.target.value)}
-                      className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[#2E7D32]"
+                      className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[#D4AF37]"
                     />
                   </div>
                   <div>
@@ -852,7 +861,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                       placeholder="0"
                       value={specialOfferCost}
                       onChange={(e) => setSpecialOfferCost(e.target.value)}
-                      className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[#2E7D32]"
+                      className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[#D4AF37]"
                     />
                   </div>
                 </div>
@@ -864,7 +873,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xs font-black text-black flex items-center gap-1.5">
-                    <Tag size={14} className="text-[#2E7D32]" /> Multi-Variant Product (Sizes, Colors, SKUs)
+                    <Tag size={14} className="text-[#D4AF37]" /> Multi-Variant Product (Sizes, Colors, SKUs)
                   </span>
                   <p className="text-[11px] text-gray-500 font-medium">
                     Enable if this product comes in multiple sizes (e.g. S, M, L, XL) or colors
@@ -895,7 +904,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                     <button
                       type="button"
                       onClick={handleAddVariantRow}
-                      className="px-3 py-1 rounded-lg bg-[#0A0A0A] text-[#2E7D32] text-xs font-black flex items-center gap-1 hover:bg-[#1A1A1A] cursor-pointer"
+                      className="px-3 py-1 rounded-lg bg-[#0A0A0A] text-[#D4AF37] text-xs font-black flex items-center gap-1 hover:bg-[#1A1A1A] cursor-pointer"
                     >
                       <Plus size={12} /> Add Variant
                     </button>
@@ -1009,11 +1018,11 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2 sm:px-6 sm:py-2.5 rounded-xl bg-[#0A0A0A] border border-[#2E7D32] text-[#2E7D32] text-xs font-black uppercase tracking-wider hover:bg-[#1A1A1A] transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              className="px-5 py-2 sm:px-6 sm:py-2.5 rounded-xl bg-[#0A0A0A] border border-[#D4AF37] text-[#D4AF37] text-xs font-black uppercase tracking-wider hover:bg-[#1A1A1A] transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {loading ? (
                 <>
-                  <span className="w-3.5 h-3.5 border-2 border-[#2E7D32]/30 border-t-[#2E7D32] rounded-full animate-spin inline-block" />
+                  <span className="w-3.5 h-3.5 border-2 border-[#D4AF37]/30 border-t-[#D4AF37] rounded-full animate-spin inline-block" />
                   Saving Product...
                 </>
               ) : (

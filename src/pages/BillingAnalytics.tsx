@@ -597,8 +597,8 @@ export default function BillingAnalytics() {
       <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="admin-logo-lockup min-w-[280px]">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0A0A0A] border border-[#2E7D32]/40 shadow-sm shrink-0">
-              <span className="font-serif text-xl font-black text-[#2E7D32]">C</span>
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0A0A0A] border border-[#D4AF37]/40 shadow-sm shrink-0">
+              <span className="font-serif text-xl font-black text-[#D4AF37]">C</span>
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[#5F5F5F]">Admin Billing</p>

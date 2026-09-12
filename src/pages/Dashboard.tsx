@@ -55,6 +55,7 @@ import { useHardwareBarcodeScanner } from '../hooks/useHardwareBarcodeScanner'
 import { BarcodeRedirectDialog } from '../components/pos/BarcodeRedirectDialog'
 import { exportAnalyticsToCSV, exportAnalyticsToPDF } from '../services/analyticsExport'
 import StoreSettingsView from '../components/dashboard/StoreSettingsView'
+import LowStockAlarmModal from '../components/dashboard/LowStockAlarmModal'
 import { BRAND_LOGO, BRAND_EN } from '../lib/brand'
 import {
   ResponsiveContainer,
@@ -1202,10 +1203,11 @@ export default function Dashboard() {
 
   return (
     <div className="admin-shell h-screen max-h-screen min-h-screen bg-bgMain flex flex-col lg:flex-row overflow-hidden">
+      <LowStockAlarmModal triggerKey={tab} />
       {/* Sidebar */}
       <aside
         className={[
-          'w-full bg-[#0A0A0A] text-white border-b lg:border-b-0 lg:border-r border-[#2E7D32]/20 flex flex-col shrink-0 h-auto lg:h-full lg:max-h-screen',
+          'w-full bg-[#0A0A0A] text-white border-b lg:border-b-0 lg:border-r border-[#D4AF37]/20 flex flex-col shrink-0 h-auto lg:h-full lg:max-h-screen',
           'transition-[width] duration-300 ease-in-out overflow-hidden',
           sidebarCollapsed ? 'lg:w-[76px]' : 'lg:w-[240px] xl:w-[250px]',
         ].join(' ')}
@@ -1213,13 +1215,13 @@ export default function Dashboard() {
         {/* Desktop brand header */}
         <div className={`hidden lg:flex items-center relative transition-all duration-300 shrink-0 ${sidebarCollapsed ? 'flex-col items-center pt-4 pb-3 px-2 gap-2' : 'px-4 py-3.5 justify-between border-b border-white/5'}`}>
           <Link to="/pos" title="Go to Billing Panel" className={`flex items-center gap-2.5 min-w-0 transition-all duration-300 ${sidebarCollapsed ? 'justify-center' : 'flex-1'}`}>
-            <div className="flex items-center justify-center shrink-0 w-9 h-9 rounded-full overflow-hidden border border-[#2E7D32]/50 shadow-sm hover:scale-105 transition-transform">
+            <div className="flex items-center justify-center shrink-0 w-9 h-9 rounded-full overflow-hidden border border-[#D4AF37]/50 shadow-sm hover:scale-105 transition-transform">
               <img src={logoUrl} alt={BRAND_EN} className="w-full h-full object-cover" />
             </div>
             {!sidebarCollapsed && (
               <div className="flex flex-col min-w-0">
                 <h1 className="text-[12.5px] font-black text-white leading-tight tracking-wide break-words">{BRAND_EN}</h1>
-                <span className={`text-[8.5px] font-black uppercase tracking-widest px-1.5 py-0.2 rounded w-fit ${role === 'admin' ? 'bg-[#2E7D32]/20 text-[#2E7D32] border border-[#2E7D32]/40' : 'bg-gray-800 text-gray-300 border border-gray-700'}`}>
+                <span className={`text-[8.5px] font-black uppercase tracking-widest px-1.5 py-0.2 rounded w-fit ${role === 'admin' ? 'bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40' : 'bg-gray-800 text-gray-300 border border-gray-700'}`}>
                   {role === 'admin' ? 'ADMIN' : 'STAFF'}
                 </span>
               </div>
@@ -1238,12 +1240,12 @@ export default function Dashboard() {
         {/* Mobile mini-header */}
         <div className="flex lg:hidden items-center justify-between px-3 py-2.5 border-b border-white/10 bg-[#0A0A0A] shrink-0">
           <Link to="/pos" title="Go to Billing Panel" className="flex items-center gap-2.5 min-w-0">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden border border-[#2E7D32]/50 shrink-0 shadow-sm hover:scale-105 transition-transform">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden border border-[#D4AF37]/50 shrink-0 shadow-sm hover:scale-105 transition-transform">
               <img src={logoUrl} alt={BRAND_EN} className="w-full h-full object-cover" />
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[15px] font-black text-white tracking-wider truncate">{BRAND_EN}</span>
-              <span className={`text-[8.5px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${role === 'admin' ? 'bg-[#2E7D32]/20 text-[#2E7D32] border border-[#2E7D32]/40' : 'bg-gray-800 text-gray-300 border border-gray-700'}`}>
+              <span className={`text-[8.5px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${role === 'admin' ? 'bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40' : 'bg-gray-800 text-gray-300 border border-gray-700'}`}>
                 {role === 'admin' ? 'ADMIN' : 'STAFF'}
               </span>
             </div>
@@ -1275,7 +1277,7 @@ export default function Dashboard() {
                 sidebarCollapsed ? 'lg:w-[42px] lg:justify-center mx-auto' : 'lg:px-3',
                 'px-1 py-1 lg:py-0',
                 'rounded-xl font-medium text-[10px] lg:text-[12.5px] xl:text-[13px] transition-all overflow-hidden cursor-pointer',
-                tab === item.id ? 'bg-[#2E7D32] text-[#0A0A0A] font-black shadow-md' : 'text-white/70 hover:bg-white/10 hover:text-[#2E7D32]',
+                tab === item.id ? 'bg-[#D4AF37] text-[#0A0A0A] font-black shadow-md' : 'text-white/70 hover:bg-white/10 hover:text-[#D4AF37]',
               ].join(' ')}
             >
               <span className="shrink-0 flex items-center">
@@ -2033,10 +2035,10 @@ export default function Dashboard() {
                       dateTo: analyticsDateTo,
                     })
                   }}
-                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-[#B7E1BE] text-[#0A0A0A] font-bold text-xs hover:bg-[#FBFAF6] shadow-xs transition-all cursor-pointer hover:scale-[1.02]"
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-[#E8D9A0] text-[#0A0A0A] font-bold text-xs hover:bg-[#FBFAF6] shadow-xs transition-all cursor-pointer hover:scale-[1.02]"
                   title="Export current analytics view to CSV"
                 >
-                  <Download size={14} className="text-[#1B5E20]" />
+                  <Download size={14} className="text-[#8A6D1E]" />
                   <span>Export CSV</span>
                 </button>
 
@@ -2059,13 +2061,13 @@ export default function Dashboard() {
                       setExportingPdf(false)
                     }
                   }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0A0A0A] border border-[#2E7D32] text-[#2E7D32] font-black text-xs hover:bg-[#1A1A1A] shadow-md transition-all cursor-pointer hover:scale-[1.02] disabled:opacity-60"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0A0A0A] border border-[#D4AF37] text-[#D4AF37] font-black text-xs hover:bg-[#1A1A1A] shadow-md transition-all cursor-pointer hover:scale-[1.02] disabled:opacity-60"
                   title="Export formatted executive PDF with chart diagrams"
                 >
                   {exportingPdf ? (
-                    <RefreshCw size={14} className="animate-spin text-[#2E7D32]" />
+                    <RefreshCw size={14} className="animate-spin text-[#D4AF37]" />
                   ) : (
-                    <FileText size={14} className="text-[#2E7D32]" />
+                    <FileText size={14} className="text-[#D4AF37]" />
                   )}
                   <span>{exportingPdf ? 'Generating PDF...' : 'Export PDF (Charts)'}</span>
                 </button>
@@ -2238,7 +2240,7 @@ export default function Dashboard() {
                           <XAxis dataKey="month" tick={{ fill: '#6B7280', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={60} />
                           <YAxis hide />
                           <Tooltip cursor={{ fill: '#F9FAFB' }} formatter={(value) => formatCurrency(toNumber(value as number | string, 0))} />
-                          <Bar dataKey="revenue" fill="#2E7D32" radius={[4, 4, 0, 0]} barSize={12} />
+                          <Bar dataKey="revenue" fill="#D4AF37" radius={[4, 4, 0, 0]} barSize={12} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -2296,10 +2298,10 @@ export default function Dashboard() {
                         <p className="mt-1 text-[12px] text-[#6B7280]">Monday to Sunday sales view for the current week.</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-[#F9FAFB] px-3 py-1 text-[11px] font-bold text-[#2E7D32]">
+                        <span className="rounded-full bg-[#F9FAFB] px-3 py-1 text-[11px] font-bold text-[#D4AF37]">
                           Week {(() => { const now = new Date(); const start = new Date(now.getFullYear(), 0, 1); const diff = Math.floor((now.getTime() - start.getTime()) / 86400000); return Math.ceil((diff + start.getDay() + 1) / 7) })()} of {new Date().getFullYear()}
                         </span>
-                        <span className="rounded-full bg-[#F9FAFB] px-3 py-1 text-[11px] font-bold text-[#2E7D32]">
+                        <span className="rounded-full bg-[#F9FAFB] px-3 py-1 text-[11px] font-bold text-[#D4AF37]">
                           Today: {formatCurrency(analytics.todaySales)}
                         </span>
                       </div>
@@ -2402,7 +2404,7 @@ export default function Dashboard() {
                       placeholder="Search by invoice number..."
                       value={todayBillsSearch}
                       onChange={e => setTodayBillsSearch(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl text-[13px] font-bold text-[#111111] placeholder:text-[#8A9384] focus:outline-none focus:border-[#2E7D32] transition-colors"
+                      className="w-full px-4 py-2.5 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl text-[13px] font-bold text-[#111111] placeholder:text-[#8A9384] focus:outline-none focus:border-[#D4AF37] transition-colors"
                     />
                   </div>
                   {(() => {
@@ -2511,7 +2513,7 @@ export default function Dashboard() {
                       placeholder="Search by Product Name, SKU, or Category..."
                       value={productAnalyticsSearch}
                       onChange={e => setProductAnalyticsSearch(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl text-[13px] font-bold text-[#111111] placeholder:text-[#8A9384] focus:outline-none focus:border-[#2E7D32] transition-colors"
+                      className="w-full px-4 py-2.5 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl text-[13px] font-bold text-[#111111] placeholder:text-[#8A9384] focus:outline-none focus:border-[#D4AF37] transition-colors"
                     />
                   </div>
                   {(() => {
@@ -2811,38 +2813,38 @@ export default function Dashboard() {
                 <div className="flex flex-wrap gap-2 items-center">
                   {(['today', 'week', 'month', 'custom'] as const).map(preset => (
                     <button key={preset} type="button" onClick={() => applyDatePreset(preset)}
-                      className={`min-h-[44px] px-3 py-1.5 rounded-xl text-[12px] font-black transition-colors ${datePreset === preset ? 'bg-[#2E7D32] text-white shadow-sm' : 'bg-[#F9FAFB] text-[#374151] hover:bg-[#E5E7EB]/40'}`}>
+                      className={`min-h-[44px] px-3 py-1.5 rounded-xl text-[12px] font-black transition-colors ${datePreset === preset ? 'bg-[#D4AF37] text-white shadow-sm' : 'bg-[#F9FAFB] text-[#374151] hover:bg-[#E5E7EB]/40'}`}>
                       {preset === 'today' ? l('Today','இன்று') : preset === 'week' ? l('This Week','இந்த வாரம்') : preset === 'month' ? l('This Month','இந்த மாதம்') : l('Custom Range','தேர்வு')}
                     </button>
                   ))}
                   {(search.dateFrom || search.dateTo || datePreset) && (
                     <button type="button" onClick={() => { setDatePreset(''); setSearch(s => ({ ...s, dateFrom: '', dateTo: '' })) }}
-                      className="min-h-[44px] px-3 py-1.5 rounded-xl text-[12px] font-black text-[#2E7D32] hover:bg-[#2E7D32]/5">{l('Clear Dates', 'தேதி அழி')}</button>
+                      className="min-h-[44px] px-3 py-1.5 rounded-xl text-[12px] font-black text-[#D4AF37] hover:bg-[#D4AF37]/5">{l('Clear Dates', 'தேதி அழி')}</button>
                   )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <input className="min-h-[48px] rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-[16px] md:text-[13px] font-semibold text-[#111111] placeholder:text-[#8A9384] focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/15" placeholder={l('Invoice / Bill No', 'பில் எண்')}
+                  <input className="min-h-[48px] rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-[16px] md:text-[13px] font-semibold text-[#111111] placeholder:text-[#8A9384] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/15" placeholder={l('Invoice / Bill No', 'பில் எண்')}
                     value={search.invoiceNo} onChange={e => setSearch(s => ({ ...s, invoiceNo: e.target.value }))} />
-                  <input className="min-h-[48px] rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-[16px] md:text-[13px] font-semibold text-[#111111] placeholder:text-[#8A9384] focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/15" placeholder={l('Customer Name', 'வாடிக்கையாளர் பெயர்')}
+                  <input className="min-h-[48px] rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-[16px] md:text-[13px] font-semibold text-[#111111] placeholder:text-[#8A9384] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/15" placeholder={l('Customer Name', 'வாடிக்கையாளர் பெயர்')}
                     value={search.customerName} onChange={e => setSearch(s => ({ ...s, customerName: e.target.value }))} />
-                  <input className="min-h-[48px] rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-[16px] md:text-[13px] font-semibold text-[#111111] placeholder:text-[#8A9384] focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/15" placeholder={l('Mobile Number', 'மொபைல் எண்')}
+                  <input className="min-h-[48px] rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-[16px] md:text-[13px] font-semibold text-[#111111] placeholder:text-[#8A9384] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/15" placeholder={l('Mobile Number', 'மொபைல் எண்')}
                     value={search.phone} onChange={e => setSearch(s => ({ ...s, phone: e.target.value }))} />
                   {datePreset === 'custom' ? (
                     <>
-                      <input type="date" className="min-h-[48px] rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-[16px] md:text-[13px] font-semibold text-[#111111] focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/15"
+                      <input type="date" className="min-h-[48px] rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-[16px] md:text-[13px] font-semibold text-[#111111] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/15"
                         value={search.dateFrom} onChange={e => setSearch(s => ({ ...s, dateFrom: e.target.value }))} />
-                      <input type="date" className="min-h-[48px] rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-[16px] md:text-[13px] font-semibold text-[#111111] focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/15"
+                      <input type="date" className="min-h-[48px] rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-[16px] md:text-[13px] font-semibold text-[#111111] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/15"
                         value={search.dateTo} onChange={e => setSearch(s => ({ ...s, dateTo: e.target.value }))} />
                     </>
                   ) : (
                     <button type="submit" disabled={searchLoading}
-                      className="sm:col-span-2 min-h-[48px] flex items-center justify-center gap-2 rounded-xl bg-[#2E7D32] py-2.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#065F46] disabled:opacity-60">
+                      className="sm:col-span-2 min-h-[48px] flex items-center justify-center gap-2 rounded-xl bg-[#D4AF37] py-2.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#065F46] disabled:opacity-60">
                       <Search size={14} /> {searchLoading ? l('Searching...','தேடுகிறது...') : l('Search Bills','தேடு')}
                     </button>
                   )}
                   {datePreset === 'custom' && (
                     <button type="submit" disabled={searchLoading}
-                      className="sm:col-span-2 lg:col-span-4 min-h-[48px] flex items-center justify-center gap-2 rounded-xl bg-[#2E7D32] py-2.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#065F46] disabled:opacity-60">
+                      className="sm:col-span-2 lg:col-span-4 min-h-[48px] flex items-center justify-center gap-2 rounded-xl bg-[#D4AF37] py-2.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#065F46] disabled:opacity-60">
                       <Search size={14} /> {searchLoading ? l('Searching...','தேடுகிறது...') : l('Search Bills','தேடு')}
                     </button>
                   )}
@@ -2852,7 +2854,7 @@ export default function Dashboard() {
                 <p className="text-[11px] font-semibold text-[#374151]">{filteredSearchResults.length} {l('result(s)', 'முடிவுகள்')}</p>
                 {filteredSearchResults.length > 0 && (
                   <button onClick={() => exportCSV(filteredSearchResults)}
-                    className="flex items-center gap-1 text-[11px] font-bold text-[#2E7D32] hover:underline">
+                    className="flex items-center gap-1 text-[11px] font-bold text-[#D4AF37] hover:underline">
                     <Download size={11} /> Export CSV
                   </button>
                 )}
@@ -2906,7 +2908,7 @@ export default function Dashboard() {
                           </span>
                         )}
                         {role === 'admin' && (
-                          <button onClick={() => void deleteOrder(o.id, o.invoice_no)} className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-xl border border-[#E5E7EB]/60 text-[#2E7D32] transition-colors hover:bg-[#2E7D32]/5" title="Delete Order">
+                          <button onClick={() => void deleteOrder(o.id, o.invoice_no)} className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-xl border border-[#E5E7EB]/60 text-[#D4AF37] transition-colors hover:bg-[#D4AF37]/5" title="Delete Order">
                             <Trash2 size={14} className="mx-auto" />
                           </button>
                         )}
@@ -2964,7 +2966,7 @@ export default function Dashboard() {
                                 </span>
                               )}
                               {role === 'admin' && (
-                                <button onClick={() => void deleteOrder(o.id, o.invoice_no)} className="rounded-lg p-1 text-[#2E7D32] transition-colors hover:bg-[#2E7D32]/5" title="Delete Order">
+                                <button onClick={() => void deleteOrder(o.id, o.invoice_no)} className="rounded-lg p-1 text-[#D4AF37] transition-colors hover:bg-[#D4AF37]/5" title="Delete Order">
                                   <Trash2 size={13} />
                                 </button>
                               )}
@@ -3044,7 +3046,7 @@ export default function Dashboard() {
                 </div>
                 <button
                   onClick={() => void loadCoupons()}
-                  className="inline-flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#FBFAF6] px-3 py-2 text-[11px] font-black text-[#2E7D32] shadow-sm transition-colors hover:bg-[#F7F1E7]"
+                  className="inline-flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#FBFAF6] px-3 py-2 text-[11px] font-black text-[#D4AF37] shadow-sm transition-colors hover:bg-[#F7F1E7]"
                 >
                   <RefreshCw size={12} />
                   Refresh
@@ -3053,20 +3055,20 @@ export default function Dashboard() {
 
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <div className="rounded-xl border border-[#E5E7EB] bg-[#FBFAF6] px-3 py-3 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#2E7D32]">Total Coupons</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#D4AF37]">Total Coupons</p>
                   <p className="mt-1 text-[17px] sm:text-[20px] font-black text-[#111111] break-words">{coupons.length}</p>
                 </div>
                 <div className="rounded-xl border border-[#E5E7EB] bg-[#FBFAF6] px-3 py-3 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#2E7D32]">Active</p>
-                  <p className="mt-1 text-[17px] sm:text-[20px] font-black text-[#2E7D32] break-words">{coupons.filter(c => c.is_active).length}</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#D4AF37]">Active</p>
+                  <p className="mt-1 text-[17px] sm:text-[20px] font-black text-[#D4AF37] break-words">{coupons.filter(c => c.is_active).length}</p>
                 </div>
                 <div className="rounded-xl border border-[#E5E7EB] bg-[#FBFAF6] px-3 py-3 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#2E7D32]">Used</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#D4AF37]">Used</p>
                   <p className="mt-1 text-[17px] sm:text-[20px] font-black text-[#111111] break-words">{coupons.reduce((acc, c) => acc + (c.usage_count || 0), 0)}</p>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-[#E7CFAA] bg-[#FFF6E7] px-3 py-2 text-[11px] font-bold text-[#2E7D32] shadow-sm">
+              <div className="rounded-xl border border-[#E7CFAA] bg-[#FFF6E7] px-3 py-2 text-[11px] font-bold text-[#D4AF37] shadow-sm">
                 {l('Coupon discount applies to product subtotal only - not delivery charge.', 'கூப்பன் தள்ளுபடி பொருட்களின் subtotal-க்கு மட்டும் பொருந்தும்.')}
               </div>
             </div>
@@ -3075,7 +3077,7 @@ export default function Dashboard() {
               <form onSubmit={saveCoupon} className="rounded-2xl border border-[#E5E7EB] bg-[#FFFCF6] p-4 shadow-sm space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#2E7D32]">{editingCouponId !== null ? 'Edit mode' : 'New coupon'}</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#D4AF37]">{editingCouponId !== null ? 'Edit mode' : 'New coupon'}</p>
                     <h3 className="mt-1 text-[17px] font-black text-[#111111]">
                       {editingCouponId !== null ? l('Edit Coupon', 'கூப்பனை திருத்து') : l('Create Coupon', 'புதிய கூப்பன்')}
                     </h3>
@@ -3084,7 +3086,7 @@ export default function Dashboard() {
                     <button
                       type="button"
                       onClick={cancelEditCoupon}
-                      className="rounded-full border border-[#E7CFAA] bg-[#FFF6E7] px-2.5 py-1 text-[11px] font-black text-[#2E7D32] transition-colors hover:bg-[#FBEBD3]"
+                      className="rounded-full border border-[#E7CFAA] bg-[#FFF6E7] px-2.5 py-1 text-[11px] font-black text-[#D4AF37] transition-colors hover:bg-[#FBEBD3]"
                     >
                       Cancel
                     </button>
@@ -3106,7 +3108,7 @@ export default function Dashboard() {
                   <label className="block text-[10px] font-black uppercase tracking-[0.15em] text-[#6B7280]">{l('Coupon Code', 'கூப்பன் குறியீடு')} *</label>
                   <div className="flex gap-2">
                     <input
-                      className="flex-1 rounded-xl border border-[#A7F3D0] bg-white px-3 py-2.5 text-[12px] font-black uppercase tracking-[0.12em] text-[#111111] outline-none transition-colors focus:border-[#2E7D32]"
+                      className="flex-1 rounded-xl border border-[#A7F3D0] bg-white px-3 py-2.5 text-[12px] font-black uppercase tracking-[0.12em] text-[#111111] outline-none transition-colors focus:border-[#D4AF37]"
                       placeholder="WELCOME10"
                       value={couponForm.code}
                       disabled={editingCouponId !== null}
@@ -3116,7 +3118,7 @@ export default function Dashboard() {
                       <button
                         type="button"
                         onClick={generateCouponCode}
-                        className="shrink-0 rounded-xl border border-[#2E7D32] bg-[#2E7D32] px-3 py-2.5 text-[11px] font-black text-white transition-colors hover:bg-[#741D2A]"
+                        className="shrink-0 rounded-xl border border-[#D4AF37] bg-[#D4AF37] px-3 py-2.5 text-[11px] font-black text-white transition-colors hover:bg-[#741D2A]"
                       >
                         Generate
                       </button>
@@ -3134,7 +3136,7 @@ export default function Dashboard() {
                       type="number"
                       min="1"
                       max="100"
-                      className="w-full rounded-xl border border-[#A7F3D0] bg-white px-3 py-2.5 text-[12px] font-bold text-[#111111] outline-none transition-colors focus:border-[#2E7D32]"
+                      className="w-full rounded-xl border border-[#A7F3D0] bg-white px-3 py-2.5 text-[12px] font-bold text-[#111111] outline-none transition-colors focus:border-[#D4AF37]"
                       placeholder="10"
                       value={couponForm.percentage}
                       onChange={e => setCouponForm(f => ({ ...f, percentage: Number(e.target.value) }))}
@@ -3145,7 +3147,7 @@ export default function Dashboard() {
                     <input
                       type="number"
                       min="0"
-                      className="w-full rounded-xl border border-[#A7F3D0] bg-white px-3 py-2.5 text-[12px] font-bold text-[#111111] outline-none transition-colors focus:border-[#2E7D32]"
+                      className="w-full rounded-xl border border-[#A7F3D0] bg-white px-3 py-2.5 text-[12px] font-bold text-[#111111] outline-none transition-colors focus:border-[#D4AF37]"
                       placeholder="0 = no minimum"
                       value={couponForm.min_order_value}
                       onChange={e => setCouponForm(f => ({ ...f, min_order_value: e.target.value }))}
@@ -3158,7 +3160,7 @@ export default function Dashboard() {
                     <label className="block text-[10px] font-black uppercase tracking-[0.15em] text-[#6B7280]">{l('Expiry Date', 'காலாவதி தேதி')}</label>
                     <input
                       type="date"
-                      className="w-full rounded-xl border border-[#A7F3D0] bg-white px-3 py-2.5 text-[12px] font-bold text-[#111111] outline-none transition-colors focus:border-[#2E7D32]"
+                      className="w-full rounded-xl border border-[#A7F3D0] bg-white px-3 py-2.5 text-[12px] font-bold text-[#111111] outline-none transition-colors focus:border-[#D4AF37]"
                       value={couponForm.expiry_date}
                       onChange={e => setCouponForm(f => ({ ...f, expiry_date: e.target.value }))}
                     />
@@ -3168,7 +3170,7 @@ export default function Dashboard() {
                     <input
                       type="number"
                       min="1"
-                      className="w-full rounded-xl border border-[#A7F3D0] bg-white px-3 py-2.5 text-[12px] font-bold text-[#111111] outline-none transition-colors focus:border-[#2E7D32]"
+                      className="w-full rounded-xl border border-[#A7F3D0] bg-white px-3 py-2.5 text-[12px] font-bold text-[#111111] outline-none transition-colors focus:border-[#D4AF37]"
                       placeholder="Unlimited"
                       value={couponForm.usage_limit}
                       onChange={e => setCouponForm(f => ({ ...f, usage_limit: e.target.value }))}
@@ -3178,7 +3180,7 @@ export default function Dashboard() {
 
                 <button
                   type="submit"
-                  className="w-full rounded-xl bg-[#2E7D32] py-3 text-[13px] font-black text-white shadow-sm transition-colors hover:bg-[#741D2A]"
+                  className="w-full rounded-xl bg-[#D4AF37] py-3 text-[13px] font-black text-white shadow-sm transition-colors hover:bg-[#741D2A]"
                 >
                   {editingCouponId !== null ? l('Update Coupon', 'கூப்பனை புதுப்பி') : l('Create Coupon', 'கூப்பனை உருவாக்கு')}
                 </button>
@@ -3192,7 +3194,7 @@ export default function Dashboard() {
                       {l('All Coupons', 'அனைத்து கூப்பன்கள்')} <span className="text-[#6B7280]">({coupons.length})</span>
                     </h3>
                   </div>
-                  <span className="rounded-full border border-[#E7CFAA] bg-[#FFF6E7] px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.15em] text-[#2E7D32]">
+                  <span className="rounded-full border border-[#E7CFAA] bg-[#FFF6E7] px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.15em] text-[#D4AF37]">
                     {l('Admin only', 'அட்மின் மட்டும்')}
                   </span>
                 </div>
@@ -3207,7 +3209,7 @@ export default function Dashboard() {
                         key={coupon.id}
                         className={`rounded-xl border p-3 shadow-sm transition-all ${
                           isEditing
-                            ? 'border-[#2E7D32] bg-[#FFF8F3] ring-1 ring-[#2E7D32]/15'
+                            ? 'border-[#D4AF37] bg-[#FFF8F3] ring-1 ring-[#D4AF37]/15'
                             : 'border-[#F0E2C8] bg-white hover:border-[#D8BA8A]'
                         }`}
                       >
@@ -3215,7 +3217,7 @@ export default function Dashboard() {
                           <div className="min-w-0 space-y-1.5">
                             <div className="flex flex-wrap items-center gap-1.5">
                               <p className="break-words text-[15px] font-black uppercase tracking-[0.14em] text-[#111111]">{coupon.code}</p>
-                              <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] ${coupon.is_active ? 'bg-[#FCE7EA] text-[#2E7D32]' : 'bg-[#F8EDD9] text-[#9A6700]'}`}>
+                              <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] ${coupon.is_active ? 'bg-[#FCE7EA] text-[#D4AF37]' : 'bg-[#F8EDD9] text-[#9A6700]'}`}>
                                 {coupon.is_active ? l('Active', 'செயலில்') : l('Inactive', 'செயலற்ற')}
                               </span>
                               {isExpired && (
@@ -3230,7 +3232,7 @@ export default function Dashboard() {
                               )}
                             </div>
 
-                            <p className="text-[12px] font-semibold text-[#2E7D32]">
+                            <p className="text-[12px] font-semibold text-[#D4AF37]">
                               {coupon.percentage}% off
                               {coupon.min_order_value > 0 && ` • min ₹${coupon.min_order_value}`}
                             </p>
@@ -3245,14 +3247,14 @@ export default function Dashboard() {
                             <button
                               onClick={() => void toggleCoupon(coupon)}
                               className={`rounded-full px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] transition-colors ${
-                                coupon.is_active ? 'bg-[#FCE7EA] text-[#2E7D32] hover:bg-[#F8D7DD]' : 'bg-[#F8EDD9] text-[#9A6700] hover:bg-[#F2E0B9]'
+                                coupon.is_active ? 'bg-[#FCE7EA] text-[#D4AF37] hover:bg-[#F8D7DD]' : 'bg-[#F8EDD9] text-[#9A6700] hover:bg-[#F2E0B9]'
                               }`}
                             >
                               {coupon.is_active ? l('Active', 'செயலில்') : l('Off', 'ஆஃப்')}
                             </button>
                             <button
                               onClick={() => startEditCoupon(coupon)}
-                              className="rounded-full border border-[#A7F3D0] bg-white p-2 text-[#2E7D32] transition-colors hover:border-[#D8BA8A] hover:text-[#741D2A]"
+                              className="rounded-full border border-[#A7F3D0] bg-white p-2 text-[#D4AF37] transition-colors hover:border-[#D8BA8A] hover:text-[#741D2A]"
                             >
                               <Edit2 size={14} />
                             </button>
@@ -3269,7 +3271,7 @@ export default function Dashboard() {
                   })}
 
                   {coupons.length === 0 && (
-                    <div className="rounded-[22px] border border-dashed border-[#E7CFAA] bg-[#FFF8F3] py-12 text-center text-[14px] font-bold text-[#2E7D32]">
+                    <div className="rounded-[22px] border border-dashed border-[#E7CFAA] bg-[#FFF8F3] py-12 text-center text-[14px] font-bold text-[#D4AF37]">
                       {l('No coupons yet. Create your first coupon!', 'இன்னும் கூப்பன் இல்லை. முதல் கூப்பனை உருவாக்குங்கள்!')}
                     </div>
                   )}
@@ -3291,7 +3293,7 @@ export default function Dashboard() {
             <div className="relative max-w-sm">
               <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6B7280]" />
               <input
-                className="w-full pl-11 pr-4 py-3 bg-white border border-[#D1D5DB] rounded-xl text-[13px] font-bold text-[#111111] placeholder-[#6B7280] focus:outline-none focus:border-[#2E7D32] transition-colors shadow-sm"
+                className="w-full pl-11 pr-4 py-3 bg-white border border-[#D1D5DB] rounded-xl text-[13px] font-bold text-[#111111] placeholder-[#6B7280] focus:outline-none focus:border-[#D4AF37] transition-colors shadow-sm"
                 placeholder={l('Search by name or email...', 'பெயர் அல்லது மின்னஞ்சலால் தேடுக...')}
                 value={userSearch}
                 onChange={e => setUserSearch(e.target.value)}
@@ -3476,7 +3478,7 @@ export default function Dashboard() {
                   <button
                     type="button"
                     onClick={() => void openOrderInvoice(invoicePreviewOrder, 'download')}
-                    className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-[#0A0A0A] px-3 text-xs font-black text-white hover:bg-[#2E7D32]"
+                    className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-[#0A0A0A] px-3 text-xs font-black text-white hover:bg-[#D4AF37]"
                   >
                     <Download size={15} /> Download
                   </button>

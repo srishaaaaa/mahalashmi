@@ -109,8 +109,8 @@ export default function StoreSettingsView() {
           {/* Branding */}
           <div className="bg-white rounded-2xl border border-[#E5E7EB]/60 p-4 sm:p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-5">
-              <ImageIcon size={16} className="text-[#2E7D32]" />
-              <h3 className="text-[13px] font-black uppercase tracking-wider text-[#2E7D32]">Branding</h3>
+              <ImageIcon size={16} className="text-[#D4AF37]" />
+              <h3 className="text-[13px] font-black uppercase tracking-wider text-[#D4AF37]">Branding</h3>
             </div>
             <div className="flex items-center gap-4">
               <div className="relative shrink-0">
@@ -121,7 +121,7 @@ export default function StoreSettingsView() {
                   type="button"
                   onClick={() => logoInputRef.current?.click()}
                   disabled={logoUploading || !isSupabaseConfigured}
-                  className="absolute bottom-0 right-0 w-7 h-7 bg-[#2E7D32] hover:bg-[#256428] text-white rounded-full flex items-center justify-center shadow-md transition-colors disabled:opacity-60"
+                  className="absolute bottom-0 right-0 w-7 h-7 bg-[#D4AF37] hover:bg-[#B8952E] text-white rounded-full flex items-center justify-center shadow-md transition-colors disabled:opacity-60"
                   aria-label="Change logo"
                   title="Change logo"
                 >
@@ -151,8 +151,8 @@ export default function StoreSettingsView() {
           {/* Business Information */}
           <div className="bg-white rounded-2xl border border-[#E5E7EB]/60 p-4 sm:p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-5">
-              <Store size={16} className="text-[#2E7D32]" />
-              <h3 className="text-[13px] font-black uppercase tracking-wider text-[#2E7D32]">Business Information</h3>
+              <Store size={16} className="text-[#D4AF37]" />
+              <h3 className="text-[13px] font-black uppercase tracking-wider text-[#D4AF37]">Business Information</h3>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Shop Name">
@@ -179,8 +179,8 @@ export default function StoreSettingsView() {
           {/* Billing & Inventory Thresholds */}
           <div className="bg-white rounded-2xl border border-[#E5E7EB]/60 p-4 sm:p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-5">
-              <SlidersHorizontal size={16} className="text-[#2E7D32]" />
-              <h3 className="text-[13px] font-black uppercase tracking-wider text-[#2E7D32]">Billing &amp; Inventory Thresholds</h3>
+              <SlidersHorizontal size={16} className="text-[#D4AF37]" />
+              <h3 className="text-[13px] font-black uppercase tracking-wider text-[#D4AF37]">Billing &amp; Inventory Thresholds</h3>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-start gap-4">
               <div className="flex-1">
@@ -197,7 +197,7 @@ export default function StoreSettingsView() {
                 <input
                   type="checkbox" checked={form.gstEnabled}
                   onChange={e => setForm(f => ({ ...f, gstEnabled: e.target.checked }))}
-                  className="mt-0.5 w-4 h-4 accent-[#2E7D32]"
+                  className="mt-0.5 w-4 h-4 accent-[#D4AF37]"
                 />
                 <span>
                   <span className="block text-[13px] font-bold text-[#111111]">Enable GST Billing in POS</span>
@@ -209,13 +209,13 @@ export default function StoreSettingsView() {
 
           <div className="flex flex-wrap items-center justify-end gap-3">
             {saveMsg && (
-              <span className={`text-[12px] font-bold flex items-center gap-1.5 ${saveMsg.type === 'ok' ? 'text-[#2E7D32]' : 'text-red-600'}`}>
+              <span className={`text-[12px] font-bold flex items-center gap-1.5 ${saveMsg.type === 'ok' ? 'text-[#D4AF37]' : 'text-red-600'}`}>
                 {saveMsg.type === 'ok' ? <Check size={14} /> : <AlertCircle size={14} />} {saveMsg.text}
               </span>
             )}
             <button
               type="submit" disabled={saving}
-              className="px-6 py-3 bg-[#2E7D32] hover:bg-[#256428] text-white rounded-xl text-[13px] font-bold shadow-sm transition-colors disabled:opacity-60"
+              className="px-6 py-3 bg-[#D4AF37] hover:bg-[#B8952E] text-white rounded-xl text-[13px] font-bold shadow-sm transition-colors disabled:opacity-60"
             >
               {saving ? 'Saving...' : 'Save Configuration'}
             </button>
@@ -224,9 +224,9 @@ export default function StoreSettingsView() {
           {/* Account Security */}
           <div className="bg-white rounded-2xl border border-[#E5E7EB]/60 p-4 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
-              <Lock size={16} className="text-[#2E7D32] shrink-0" />
+              <Lock size={16} className="text-[#D4AF37] shrink-0" />
               <div>
-                <p className="text-[13px] font-black uppercase tracking-wider text-[#2E7D32]">Account Security</p>
+                <p className="text-[13px] font-black uppercase tracking-wider text-[#D4AF37]">Account Security</p>
                 <p className="text-[12px] text-[#6B7280]">Update your {role || 'portal'} login password.</p>
               </div>
             </div>
@@ -254,7 +254,7 @@ export default function StoreSettingsView() {
             </div>
             <form onSubmit={handleChangePassword} className="p-4 space-y-4">
               {pwSuccess ? (
-                <p className="text-[13px] font-bold text-[#2E7D32] flex items-center gap-2"><Check size={16} /> Password updated.</p>
+                <p className="text-[13px] font-bold text-[#D4AF37] flex items-center gap-2"><Check size={16} /> Password updated.</p>
               ) : (
                 <>
                   <Field label="New Password">
@@ -266,7 +266,7 @@ export default function StoreSettingsView() {
                   {pwErr && <p className="text-[12px] text-red-600">{pwErr}</p>}
                   <button
                     type="submit" disabled={pwSaving}
-                    className="w-full py-3 bg-[#2E7D32] hover:bg-[#256428] text-white rounded-xl text-[13px] font-bold shadow-sm transition-colors disabled:opacity-60"
+                    className="w-full py-3 bg-[#D4AF37] hover:bg-[#B8952E] text-white rounded-xl text-[13px] font-bold shadow-sm transition-colors disabled:opacity-60"
                   >
                     {pwSaving ? 'Saving...' : 'Update Password'}
                   </button>
@@ -280,7 +280,7 @@ export default function StoreSettingsView() {
   )
 }
 
-const inputCls = 'w-full px-3.5 py-2.5 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl text-[13px] font-bold text-[#111111] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#2E7D32] transition-colors'
+const inputCls = 'w-full px-3.5 py-2.5 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl text-[13px] font-bold text-[#111111] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#D4AF37] transition-colors'
 
 function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
   return (
