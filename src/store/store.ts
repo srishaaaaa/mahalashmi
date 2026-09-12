@@ -6,8 +6,6 @@ import { fetchAllCategories, fetchAllProducts } from '../services/productService
 import { fetchAllVariants, type ProductVariant } from '../services/variantService'
 import { BRAND_ADDRESS, BRAND_EN, BRAND_PHONE_DISPLAY, BRAND_INSTAGRAM, BRAND_OWNER_NAME } from '../lib/brand'
 import {
-  calculateLineTotal,
-  normalizeSelectedQuantity,
   normalizeUnitType,
   toNumber,
   type QuantityOption,
@@ -70,23 +68,6 @@ export interface Product {
   color?: string
 }
 
-export interface CartItem extends Product {
-  qty: number
-  selectedUnit: string
-  basePrice: number
-  lineTotal: number
-  variantId?: string      // UUID of the selected variant row
-  variantName?: string    // display name e.g. "Cycle Brand"
-  parentProductId?: string // original products.id when item was created from a variant
-
-  // POS billing fields
-  cartItemId: string
-  discountType: 'amount' | 'percent'
-  discountValue: number
-  gstRate: number
-  gstAmount: number
-}
-
 interface AuthUser {
   id: string
   name: string
@@ -112,37 +93,6 @@ interface ProductState {
   error: string | null
   lastFetch: number
   fetchProducts: (force?: boolean) => Promise<void>
-}
-
-interface CartState {
-  items: CartItem[]
-  addItem: (product: Product, quantity: number, unit: string, variantId?: string, variantName?: string, parentProductId?: string) => void
-  removeItem: (productId: string | number) => void
-  updateQuantity: (productId: string | number, quantity: number) => void
-  clearCart: () => void
-  totalItems: () => number
-  cartSubtotal: () => number
-  // Backward-compatible aliases used by existing UI
-  add: (product: Product) => void
-  remove: (productId: string | number) => void
-  updateQty: (productId: string | number, quantity: number) => void
-  clear: () => void
-  count: () => number
-  total: () => number
-}
-
-interface FavState {
-  items: Product[]
-  toggle: (product: Product) => void
-  isFav: (productId: string | number) => boolean
-  clear: () => void
-}
-
-interface ProductModalState {
-  product: Product | null
-  open: boolean
-  openProduct: (product: Product) => void
-  closeProduct: () => void
 }
 
 export interface StoreSettings {
@@ -428,113 +378,6 @@ export const useProductStore = create<ProductState>((set, get) => ({
       })
     }
   }
-}))
-
-// --- Cart Store ---
-export const useCartStore = create<CartState>()(
-  persist(
-    (set, get) => ({
-      items: [],
-      addItem: (product, qty, unit, variantId, variantName, parentProductId) => {
-        const items = [...get().items]
-        const existing = items.find(i => i.id === product.id)
-
-        const basePrice = product.offerPrice || product.price
-        const lineTotal = calculateLineTotal(qty, product.unitType, product.baseQuantity, basePrice)
-
-        if (existing) {
-          existing.selectedUnit = unit
-          const mergedQty = normalizeSelectedQuantity(
-            existing.qty + qty,
-            existing.unitType,
-            existing.allowDecimalQuantity,
-            1,
-          )
-          existing.qty = mergedQty
-          existing.lineTotal = calculateLineTotal(mergedQty, existing.unitType, existing.baseQuantity, basePrice)
-        } else {
-          items.push({
-            ...product,
-            qty,
-            selectedUnit: unit,
-            basePrice,
-            lineTotal,
-            // Variant identity — only set for variant items
-            variantId:       variantId       ?? undefined,
-            variantName:     variantName     ?? undefined,
-            parentProductId: parentProductId ?? undefined,
-
-            // POS defaults
-            cartItemId: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-            discountType: 'amount',
-            discountValue: 0,
-            gstRate: product.gstPercent || 0,
-            gstAmount: ((product.gstPercent || 0) > 0) ? (lineTotal * (product.gstPercent || 0) / 100) : 0,
-          })
-        }
-        set({ items })
-      },
-      removeItem: (id) => set({ items: get().items.filter(i => i.id !== id) }),
-      updateQuantity: (id, qty) => {
-        const items = get().items.map(item => {
-          if (item.id === id) {
-            const newQty = normalizeSelectedQuantity(
-              qty,
-              item.unitType,
-              item.allowDecimalQuantity,
-              1,
-            )
-            return {
-              ...item,
-              qty: newQty,
-              lineTotal: calculateLineTotal(newQty, item.unitType, item.baseQuantity, item.basePrice)
-            }
-          }
-          return item
-        })
-        set({ items })
-      },
-      clearCart: () => set({ items: [] }),
-      totalItems: () => get().items.length,
-      cartSubtotal: () => get().items.reduce((sum, item) => sum + item.lineTotal, 0),
-      add: (product) => {
-        const packLabel = product.predefinedOptions[0]?.label ?? product.unitLabel
-        get().addItem(product, 1, packLabel)
-      },
-      remove: (productId) => get().removeItem(productId),
-      updateQty: (productId, quantity) => get().updateQuantity(productId, quantity),
-      clear: () => get().clearCart(),
-      count: () => get().totalItems(),
-      total: () => get().cartSubtotal(),
-    }),
-    { name: 'mahalashmi-stores-cart' }
-  )
-)
-
-export const useFavStore = create<FavState>()(
-  persist(
-    (set, get) => ({
-      items: [],
-      toggle: (product) => {
-        const exists = get().items.some((p) => p.id === product.id)
-        if (exists) {
-          set({ items: get().items.filter((p) => p.id !== product.id) })
-          return
-        }
-        set({ items: [...get().items, product] })
-      },
-      isFav: (productId) => get().items.some((p) => p.id === productId),
-      clear: () => set({ items: [] }),
-    }),
-    { name: 'mahalashmi-stores-favorites' },
-  ),
-)
-
-export const useProductModalStore = create<ProductModalState>()((set) => ({
-  product: null,
-  open: false,
-  openProduct: (product) => set({ product, open: true }),
-  closeProduct: () => set({ open: false, product: null }),
 }))
 
 // --- Variant Store ---
