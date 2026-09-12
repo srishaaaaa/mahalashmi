@@ -119,11 +119,18 @@ const getOrderTotal = (order: { total: unknown; items: unknown; shipping?: unkno
   )
 }
 
+// Excel auto-detects long digit strings as numbers (scientific notation) and
+// dates as date-serials that render as #### in the default column width.
+// Wrapping the value as an Excel text-formula (="...") forces it to stay
+// plain left-aligned text in both Excel and Google Sheets.
+const excelSafeText = (value: string) => `="${String(value).replace(/"/g, '""')}"`
+
 const exportCSV = (orders: DashboardOrder[]) => {
   const header = ['Order Ref', 'Customer', 'Phone', 'Date', 'Total (INR)', 'Order Type', 'Status']
   const rows = orders.map(o => [
-    o.order_type === 'online_request' ? o.id : o.invoice_no, o.customer_name, o.phone,
-    new Date(o.created_at).toLocaleDateString('en-MY'),
+    o.order_type === 'online_request' ? o.id : o.invoice_no, o.customer_name,
+    excelSafeText(o.phone),
+    excelSafeText(new Date(o.created_at).toLocaleDateString('en-MY')),
     getOrderTotal(o).toFixed(2), o.order_type, o.status,
   ])
   const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
@@ -3119,7 +3126,7 @@ export default function Dashboard() {
                       <button
                         type="button"
                         onClick={generateCouponCode}
-                        className="shrink-0 rounded-xl border border-[#2E7D32] bg-[#2E7D32] px-3 py-2.5 text-[11px] font-black text-white transition-colors hover:bg-[#741D2A]"
+                        className="shrink-0 rounded-xl border border-[#2E7D32] bg-[#2E7D32] px-3 py-2.5 text-[11px] font-black text-white transition-colors hover:bg-[#1B5E20]"
                       >
                         Generate
                       </button>
@@ -3181,7 +3188,7 @@ export default function Dashboard() {
 
                 <button
                   type="submit"
-                  className="w-full rounded-xl bg-[#2E7D32] py-3 text-[13px] font-black text-white shadow-sm transition-colors hover:bg-[#741D2A]"
+                  className="w-full rounded-xl bg-[#2E7D32] py-3 text-[13px] font-black text-white shadow-sm transition-colors hover:bg-[#1B5E20]"
                 >
                   {editingCouponId !== null ? l('Update Coupon', 'கூப்பனை புதுப்பி') : l('Create Coupon', 'கூப்பனை உருவாக்கு')}
                 </button>
@@ -3255,7 +3262,7 @@ export default function Dashboard() {
                             </button>
                             <button
                               onClick={() => startEditCoupon(coupon)}
-                              className="rounded-full border border-[#A7F3D0] bg-white p-2 text-[#2E7D32] transition-colors hover:border-[#D8BA8A] hover:text-[#741D2A]"
+                              className="rounded-full border border-[#A7F3D0] bg-white p-2 text-[#2E7D32] transition-colors hover:border-[#D8BA8A] hover:text-[#1B5E20]"
                             >
                               <Edit2 size={14} />
                             </button>

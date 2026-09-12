@@ -49,6 +49,15 @@ export function normalizePhoneForWhatsApp(input: string): string {
   return digits
 }
 
+/** Formats a phone number for display with the country code separated, e.g. "+91 81229 21906". */
+export function formatPhoneDisplay(input: string): string {
+  if (!input) return ''
+  const normalized = normalizePhone(input)
+  if (!normalized) return input
+  const subscriber = normalized.slice(2)
+  return `+91 ${subscriber.slice(0, 5)} ${subscriber.slice(5)}`
+}
+
 export function toWhatsAppUrl(phone: string, text?: string): string {
   const normalized = normalizePhoneForWhatsApp(phone) || normalizePhone(phone)
   const queryParams: string[] = []
