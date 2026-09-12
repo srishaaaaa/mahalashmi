@@ -63,10 +63,25 @@ function AppShell() {
   const fetchProducts = useProductStore((state) => state.fetchProducts)
   const fetchVariants = useVariantStore((state) => state.fetchVariants)
   const fetchSettings = useSettingsStore((state) => state.fetchSettings)
+  const shopName = useSettingsStore((state) => state.settings?.name)
+  const shopLogoUrl = useSettingsStore((state) => state.settings?.logoUrl)
 
   useEffect(() => {
-    document.title = BRAND_EN
-  }, [])
+    document.title = shopName
+      ? `${shopName} - Point of Sale & Inventory System`
+      : `${BRAND_EN} - Point of Sale & Inventory System`
+  }, [shopName])
+
+  // The favicon/apple-touch-icon in index.html are static build assets — keep
+  // them in sync with the store's uploaded logo once settings load, so the
+  // browser tab icon reflects it instead of staying frozen on the bundled default.
+  useEffect(() => {
+    if (!shopLogoUrl) return
+    const iconLink = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+    const appleIconLink = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')
+    if (iconLink) iconLink.href = shopLogoUrl
+    if (appleIconLink) appleIconLink.href = shopLogoUrl
+  }, [shopLogoUrl])
 
   useEffect(() => {
     if (!isSupabaseConfigured) {

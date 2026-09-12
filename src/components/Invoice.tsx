@@ -1,6 +1,7 @@
 import React from 'react'
 import { BRAND_ADDRESS, BRAND_EMAIL, BRAND_EN, BRAND_INSTAGRAM, BRAND_LOGO, BRAND_PRIMARY_PHONE_DISPLAY } from '../lib/brand'
 import { formatCurrency, formatQuantityDisplay, normalizeStructuredOrderItem, formatInvoiceNo } from '../lib/retail'
+import { formatPhoneDisplay } from '../lib/phone'
 import { useSettingsStore } from '../store/store'
 
 export interface InvoiceItem {
@@ -134,7 +135,7 @@ export const Invoice: React.FC<InvoiceProps> = ({
           <div style={{ fontSize: 9, fontWeight: 800, color: '#888', textTransform: 'uppercase', letterSpacing: 0.7, marginTop: 6 }}>Customer Name</div>
           <div style={{ fontSize: 13, fontWeight: 800, color: '#0A0A0A', lineHeight: 1.35, wordBreak: 'break-word' }}>{customerName || 'Walk-in Customer'}</div>
           <div style={{ fontSize: 9, fontWeight: 800, color: '#888', textTransform: 'uppercase', letterSpacing: 0.7, marginTop: 6 }}>Mobile Number</div>
-          <div style={{ fontSize: 12, color: '#555', lineHeight: 1.4, wordBreak: 'break-word' }}>{phone || '—'}</div>
+          <div style={{ fontSize: 12, color: '#555', lineHeight: 1.4, wordBreak: 'break-word' }}>{phone ? formatPhoneDisplay(phone) : '—'}</div>
           {address && <div style={{ fontSize: 11, color: '#777', marginTop: 4, lineHeight: 1.4, wordBreak: 'break-word' }}>{address}</div>}
           {paymentMode && <div style={{ fontSize: 10, color: '#777', marginTop: 4 }}>Payment Mode: {paymentMode}</div>}
         </div>
@@ -249,6 +250,7 @@ export const Invoice: React.FC<InvoiceProps> = ({
             type="button"
             onClick={onPrintReceipt}
             className="print:hidden"
+            data-html2canvas-ignore="true"
             style={{
               marginTop: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               border: '1px solid #2E7D32', borderRadius: 999, padding: '9px 20px',

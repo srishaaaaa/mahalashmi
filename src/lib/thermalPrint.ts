@@ -1,5 +1,6 @@
 import { BRAND_ADDRESS, BRAND_EMAIL, BRAND_EN, BRAND_INSTAGRAM, BRAND_PRIMARY_PHONE_DISPLAY } from './brand'
 import { formatCurrency, formatInvoiceNo } from './retail'
+import { formatPhoneDisplay } from './phone'
 import { useSettingsStore } from '../store/store'
 
 export interface ThermalReceiptData {
@@ -98,7 +99,7 @@ export function printThermalReceipt(data: ThermalReceiptData) {
           <div>Inv: #${formatInvoiceNo(data.invoiceNo)}</div>
           <div>Date: ${dateStr}</div>
           ${data.customerName ? `<div>Name: ${data.customerName}</div>` : ''}
-          ${data.phone ? `<div>Tel: ${data.phone}</div>` : ''}
+          ${data.phone ? `<div>Tel: ${formatPhoneDisplay(data.phone)}</div>` : ''}
         </div>
 
         <table class="border-bottom">
