@@ -12,21 +12,21 @@ export default {
         brand: {
           black:      '#0A0A0A',
           dark:       '#141414',
-          gold:       '#D4AF37',
-          goldHover:  '#B8952E',
-          goldLight:  '#FBF3DC',
-          goldBorder: '#E8D9A0',
+          gold:       '#2E7D32',
+          goldHover:  '#256428',
+          goldLight:  '#EAF6EC',
+          goldBorder: '#B7E1BE',
         },
         gold: {
-          DEFAULT: '#D4AF37',
-          dark:    '#8A6D1E',
-          light:   '#FBF3DC',
-          border:  '#E8D9A0',
+          DEFAULT: '#2E7D32',
+          dark:    '#1B5E20',
+          light:   '#EAF6EC',
+          border:  '#B7E1BE',
         },
         maroon: {
-          DEFAULT: '#D4AF37', // Remapped to store Green
+          DEFAULT: '#2E7D32', // Remapped to store Green
           dark:    '#0A0A0A', // Remapped to Black
-          light:   '#FBF3DC',
+          light:   '#EAF6EC',
         },
         forestDark: '#123524',
         sage:       '#8FBF9F',
@@ -45,7 +45,7 @@ export default {
       },
       boxShadow: {
         soft:   '0 1px 3px rgba(0,0,0,0.05)',
-        gold:   '0 4px 20px -2px rgba(212, 175, 55, 0.25)',
+        gold:   '0 4px 20px -2px rgba(46, 125, 50, 0.25)',
       },
       borderRadius: {
         'card': '12px',

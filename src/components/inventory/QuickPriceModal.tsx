@@ -75,7 +75,7 @@ export const QuickPriceModal: React.FC<Props> = ({ isOpen, item, onClose, onSucc
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl border border-[#E8D9A0]/50 animate-in fade-in zoom-in-95">
+      <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl border border-[#B7E1BE]/50 animate-in fade-in zoom-in-95">
         {/* Header */}
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-[#FBFAF6]">
           <div className="flex items-center gap-2.5">
@@ -185,16 +185,16 @@ export const QuickPriceModal: React.FC<Props> = ({ isOpen, item, onClose, onSucc
             <button
               type="submit"
               disabled={loading}
-              className="h-9 px-4 text-xs font-bold rounded-xl bg-[#0A0A0A] text-[#D4AF37] border border-[#D4AF37] hover:bg-[#1A1A1A] transition-all shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+              className="h-9 px-4 text-xs font-bold rounded-xl bg-[#0A0A0A] text-[#2E7D32] border border-[#2E7D32] hover:bg-[#1A1A1A] transition-all shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
             >
               {loading ? (
                 <>
-                  <span className="w-3.5 h-3.5 border-2 border-[#D4AF37]/30 border-t-[#D4AF37] rounded-full animate-spin inline-block" />
+                  <span className="w-3.5 h-3.5 border-2 border-[#2E7D32]/30 border-t-[#2E7D32] rounded-full animate-spin inline-block" />
                   <span>Saving...</span>
                 </>
               ) : (
                 <>
-                  <Check className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <Check className="w-3.5 h-3.5 text-[#2E7D32]" />
                   <span>Update Price</span>
                 </>
               )}

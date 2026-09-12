@@ -239,13 +239,13 @@ export default function DigitalInvoice() {
     <div className="h-full overflow-y-auto bg-[#f9faf6] font-sans pb-12 print:bg-white print:pb-0">
       {/* Top action bar */}
       <div className="bg-[#f9faf6] p-4 sticky top-0 z-50 print:hidden flex items-center justify-between max-w-4xl mx-auto">
-        <button onClick={handleBack} className="flex items-center gap-2 text-[#0A0A0A] hover:text-[#D4AF37] font-semibold text-sm transition-colors bg-white border border-[#E8D9A0] px-4 py-2 rounded-full shadow-sm cursor-pointer">
+        <button onClick={handleBack} className="flex items-center gap-2 text-[#0A0A0A] hover:text-[#2E7D32] font-semibold text-sm transition-colors bg-white border border-[#B7E1BE] px-4 py-2 rounded-full shadow-sm cursor-pointer">
           <ArrowLeft size={16} /> Back
         </button>
         <div className="flex items-center gap-2">
           <button
             onClick={downloadPdf}
-            className="flex items-center gap-2 bg-[#0A0A0A] text-[#D4AF37] border border-[#D4AF37] px-5 py-2 rounded-full font-bold text-sm shadow-md hover:bg-[#1A1A1A] transition-colors cursor-pointer"
+            className="flex items-center gap-2 bg-[#0A0A0A] text-[#2E7D32] border border-[#2E7D32] px-5 py-2 rounded-full font-bold text-sm shadow-md hover:bg-[#1A1A1A] transition-colors cursor-pointer"
           >
             <Printer size={16} /> PDF Invoice
           </button>

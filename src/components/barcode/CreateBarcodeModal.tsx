@@ -498,7 +498,7 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
               <h2 className="text-base font-black tracking-wide text-white flex items-center gap-1.5">
                 Barcode Generator
               </h2>
-              <Info size={14} className="text-[#D4AF37] opacity-80" />
+              <Info size={14} className="text-[#2E7D32] opacity-80" />
             </div>
 
             {/* Right side: Printer / Size info & Settings gear */}
@@ -509,14 +509,14 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
                 </span>
                 <span className="text-gray-500">|</span>
                 <span>
-                  Size <strong className="text-[#D4AF37]">{currentSizeConfig.name}</strong>
+                  Size <strong className="text-[#2E7D32]">{currentSizeConfig.name}</strong>
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setShowSettingsDrawer(true)}
                 title="Barcode Settings"
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-[#D4AF37] hover:text-[#0A0A0A] flex items-center justify-center text-white transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-[#2E7D32] hover:text-[#0A0A0A] flex items-center justify-center text-white transition-colors cursor-pointer"
               >
                 <Settings size={16} />
               </button>
@@ -749,7 +749,7 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
                               })
                             }
                           }}
-                          className="px-2.5 py-1 rounded-md bg-[#0A0A0A] text-[#D4AF37] border border-[#D4AF37] text-[10px] font-black uppercase tracking-wider hover:bg-[#1A1A1A] transition-all flex items-center gap-1 cursor-pointer shadow-xs"
+                          className="px-2.5 py-1 rounded-md bg-[#0A0A0A] text-[#2E7D32] border border-[#2E7D32] text-[10px] font-black uppercase tracking-wider hover:bg-[#1A1A1A] transition-all flex items-center gap-1 cursor-pointer shadow-xs"
                         >
                           <Plus size={11} /> Add Unassigned Variants ({variants.filter(v => !v.barcode?.trim()).length})
                         </button>
@@ -901,7 +901,7 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
                     className={`w-full mt-3 py-2.5 rounded-xl border text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer ${
                       isBarcodeAlreadyAssigned
                         ? 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100'
-                        : 'bg-[#0A0A0A] border-[#D4AF37] text-[#D4AF37] hover:bg-[#1A1A1A]'
+                        : 'bg-[#0A0A0A] border-[#2E7D32] text-[#2E7D32] hover:bg-[#1A1A1A]'
                     }`}
                   >
                     <Plus size={14} /> {isBarcodeAlreadyAssigned ? 'Barcode Already Exists' : 'Add for Barcode'}
@@ -1095,11 +1095,11 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
                 type="button"
                 onClick={handleGenerateAndCommitStock}
                 disabled={generating || queue.filter((it) => it.selected).length === 0}
-                className="px-6 py-2.5 rounded-xl bg-[#0A0A0A] border border-[#D4AF37] text-[#D4AF37] text-xs font-black uppercase tracking-wider hover:bg-[#1A1A1A] transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                className="px-6 py-2.5 rounded-xl bg-[#0A0A0A] border border-[#2E7D32] text-[#2E7D32] text-xs font-black uppercase tracking-wider hover:bg-[#1A1A1A] transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {generating ? (
                   <>
-                    <span className="w-3.5 h-3.5 border-2 border-[#D4AF37]/30 border-t-[#D4AF37] rounded-full animate-spin inline-block" />
+                    <span className="w-3.5 h-3.5 border-2 border-[#2E7D32]/30 border-t-[#2E7D32] rounded-full animate-spin inline-block" />
                     Receiving Stock &amp; Generating...
                   </>
                 ) : (

@@ -15,7 +15,7 @@ const AdminLogin = lazy(() => import('./pages/AdminLogin'))
 function LoadingSpinner() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bgMain">
-      <span className="h-10 w-10 animate-spin rounded-full border-4 border-[#E5E7EB] border-t-[#D4AF37]" />
+      <span className="h-10 w-10 animate-spin rounded-full border-4 border-[#E5E7EB] border-t-[#2E7D32]" />
     </div>
   )
 }

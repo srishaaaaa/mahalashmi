@@ -132,9 +132,9 @@ export const CategoryManagerView: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Banner & Search */}
-      <div className="bg-white border border-[#E8D9A0] rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="bg-white border border-[#B7E1BE] rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#0A0A0A] text-[#D4AF37] flex items-center justify-center font-black">
+          <div className="w-10 h-10 rounded-xl bg-[#0A0A0A] text-[#2E7D32] flex items-center justify-center font-black">
             <Layers size={18} />
           </div>
           <div>
@@ -196,7 +196,7 @@ export const CategoryManagerView: React.FC = () => {
         <div className="bg-[#FBFAF6] border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-gray-200 pb-3">
             <h4 className="text-xs font-black uppercase tracking-wider text-black flex items-center gap-1.5">
-              <Tag size={14} className="text-[#D4AF37]" />
+              <Tag size={14} className="text-[#2E7D32]" />
               {editingId ? 'Edit Category' : 'Add New Category'}
             </h4>
             {editingId && (
@@ -271,11 +271,11 @@ export const CategoryManagerView: React.FC = () => {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full py-2.5 rounded-xl bg-[#0A0A0A] border border-[#D4AF37] text-[#D4AF37] text-xs font-black uppercase tracking-wider hover:bg-[#1A1A1A] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full py-2.5 rounded-xl bg-[#0A0A0A] border border-[#2E7D32] text-[#2E7D32] text-xs font-black uppercase tracking-wider hover:bg-[#1A1A1A] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {saving ? (
                   <>
-                    <span className="w-3.5 h-3.5 border-2 border-[#D4AF37]/30 border-t-[#D4AF37] rounded-full animate-spin inline-block" />
+                    <span className="w-3.5 h-3.5 border-2 border-[#2E7D32]/30 border-t-[#2E7D32] rounded-full animate-spin inline-block" />
                     Saving...
                   </>
                 ) : editingId ? (
