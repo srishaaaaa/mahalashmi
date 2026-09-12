@@ -3,6 +3,7 @@ import html2canvas from 'html2canvas'
 import { BRAND_ADDRESS, BRAND_EN, BRAND_PHONE_DISPLAY } from './brand'
 import { formatCurrency, formatQuantityDisplay, normalizeStructuredOrderItem, formatInvoiceNo } from './retail'
 import { getActiveLogo } from './activeLogo'
+import { useSettingsStore } from '../store/store'
 
 export type InvoicePdfData = {
   invoiceNo: string
@@ -26,6 +27,10 @@ const money = (value: number) => formatCurrency(Number(value || 0)).replace(/\s+
 /** Creates a compact A4 invoice that can be attached as a file to WhatsApp. */
 export function createInvoicePdf(data: InvoicePdfData): Blob {
   const formattedNo = formatInvoiceNo(data.invoiceNo)
+  const storeSettings = useSettingsStore.getState().settings
+  const shopName = storeSettings?.name || BRAND_EN
+  const shopAddress = storeSettings?.address || BRAND_ADDRESS
+  const shopPhone = storeSettings?.phone || BRAND_PHONE_DISPLAY
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const pageWidth = 210
   const left = 16
@@ -56,17 +61,17 @@ export function createInvoicePdf(data: InvoicePdfData): Blob {
   if (!logoRendered) {
     doc.setTextColor(primaryColor)
     doc.setFontSize(16)
-    doc.text(BRAND_EN, left, y + 10)
+    doc.text(shopName, left, y + 10)
   }
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(13)
   doc.setTextColor(primaryColor)
-  doc.text(BRAND_EN, left + 24, y + 5)
+  doc.text(shopName, left + 24, y + 5)
   doc.setFontSize(8)
   doc.setTextColor(muted)
   doc.setFont('helvetica', 'normal')
-  doc.text(BRAND_ADDRESS, left + 24, y + 10, { maxWidth: 85 })
-  doc.text(`Phone: ${BRAND_PHONE_DISPLAY}`, left + 24, y + 18)
+  doc.text(shopAddress, left + 24, y + 10, { maxWidth: 85 })
+  doc.text(`Phone: ${shopPhone}`, left + 24, y + 18)
   doc.text(`Date: ${new Date(data.date).toLocaleDateString('en-IN')}`, right, y + 2, { align: 'right' })
   doc.text(`Payment: ${data.paymentMode || 'POS'}`, right, y + 7, { align: 'right' })
   y += 28

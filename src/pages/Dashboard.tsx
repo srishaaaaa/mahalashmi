@@ -140,6 +140,7 @@ export default function Dashboard() {
   const { user } = useAuthStore()
   const { products, fetchProducts } = useProductStore()
   const logoUrl = useSettingsStore(s => s.settings?.logoUrl) || BRAND_LOGO
+  const shopName = useSettingsStore(s => s.settings?.name) || BRAND_EN
   const location = useLocation()
   const navigate = useNavigate()
   const role = useAdminAuthStore(state => state.role)
@@ -1216,11 +1217,11 @@ export default function Dashboard() {
         <div className={`hidden lg:flex items-center relative transition-all duration-300 shrink-0 ${sidebarCollapsed ? 'flex-col items-center pt-4 pb-3 px-2 gap-2' : 'px-4 py-3.5 justify-between border-b border-white/5'}`}>
           <Link to="/pos" title="Go to Billing Panel" className={`flex items-center gap-2.5 min-w-0 transition-all duration-300 ${sidebarCollapsed ? 'justify-center' : 'flex-1'}`}>
             <div className="flex items-center justify-center shrink-0 w-9 h-9 rounded-full overflow-hidden border border-[#2E7D32]/50 shadow-sm hover:scale-105 transition-transform">
-              <img src={logoUrl} alt={BRAND_EN} className="w-full h-full object-cover" />
+              <img src={logoUrl} alt={shopName} className="w-full h-full object-cover" />
             </div>
             {!sidebarCollapsed && (
               <div className="flex flex-col min-w-0">
-                <h1 className="text-[12.5px] font-black text-white leading-tight tracking-wide break-words">{BRAND_EN}</h1>
+                <h1 className="text-[12.5px] font-black text-white leading-tight tracking-wide break-words">{shopName}</h1>
                 <span className={`text-[8.5px] font-black uppercase tracking-widest px-1.5 py-0.2 rounded w-fit ${role === 'admin' ? 'bg-[#2E7D32]/20 text-[#2E7D32] border border-[#2E7D32]/40' : 'bg-gray-800 text-gray-300 border border-gray-700'}`}>
                   {role === 'admin' ? 'ADMIN' : 'STAFF'}
                 </span>
@@ -1241,10 +1242,10 @@ export default function Dashboard() {
         <div className="flex lg:hidden items-center justify-between px-3 py-2.5 border-b border-white/10 bg-[#0A0A0A] shrink-0">
           <Link to="/pos" title="Go to Billing Panel" className="flex items-center gap-2.5 min-w-0">
             <div className="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden border border-[#2E7D32]/50 shrink-0 shadow-sm hover:scale-105 transition-transform">
-              <img src={logoUrl} alt={BRAND_EN} className="w-full h-full object-cover" />
+              <img src={logoUrl} alt={shopName} className="w-full h-full object-cover" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[15px] font-black text-white tracking-wider truncate">{BRAND_EN}</span>
+              <span className="text-[15px] font-black text-white tracking-wider truncate">{shopName}</span>
               <span className={`text-[8.5px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${role === 'admin' ? 'bg-[#2E7D32]/20 text-[#2E7D32] border border-[#2E7D32]/40' : 'bg-gray-800 text-gray-300 border border-gray-700'}`}>
                 {role === 'admin' ? 'ADMIN' : 'STAFF'}
               </span>
