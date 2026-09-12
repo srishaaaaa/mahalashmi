@@ -167,7 +167,7 @@ export const ExpensesView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-[#0A0A0A] flex items-center gap-2">
-            <Receipt size={22} className="text-[#D4AF37]" />
+            <Receipt size={22} className="text-[#2E7D32]" />
             Expense Tracker
           </h2>
           <p className="text-xs text-gray-500 font-bold mt-0.5">
@@ -176,13 +176,13 @@ export const ExpensesView: React.FC = () => {
         </div>
 
         {/* View Switch Pills */}
-        <div className="flex items-center gap-2 bg-[#FBFAF6] p-1.5 rounded-2xl border border-[#E8D9A0]">
+        <div className="flex items-center gap-2 bg-[#FBFAF6] p-1.5 rounded-2xl border border-[#B7E1BE]">
           <button
             type="button"
             onClick={() => setActiveTab('expenses')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'expenses'
-                ? 'bg-[#0A0A0A] text-[#D4AF37] shadow-sm'
+                ? 'bg-[#0A0A0A] text-[#2E7D32] shadow-sm'
                 : 'text-gray-700 hover:text-black'
             }`}
           >
@@ -193,7 +193,7 @@ export const ExpensesView: React.FC = () => {
             onClick={() => setActiveTab('categories')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'categories'
-                ? 'bg-[#0A0A0A] text-[#D4AF37] shadow-sm'
+                ? 'bg-[#0A0A0A] text-[#2E7D32] shadow-sm'
                 : 'text-gray-700 hover:text-black'
             }`}
           >
@@ -223,13 +223,13 @@ export const ExpensesView: React.FC = () => {
             ].map((kpi, idx) => (
               <div
                 key={idx}
-                className="bg-white border border-gray-200/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between hover:border-[#D4AF37]/50 transition-all group"
+                className="bg-white border border-gray-200/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between hover:border-[#2E7D32]/50 transition-all group"
               >
                 <div className="flex items-center justify-between gap-1 mb-2">
                   <span className="text-[11px] font-bold text-gray-500">
                     {kpi.label}
                   </span>
-                  <div className="w-6 h-6 rounded-lg bg-[#FBFAF6] border border-[#E8D9A0]/60 flex items-center justify-center text-[#D4AF37] group-hover:scale-105 transition-transform">
+                  <div className="w-6 h-6 rounded-lg bg-[#FBFAF6] border border-[#B7E1BE]/60 flex items-center justify-center text-[#2E7D32] group-hover:scale-105 transition-transform">
                     <TrendingDown size={13} />
                   </div>
                 </div>
@@ -283,7 +283,7 @@ export const ExpensesView: React.FC = () => {
                       onClick={() => applyDatePreset(p)}
                       className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                         activePreset === p
-                          ? 'bg-[#0A0A0A] text-[#D4AF37] shadow-xs'
+                          ? 'bg-[#0A0A0A] text-[#2E7D32] shadow-xs'
                           : 'text-gray-600 hover:text-black'
                       }`}
                     >
@@ -315,7 +315,7 @@ export const ExpensesView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsRecordModalOpen(true)}
-                  className="h-10 px-4 rounded-xl bg-[#0A0A0A] border border-[#D4AF37] text-[#D4AF37] text-xs font-bold hover:bg-[#1A1A1A] transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                  className="h-10 px-4 rounded-xl bg-[#0A0A0A] border border-[#2E7D32] text-[#2E7D32] text-xs font-bold hover:bg-[#1A1A1A] transition-all shadow-md flex items-center gap-2 cursor-pointer"
                 >
                   <Plus size={15} /> Record Expense
                 </button>
@@ -400,7 +400,7 @@ export const ExpensesView: React.FC = () => {
             <div className="md:hidden rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden bg-white">
               {loading ? (
                 <div className="px-5 py-10 text-center text-gray-400 font-bold text-xs">
-                  <RefreshCw size={20} className="animate-spin mx-auto mb-2 text-[#D4AF37]" />
+                  <RefreshCw size={20} className="animate-spin mx-auto mb-2 text-[#2E7D32]" />
                   Loading expenses...
                 </div>
               ) : filteredExpenses.length === 0 ? (
@@ -457,7 +457,7 @@ export const ExpensesView: React.FC = () => {
                   {loading ? (
                     <tr>
                       <td colSpan={5} className="px-5 py-10 text-center text-gray-400 font-bold">
-                        <RefreshCw size={20} className="animate-spin mx-auto mb-2 text-[#D4AF37]" />
+                        <RefreshCw size={20} className="animate-spin mx-auto mb-2 text-[#2E7D32]" />
                         Loading expenses...
                       </td>
                     </tr>
@@ -475,7 +475,7 @@ export const ExpensesView: React.FC = () => {
                           {exp.expense_date}
                         </td>
                         <td className="px-5 py-3.5">
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[#FBFAF6] text-[#0A0A0A] border border-[#E8D9A0]">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[#FBFAF6] text-[#0A0A0A] border border-[#B7E1BE]">
                             {exp.category_name}
                           </span>
                         </td>

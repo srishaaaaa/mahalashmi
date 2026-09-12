@@ -69,21 +69,21 @@ export const Invoice: React.FC<InvoiceProps> = ({
     catch { return new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) }
   })()
 
-  const statusColor = status === 'completed' ? '#D4AF37' : status === 'cancelled' ? '#dc2626' : '#d97706'
+  const statusColor = status === 'completed' ? '#2E7D32' : status === 'cancelled' ? '#dc2626' : '#d97706'
   const effectiveDelivery = deliveryCharge || shipping
   const logoUrl = useSettingsStore(s => s.settings?.logoUrl) || BRAND_LOGO
 
   return (
     <div
       id="invoice-print-root"
-      className="w-full max-w-[680px] mx-auto bg-white text-[#111111] box-border flex flex-col p-4 sm:p-8 print:p-0 print:max-w-full overflow-hidden border border-[#E8D9A0]/40 shadow-xl rounded-3xl"
+      className="w-full max-w-[680px] mx-auto bg-white text-[#111111] box-border flex flex-col p-4 sm:p-8 print:p-0 print:max-w-full overflow-hidden border border-[#B7E1BE]/40 shadow-xl rounded-3xl"
       style={{
         fontFamily: "'Inter', 'Segoe UI', sans-serif",
       }}
     >
       {/* ── HEADER ────────────────────────────────────────────────── */}
-      <div style={{ textAlign: 'center', borderBottom: '1px solid #E8D9A0', paddingBottom: 20, marginBottom: 20 }}>
-        <div style={{ width: 44, height: 44, margin: '0 auto 12px auto', borderRadius: 12, border: '1px solid #D4AF37', overflow: 'hidden', boxShadow: '0 4px 12px rgba(212, 175, 55,0.15)' }}>
+      <div style={{ textAlign: 'center', borderBottom: '1px solid #B7E1BE', paddingBottom: 20, marginBottom: 20 }}>
+        <div style={{ width: 44, height: 44, margin: '0 auto 12px auto', borderRadius: 12, border: '1px solid #2E7D32', overflow: 'hidden', boxShadow: '0 4px 12px rgba(46, 125, 50,0.15)' }}>
           <img src={logoUrl} alt={BRAND_EN} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
         <div style={{ fontSize: 24, fontWeight: 900, color: '#0A0A0A', letterSpacing: 2, textTransform: 'uppercase' }}>
@@ -123,7 +123,7 @@ export const Invoice: React.FC<InvoiceProps> = ({
             </>
           )}
         </div>
-        <div style={{ minWidth: 0, padding: '12px 14px', borderRadius: 12, background: '#FBFAF6', border: '1px solid #E8D9A0', overflowWrap: 'anywhere' }}>
+        <div style={{ minWidth: 0, padding: '12px 14px', borderRadius: 12, background: '#FBFAF6', border: '1px solid #B7E1BE', overflowWrap: 'anywhere' }}>
           <div style={{ fontSize: 9, fontWeight: 800, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Customer Information</div>
           <div style={{ fontSize: 9, fontWeight: 800, color: '#888', textTransform: 'uppercase', letterSpacing: 0.7, marginTop: 6 }}>Customer Name</div>
           <div style={{ fontSize: 13, fontWeight: 800, color: '#0A0A0A', lineHeight: 1.35, wordBreak: 'break-word' }}>{customerName || 'Walk-in Customer'}</div>
@@ -142,11 +142,11 @@ export const Invoice: React.FC<InvoiceProps> = ({
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 320 }}>
           <thead>
             <tr style={{ background: '#0A0A0A', borderRadius: 8 }}>
-              <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 800, color: '#D4AF37', textTransform: 'uppercase', letterSpacing: 0.8, width: 28 }}>#</th>
-              <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 800, color: '#D4AF37', textTransform: 'uppercase', letterSpacing: 0.8 }}>Item / SKU</th>
-              <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: 10, fontWeight: 800, color: '#D4AF37', textTransform: 'uppercase', letterSpacing: 0.8, width: 45 }}>Qty</th>
-              <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: 10, fontWeight: 800, color: '#D4AF37', textTransform: 'uppercase', letterSpacing: 0.8, width: 75 }}>Rate</th>
-              <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: 10, fontWeight: 800, color: '#D4AF37', textTransform: 'uppercase', letterSpacing: 0.8, width: 85 }}>Amount</th>
+              <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 800, color: '#2E7D32', textTransform: 'uppercase', letterSpacing: 0.8, width: 28 }}>#</th>
+              <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 800, color: '#2E7D32', textTransform: 'uppercase', letterSpacing: 0.8 }}>Item / SKU</th>
+              <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: 10, fontWeight: 800, color: '#2E7D32', textTransform: 'uppercase', letterSpacing: 0.8, width: 45 }}>Qty</th>
+              <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: 10, fontWeight: 800, color: '#2E7D32', textTransform: 'uppercase', letterSpacing: 0.8, width: 75 }}>Rate</th>
+              <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: 10, fontWeight: 800, color: '#2E7D32', textTransform: 'uppercase', letterSpacing: 0.8, width: 85 }}>Amount</th>
             </tr>
           </thead>
           <tbody>
@@ -183,7 +183,7 @@ export const Invoice: React.FC<InvoiceProps> = ({
       </div>
 
       {/* ── TOTALS ───────────────────────────────────────────────── */}
-      <div style={{ marginTop: 24, borderTop: '2px solid #D4AF37', paddingTop: 16 }}>
+      <div style={{ marginTop: 24, borderTop: '2px solid #2E7D32', paddingTop: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <div style={{ minWidth: 240, width: '100%', maxWidth: 300 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -192,16 +192,16 @@ export const Invoice: React.FC<InvoiceProps> = ({
             </div>
             {discountAmount > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 12, color: '#8A6D1E' }}>
+                <span style={{ fontSize: 12, color: '#1B5E20' }}>
                   Coupon{couponCode ? ` (${couponCode})` : ''}
                 </span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#8A6D1E' }}>−{formatCurrency(discountAmount)}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#1B5E20' }}>−{formatCurrency(discountAmount)}</span>
               </div>
             )}
             {manualDiscountAmount > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 12, color: '#8A6D1E' }}>Manual Discount</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#8A6D1E' }}>−{formatCurrency(manualDiscountAmount)}</span>
+                <span style={{ fontSize: 12, color: '#1B5E20' }}>Manual Discount</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#1B5E20' }}>−{formatCurrency(manualDiscountAmount)}</span>
               </div>
             )}
             {gstAmount > 0 && (
@@ -219,7 +219,7 @@ export const Invoice: React.FC<InvoiceProps> = ({
             <div
               style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                borderTop: '2px solid #D4AF37', paddingTop: 10, marginTop: 4,
+                borderTop: '2px solid #2E7D32', paddingTop: 10, marginTop: 4,
               }}
             >
               <span style={{ fontSize: 15, fontWeight: 900, color: '#0A0A0A', textTransform: 'uppercase', letterSpacing: 0.5 }}>Total</span>
@@ -245,8 +245,8 @@ export const Invoice: React.FC<InvoiceProps> = ({
             className="print:hidden"
             style={{
               marginTop: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              border: '1px solid #D4AF37', borderRadius: 999, padding: '9px 20px',
-              background: '#0A0A0A', color: '#D4AF37', fontSize: 12, fontWeight: 800, cursor: 'pointer',
+              border: '1px solid #2E7D32', borderRadius: 999, padding: '9px 20px',
+              background: '#0A0A0A', color: '#2E7D32', fontSize: 12, fontWeight: 800, cursor: 'pointer',
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
             }}
           >

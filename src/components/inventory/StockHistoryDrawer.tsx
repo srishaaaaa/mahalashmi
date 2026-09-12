@@ -67,18 +67,18 @@ export const StockHistoryDrawer: React.FC<StockHistoryDrawerProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-xs flex justify-end">
-      <div className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-200 border-l border-[#E8D9A0]">
+      <div className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-200 border-l border-[#B7E1BE]">
         {/* Header */}
-        <div className="bg-[#0A0A0A] p-5 border-b border-[#D4AF37]/30 flex items-center justify-between text-white">
+        <div className="bg-[#0A0A0A] p-5 border-b border-[#2E7D32]/30 flex items-center justify-between text-white">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#1A1A1A] border border-[#D4AF37] flex items-center justify-center text-[#D4AF37]">
+            <div className="w-9 h-9 rounded-xl bg-[#1A1A1A] border border-[#2E7D32] flex items-center justify-center text-[#2E7D32]">
               <History size={18} />
             </div>
             <div>
               <h2 className="text-base font-black tracking-wide text-white">
                 Stock Audit Ledger
               </h2>
-              <p className="text-xs text-[#D4AF37] font-semibold">
+              <p className="text-xs text-[#2E7D32] font-semibold">
                 {BRAND_EN} Immutable History
               </p>
             </div>
@@ -92,8 +92,8 @@ export const StockHistoryDrawer: React.FC<StockHistoryDrawerProps> = ({
         </div>
 
         {/* Item Summary Bar */}
-        <div className="bg-[#FBFAF6] border-b border-[#E8D9A0] p-4">
-          <div className="text-[10px] font-black uppercase tracking-wider text-[#8A6D1E]">
+        <div className="bg-[#FBFAF6] border-b border-[#B7E1BE] p-4">
+          <div className="text-[10px] font-black uppercase tracking-wider text-[#1B5E20]">
             Target SKU
           </div>
           <div className="text-sm font-black text-black">{item.name}</div>
@@ -137,7 +137,7 @@ export const StockHistoryDrawer: React.FC<StockHistoryDrawerProps> = ({
               return (
                 <div
                   key={m.id}
-                  className="bg-[#FBFAF6] border border-gray-200 hover:border-[#E8D9A0] rounded-2xl p-3.5 space-y-2 transition-all shadow-xs"
+                  className="bg-[#FBFAF6] border border-gray-200 hover:border-[#B7E1BE] rounded-2xl p-3.5 space-y-2 transition-all shadow-xs"
                 >
                   <div className="flex items-center justify-between">
                     <span
