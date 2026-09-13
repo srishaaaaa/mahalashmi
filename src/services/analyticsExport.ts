@@ -333,8 +333,8 @@ export async function exportAnalyticsToPDF({
                 const barHeight = Math.max(3, Math.round((w.revenue / maxWeeklyRev) * 50))
                 return `
                 <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 1; margin: 0 6px; height: 100%;">
-                  <span style="font-size: 8px; font-weight: 800; color: ${w.revenue > 0 ? '#0A0A0A' : '#bbb'}; margin-bottom: 3px; line-height: 1;">
-                    ${w.revenue > 0 ? '₹' + Math.round(w.revenue).toLocaleString('en-IN') : '₹0'}
+                  <span style="font-size: 8px; font-weight: 800; color: #0A0A0A; margin-bottom: 3px; line-height: 1;">
+                    ${w.revenue > 0 ? '₹' + Math.round(w.revenue).toLocaleString('en-IN') : ''}
                   </span>
                   <div style="width: 100%; max-width: 44px; height: ${barHeight}px; background: ${w.revenue > 0 ? '#0A0A0A' : '#E5E7EB'}; border-radius: 4px 4px 0 0;"></div>
                 </div>
@@ -412,12 +412,12 @@ export async function exportAnalyticsToPDF({
                   const percent = Math.round((c.revenue / totalCatRev) * 100) || 0
                   return `
                   <div>
-                    <div style="display: flex; justify-content: space-between; font-size: 8px; font-weight: 700; margin-bottom: 2px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 8px; font-weight: 700; margin-bottom: 4px;">
                       <span style="color: #111;">${c.name}</span>
                       <span style="color: #0A0A0A; font-weight: 900;">${formatCurrency(c.revenue)} (${percent}%)</span>
                     </div>
-                    <div style="width: 100%; height: 5px; background: #F3F4F6; border-radius: 3px; overflow: hidden;">
-                      <div style="width: ${percent}%; height: 100%; background: #2E7D32; border-radius: 3px;"></div>
+                    <div style="width: 100%; height: 7px; background: #F3F4F6; border-radius: 4px; overflow: hidden;">
+                      <div style="width: ${percent}%; height: 100%; background: #2E7D32; border-radius: 4px;"></div>
                     </div>
                   </div>
                 `

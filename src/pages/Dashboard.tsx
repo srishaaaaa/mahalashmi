@@ -2285,7 +2285,7 @@ export default function Dashboard() {
                           <div key={i} className="flex items-center justify-between text-[13px]">
                             <div className="flex items-center gap-3">
                               <span className="font-bold text-[#6B7280] w-4">{i + 1}</span>
-                              <span className="font-bold text-[#111111] break-words max-w-[120px]">{p.name}</span>
+                              <span className="font-bold text-[#111111] truncate max-w-[140px]">{p.name}</span>
                             </div>
                             <div className="flex items-center gap-4">
                               <span className="font-bold text-[#0A0A0A]">{formatCurrency(p.revenue)}</span>

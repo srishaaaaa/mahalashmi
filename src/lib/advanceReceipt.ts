@@ -124,11 +124,25 @@ ${order.category ? `<div class="r"><span class="label">Category</span><span>${es
   doc.open()
   doc.write(html)
   doc.close()
-  setTimeout(() => {
+
+  const runPrint = () => {
     frame.contentWindow?.focus()
     frame.contentWindow?.print()
     setTimeout(() => frame.remove(), 1500)
-  }, 300)
+  }
+
+  // Wait for the remote logo image to actually load before printing —
+  // a fixed short delay isn't reliably enough time for the network fetch.
+  const logoImg = doc.querySelector('img')
+  if (logoImg && !logoImg.complete) {
+    let printed = false
+    const doPrint = () => { if (!printed) { printed = true; runPrint() } }
+    logoImg.addEventListener('load', doPrint, { once: true })
+    logoImg.addEventListener('error', doPrint, { once: true })
+    setTimeout(doPrint, 2000)
+  } else {
+    setTimeout(runPrint, 300)
+  }
 }
 
 export function downloadFile(file: File) { const url = URL.createObjectURL(file); const link = document.createElement('a'); link.href = url; link.download = file.name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 500) }

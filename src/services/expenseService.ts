@@ -273,7 +273,55 @@ export const expenseService = {
     return newRecord
   },
 
-  // 4. Delete an Expense
+  // 4. Update an Expense
+  async updateExpense(id: string, payload: {
+    expense_date: string
+    category_id: number | null
+    category_name: string
+    amount: number
+    description?: string
+  }): Promise<ExpenseRecord> {
+    const patch = {
+      expense_date: payload.expense_date,
+      category_id: payload.category_id || null,
+      category_name: payload.category_name.trim(),
+      amount: Math.max(0.01, payload.amount),
+      description: (payload.description || '').trim(),
+      updated_at: new Date().toISOString(),
+    }
+
+    if (isSupabaseConfigured && remoteExpensesAvailable !== false) {
+      try {
+        const { data, error } = await supabase
+          .from('expenses')
+          .update(patch)
+          .eq('id', id)
+          .select()
+          .single()
+
+        if (!error && data) {
+          remoteExpensesAvailable = true
+          const local = loadLocalExpenses()
+          saveLocalExpenses(local.map((e) => (e.id === id ? (data as ExpenseRecord) : e)))
+          return data as ExpenseRecord
+        }
+        if (error && (error.code === 'PGRST205' || error.message?.includes('not find'))) {
+          remoteExpensesAvailable = false
+        }
+      } catch {
+        remoteExpensesAvailable = false
+      }
+    }
+
+    const current = loadLocalExpenses()
+    const existing = current.find((e) => e.id === id)
+    if (!existing) throw new Error('Expense record not found')
+    const updated: ExpenseRecord = { ...existing, ...patch }
+    saveLocalExpenses(current.map((e) => (e.id === id ? updated : e)))
+    return updated
+  },
+
+  // 4b. Delete an Expense
   async deleteExpense(id: string): Promise<void> {
     if (isSupabaseConfigured && remoteExpensesAvailable !== false) {
       try {
@@ -391,12 +439,14 @@ export function exportExpensesToCSV(expenses: ExpenseRecord[]): void {
   ])
 
   const csvContent =
-    'data:text/csv;charset=utf-8,\uFEFF' +
-    [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
+    [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
-  link.href = encodeURI(csvContent)
+  link.href = url
   link.download = `${BRAND_MONOGRAM}-Expenses-${new Date().toISOString().slice(0, 10)}.csv`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 }
