@@ -45,6 +45,7 @@ export default function AdvanceOrders({ onOrderCompleted }: AdvanceOrdersProps =
   const role = useAdminAuthStore(state => state.role)
   const products = useProductStore(state => state.products)
   const [orders, setOrders] = useState<AdvanceOrder[]>([])
+  const [expandedOrderId, setExpandedOrderId] = useState<string | number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -223,62 +224,79 @@ export default function AdvanceOrders({ onOrderCompleted }: AdvanceOrdersProps =
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{cards.map(([label, value, Icon, color]) => <div key={label} className="rounded-2xl border border-[#ECE9E2] bg-white p-4 shadow-sm"><div className="flex items-center justify-between"><div><p className="text-[11px] font-black uppercase tracking-wide text-[#879086]">{label}</p><p className="mt-2 text-[17px] sm:text-2xl font-black text-[#273126] break-words">{value}</p></div><div className={`rounded-xl p-3 ${color}`}><Icon size={21}/></div></div></div>)}</div>
     <div className="rounded-2xl border border-[#ECE9E2] bg-white p-4 shadow-sm"><div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]"><label className="relative"><Search className="absolute left-3 top-3 text-[#9CA3AF]" size={17}/><input className={`${inputClass} pl-10`} value={search} onChange={e => setSearch(e.target.value)} placeholder="Search Deposit ID, customer, phone, product or status"/></label><div className="flex flex-wrap gap-2">{(['all','pending','ready','completed','cancelled'] as StatusFilter[]).map(value => <button key={value} onClick={() => setStatusFilter(value)} className={`rounded-lg px-3 py-2 text-xs font-black capitalize ${statusFilter === value ? 'bg-[#1B5E20] text-white' : 'bg-[#F5F3F7] text-[#626B61]'}`}>{value}</button>)}</div><select className={inputClass} value={dateFilter} onChange={e => setDateFilter(e.target.value as DateFilter)}><option value="all">All Dates</option><option value="today">Today</option><option value="week">This Week</option><option value="month">This Month</option></select></div></div>
     <div className="overflow-hidden rounded-2xl border border-[#ECE9E2] bg-white shadow-sm">
-      <div className="md:hidden divide-y divide-[#F0EEE9]">
+      <div className="md:hidden">
         {loading ? (
           <div className="px-4 py-12 text-center text-[#6B7280]">Loading advance orders...</div>
         ) : filtered.length === 0 ? (
           <div className="px-4 py-12 text-center text-[#6B7280]">No advance orders match these filters.</div>
         ) : (
-          filtered.map(order => (
-            <div key={order.id} className="px-2.5 py-2">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
+          <>
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-[#F8F7F4] border-b border-[#F0EEE9] text-[9px] font-black uppercase tracking-wider text-[#8B9389]">
+            <span className="flex-1">Customer</span>
+            <span className="w-24 shrink-0">Product</span>
+            <span className="w-16 shrink-0 text-right">Balance</span>
+          </div>
+          <div className="divide-y divide-[#F0EEE9]">
+          {filtered.map(order => {
+            const isExpanded = expandedOrderId === order.id
+            return (
+            <div key={order.id}>
+              <button
+                type="button"
+                onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                className="w-full flex items-center gap-2 px-2.5 py-2 text-left cursor-pointer hover:bg-[#FAF9F6] transition-colors"
+              >
+                <div className="min-w-0 flex-1">
                   <p className="font-bold text-[#273126] text-[12px] break-words leading-tight">{order.customer_name}</p>
                   <p className="text-[10px] text-[#8B9389] mt-0.5 break-words leading-tight">
                     {order.deposit_id}
-                    {' · '}{order.phone}
-                    {' · '}{order.product_name}
                     {' · '}Due {new Date(`${order.expected_delivery_date}T00:00:00`).toLocaleDateString('en-IN')}
                   </p>
                 </div>
-                <p className="shrink-0 text-right font-bold text-red-600 text-[12px]">{formatCurrency(order.remaining_balance)}</p>
-              </div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                <select
-                  value={order.status}
-                  onChange={e => void changeStatus(order, e.target.value as AdvanceStatus)}
-                  className={`rounded-lg border px-2 py-1.5 text-[11px] font-black outline-none shadow-xs transition-colors cursor-pointer ${STATUS_STYLES[order.status]}`}
-                >
-                  <option value="pending_deposit">Pending Deposit</option>
-                  <option value="waiting_final_payment">Waiting for Final Payment</option>
-                  <option value="completed">Completed (receive payment)</option>
-                  <option value="ready_for_delivery">Ready to Collect</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-                {order.status !== 'completed' && order.status !== 'cancelled' && (
-                  <button
-                    type="button"
-                    onClick={() => setPaymentOrder(order)}
-                    className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1.5 text-[11px] font-black shadow-xs transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+                <span className="w-24 shrink-0 text-[10px] text-[#6C665C] truncate">{order.product_name}</span>
+                <span className="w-16 shrink-0 text-right font-bold text-red-600 text-[12px]">{formatCurrency(order.remaining_balance)}</span>
+              </button>
+              {isExpanded && (
+                <div className="px-2.5 pb-2 flex flex-wrap items-center gap-1 bg-[#FAF9F6]">
+                  <select
+                    value={order.status}
+                    onChange={e => void changeStatus(order, e.target.value as AdvanceStatus)}
+                    className={`rounded-lg border px-2 py-1.5 text-[11px] font-black outline-none shadow-xs transition-colors cursor-pointer ${STATUS_STYLES[order.status]}`}
                   >
-                    Receive Balance
+                    <option value="pending_deposit">Pending Deposit</option>
+                    <option value="waiting_final_payment">Waiting for Final Payment</option>
+                    <option value="completed">Completed (receive payment)</option>
+                    <option value="ready_for_delivery">Ready to Collect</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                  {order.status !== 'completed' && order.status !== 'cancelled' && (
+                    <button
+                      type="button"
+                      onClick={() => setPaymentOrder(order)}
+                      className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1.5 text-[11px] font-black shadow-xs transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+                    >
+                      Receive Balance
+                    </button>
+                  )}
+                  <button type="button" onClick={() => void openDetails(order)} className="w-7 h-7 rounded-lg bg-[#F4F2F6] hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="View Details">
+                    <Eye size={13}/>
                   </button>
-                )}
-                <button type="button" onClick={() => void openDetails(order)} className="w-7 h-7 rounded-lg bg-[#F4F2F6] hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="View Details">
-                  <Eye size={13}/>
-                </button>
-                <button type="button" onClick={() => order.status === 'completed' ? printFinal(order) : printAdvanceReceipt(order)} className="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="Print">
-                  <Printer size={13}/>
-                </button>
-                <button type="button" onClick={() => downloadFile(order.status === 'completed' ? invoiceFile(order) : advanceReceiptPdf(order))} className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="Download">
-                  <Download size={13}/>
-                </button>
-                <button type="button" onClick={() => order.status === 'completed' ? whatsappInvoice(order) : whatsappDepositReceipt(order)} className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="Share via WhatsApp">
-                  <MessageCircle size={13}/>
-                </button>
-              </div>
+                  <button type="button" onClick={() => order.status === 'completed' ? printFinal(order) : printAdvanceReceipt(order)} className="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="Print">
+                    <Printer size={13}/>
+                  </button>
+                  <button type="button" onClick={() => downloadFile(order.status === 'completed' ? invoiceFile(order) : advanceReceiptPdf(order))} className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="Download">
+                    <Download size={13}/>
+                  </button>
+                  <button type="button" onClick={() => order.status === 'completed' ? whatsappInvoice(order) : whatsappDepositReceipt(order)} className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="Share via WhatsApp">
+                    <MessageCircle size={13}/>
+                  </button>
+                </div>
+              )}
             </div>
-          ))
+            )
+          })}
+          </div>
+          </>
         )}
       </div>
       <div className="hidden md:block overflow-x-auto">

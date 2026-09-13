@@ -411,25 +411,31 @@ export const InventoryAnalyticsView: React.FC = () => {
           </div>
         ) : (
           <>
-          <div className="md:hidden rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden bg-white">
+          <div className="md:hidden rounded-xl border border-gray-200 overflow-hidden bg-white">
+            <div className="flex items-center gap-2 px-2 py-1.5 bg-gray-50 border-b border-gray-200 text-[9px] font-black uppercase tracking-wider text-gray-500">
+              <span className="flex-1">Product</span>
+              <span className="w-20 shrink-0">Type</span>
+              <span className="w-10 shrink-0 text-right">Delta</span>
+            </div>
+            <div className="divide-y divide-gray-100">
             {filteredMovements.map((m) => (
               <div key={m.id} className="p-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
+                <div className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
                     <p className="font-bold text-gray-900 text-[12px] break-words leading-tight">
                       {m.product?.name || `Product #${m.product_id}`}
                       {m.variant?.variant_name ? ` - ${m.variant.variant_name}` : ''}
                     </p>
                     <p className="text-[10px] text-gray-500 mt-0.5 break-words leading-tight">
                       {new Date(m.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      {' · '}{m.movement_type.replace(/_/g, ' ')}
                       {' · '}{m.quantity_before}→{m.quantity_after}
                       {' · '}{m.created_by_name || 'Admin'}
                       {m.note ? ` · ${m.note}` : ''}
                     </p>
                   </div>
+                  <span className="w-20 shrink-0 text-[10px] text-gray-600 break-words leading-tight">{m.movement_type.replace(/_/g, ' ')}</span>
                   <span
-                    className={`shrink-0 text-[12px] font-black ${
+                    className={`w-10 shrink-0 text-right text-[12px] font-black ${
                       m.quantity_delta > 0 ? 'text-emerald-700' : m.quantity_delta < 0 ? 'text-red-600' : 'text-gray-500'
                     }`}
                   >
@@ -438,6 +444,7 @@ export const InventoryAnalyticsView: React.FC = () => {
                 </div>
               </div>
             ))}
+            </div>
           </div>
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs">
