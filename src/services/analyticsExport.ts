@@ -1,7 +1,8 @@
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
-import { BRAND_EN, BRAND_ADDRESS, BRAND_PHONE_DISPLAY, BRAND_MONOGRAM } from '../lib/brand'
+import { BRAND_EN, BRAND_ADDRESS, BRAND_PHONE_DISPLAY, BRAND_MONOGRAM, BRAND_LOGO } from '../lib/brand'
 import { formatCurrency } from '../lib/retail'
+import { useSettingsStore } from '../store/store'
 
 export interface AnalyticsExportData {
   totalCompletedRevenue: number
@@ -63,10 +64,11 @@ const getFilterLabel = (preset: string, from?: string, to?: string) => {
  */
 export function exportAnalyticsToCSV({ data, activeTab, datePreset, dateFrom, dateTo }: ExportOptions) {
   const filterText = getFilterLabel(datePreset, dateFrom, dateTo)
+  const shopName = useSettingsStore.getState().settings?.name || BRAND_EN
   const rows: string[][] = []
 
   // Brand and Metadata Header
-  rows.push([`${BRAND_EN} - POS & Store Analytics Report`])
+  rows.push([`${shopName} - POS & Store Analytics Report`])
   rows.push([`Exported on: ${new Date().toLocaleString('en-IN')}`])
   rows.push([`Active View: ${activeTab.toUpperCase()}`])
   rows.push([`Filter Period: ${filterText}`])
@@ -199,6 +201,12 @@ export async function exportAnalyticsToPDF({
     minute: '2-digit',
   })
 
+  const storeSettings = useSettingsStore.getState().settings
+  const shopName = storeSettings?.name || BRAND_EN
+  const shopAddress = storeSettings?.address || BRAND_ADDRESS
+  const shopPhone = storeSettings?.phone || BRAND_PHONE_DISPLAY
+  const shopLogo = storeSettings?.logoUrl || BRAND_LOGO
+
   // Find max weekly revenue for bar height normalization
   const maxWeeklyRev = Math.max(1, ...data.weeklySales.map((s) => s.revenue))
   const maxHourlyRev = Math.max(1, ...data.todayHourlyTrend.map((s) => s.revenue))
@@ -222,13 +230,13 @@ export async function exportAnalyticsToPDF({
       <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #2E7D32; padding-bottom: 16px; margin-bottom: 20px;">
         <div>
           <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 32px; height: 32px; border-radius: 8px; background: #0A0A0A; border: 1.5px solid #2E7D32; display: flex; align-items: center; justify-content: center; color: #2E7D32; font-weight: 900; font-size: 16px; font-family: serif;">C</div>
+            <img src="${shopLogo}" alt="${shopName}" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover; border: 1.5px solid #2E7D32;" />
             <div>
-              <h1 style="margin: 0; font-size: 20px; font-weight: 900; letter-spacing: 0.5px; color: #0A0A0A; text-transform: uppercase;">${BRAND_EN}</h1>
+              <h1 style="margin: 0; font-size: 20px; font-weight: 900; letter-spacing: 0.5px; color: #0A0A0A; text-transform: uppercase;">${shopName}</h1>
               <p style="margin: 2px 0 0 0; font-size: 10px; font-weight: 700; color: #1B5E20;">Executive POS & Store Analytics Intelligence</p>
             </div>
           </div>
-          <p style="margin: 8px 0 0 0; font-size: 9px; color: #666;">${BRAND_ADDRESS} • Tel: ${BRAND_PHONE_DISPLAY}</p>
+          <p style="margin: 8px 0 0 0; font-size: 9px; color: #666;">${shopAddress} • Tel: ${shopPhone}</p>
         </div>
         <div style="text-align: right;">
           <span style="display: inline-block; padding: 4px 10px; background: #0A0A0A; color: #2E7D32; font-size: 10px; font-weight: 800; border-radius: 6px; text-transform: uppercase; margin-bottom: 4px;">
@@ -449,7 +457,7 @@ export async function exportAnalyticsToPDF({
 
       <!-- Footer Stamp -->
       <div style="border-top: 1px solid #E5E7EB; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 7.5px; color: #888;">
-        <div>${BRAND_EN} POS System • Confidential Store Performance Report</div>
+        <div>${shopName} POS System • Confidential Store Performance Report</div>
         <div>Page 1 of 1</div>
       </div>
     </div>

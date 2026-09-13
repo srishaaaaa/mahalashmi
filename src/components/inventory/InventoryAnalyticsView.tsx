@@ -413,14 +413,14 @@ export const InventoryAnalyticsView: React.FC = () => {
           <>
           <div className="md:hidden rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden bg-white">
             {filteredMovements.map((m) => (
-              <div key={m.id} className="p-3">
-                <div className="flex items-start justify-between gap-3">
+              <div key={m.id} className="p-2">
+                <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-bold text-gray-900 text-[13px] break-words">
+                    <p className="font-bold text-gray-900 text-[12px] break-words leading-tight">
                       {m.product?.name || `Product #${m.product_id}`}
                       {m.variant?.variant_name ? ` - ${m.variant.variant_name}` : ''}
                     </p>
-                    <p className="text-[11px] text-gray-500 mt-0.5 break-words">
+                    <p className="text-[10px] text-gray-500 mt-0.5 break-words leading-tight">
                       {new Date(m.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       {' · '}{m.movement_type.replace(/_/g, ' ')}
                       {' · '}{m.quantity_before}→{m.quantity_after}
@@ -429,7 +429,7 @@ export const InventoryAnalyticsView: React.FC = () => {
                     </p>
                   </div>
                   <span
-                    className={`shrink-0 text-[13px] font-black ${
+                    className={`shrink-0 text-[12px] font-black ${
                       m.quantity_delta > 0 ? 'text-emerald-700' : m.quantity_delta < 0 ? 'text-red-600' : 'text-gray-500'
                     }`}
                   >
