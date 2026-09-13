@@ -130,6 +130,19 @@ export async function listAdvanceOrders(): Promise<AdvanceOrder[]> {
   return local
 }
 
+export async function deleteAdvanceOrder(orderId: string): Promise<void> {
+  if (isSupabaseConfigured) {
+    try {
+      const { error } = await supabase.from('advance_orders').delete().eq('id', orderId)
+      if (error) console.error('[deleteAdvanceOrder] Supabase error:', error.message)
+    } catch (err) { console.error('[deleteAdvanceOrder] Exception:', err) }
+  }
+
+  saveLocalOrders(loadLocalOrders().filter(o => o.id !== orderId))
+  saveLocalTimeline(loadLocalTimeline().filter(t => t.advance_order_id !== orderId))
+  saveLocalPayments(loadLocalPayments().filter(p => p.advance_order_id !== orderId))
+}
+
 export async function getAdvanceOrderHistory(orderId: string) {
   const localTimeline = loadLocalTimeline().filter(t => t.advance_order_id === orderId)
   const localPayments = loadLocalPayments().filter(p => p.advance_order_id === orderId)
@@ -253,7 +266,7 @@ export async function updateAdvanceStatus(orderId: string, status: AdvanceStatus
   const existing = localOrders.find(o => o.id === orderId)
   if (!updatedOrder && existing) {
     const now = new Date().toISOString()
-    const label = status === 'ready_for_delivery' ? 'Tailoring Completed' : status === 'waiting_final_payment' ? 'Customer Contacted' : status === 'cancelled' ? 'Cancelled' : 'Pending Deposit'
+    const label = status === 'ready_for_delivery' ? 'Ready for Pickup' : status === 'waiting_final_payment' ? 'Customer Contacted' : status === 'cancelled' ? 'Cancelled' : 'Pending Deposit'
     updatedOrder = { ...existing, status, remarks: remarks || existing.remarks, updated_at: now }
 
     const timeline = loadLocalTimeline()
