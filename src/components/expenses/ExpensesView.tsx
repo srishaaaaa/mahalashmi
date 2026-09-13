@@ -24,7 +24,6 @@ import { ExpenseCategoriesView } from './ExpenseCategoriesView'
 
 export const ExpensesView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'expenses' | 'categories'>('expenses')
-  const [expandedExpenseId, setExpandedExpenseId] = useState<string | number | null>(null)
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false)
 
   // Metrics
@@ -398,61 +397,7 @@ export const ExpensesView: React.FC = () => {
               )}
             </div>
 
-            <div className="md:hidden rounded-xl border border-gray-200 overflow-hidden bg-white">
-              {loading ? (
-                <div className="px-5 py-10 text-center text-gray-400 font-bold text-xs">
-                  <RefreshCw size={20} className="animate-spin mx-auto mb-2 text-[#2E7D32]" />
-                  Loading expenses...
-                </div>
-              ) : filteredExpenses.length === 0 ? (
-                <div className="px-5 py-12 text-center text-gray-400 font-bold text-xs">
-                  <Layers size={32} className="mx-auto mb-2 opacity-30" />
-                  No expense records found matching the filters.
-                </div>
-              ) : (
-                <>
-                <div className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 border-b border-gray-200 text-[9px] font-black uppercase tracking-wider text-gray-500">
-                  <span className="flex-1">Description</span>
-                  <span className="w-16 shrink-0">Date</span>
-                  <span className="w-16 shrink-0 text-right">Amount</span>
-                </div>
-                <div className="divide-y divide-gray-100">
-                {filteredExpenses.map((exp) => {
-                  const isExpanded = expandedExpenseId === exp.id
-                  return (
-                  <div key={exp.id}>
-                    <button
-                      type="button"
-                      onClick={() => setExpandedExpenseId(isExpanded ? null : exp.id)}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 text-left cursor-pointer hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-bold text-gray-900 text-[12px] break-words leading-tight">{exp.category_name}</p>
-                        {exp.description && <p className="text-[10px] text-gray-500 mt-0.5 break-words leading-tight">{exp.description}</p>}
-                      </div>
-                      <span className="w-16 shrink-0 text-[10px] text-gray-600">{exp.expense_date}</span>
-                      <span className="w-16 shrink-0 text-right font-black text-[12.5px] text-[#0A0A0A]">{formatCurrencyValue(exp.amount)}</span>
-                    </button>
-                    {isExpanded && (
-                      <div className="px-2.5 pb-2 flex items-center gap-1.5 bg-gray-50/60">
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteExpense(exp.id)}
-                          className="px-2 py-1.5 rounded-lg border border-red-200 bg-white text-red-600 hover:bg-red-50 hover:text-red-700 text-[10px] font-bold transition-colors cursor-pointer inline-flex items-center gap-1"
-                        >
-                          <Trash2 size={13} />
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  )
-                })}
-                </div>
-                </>
-              )}
-            </div>
-            <div className="hidden md:block overflow-x-auto">
+            <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-gray-200 bg-[#FBFAF6]">
