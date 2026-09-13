@@ -384,11 +384,11 @@ export const InventoryTable: React.FC = () => {
               <>
               <div className="md:hidden divide-y divide-gray-100">
                 {filtered.map((item) => (
-                  <div key={item.id} className="p-3.5">
-                    <div className="flex items-start justify-between gap-3">
+                  <div key={item.id} className="p-2">
+                    <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="font-black text-gray-900 text-[13px] break-words">{item.name}</p>
-                        <p className="text-[11px] text-gray-500 mt-0.5 break-words">
+                        <p className="font-black text-gray-900 text-[12.5px] break-words leading-tight">{item.name}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5 break-words leading-tight">
                           {item.variant_name ? `Size: ${item.variant_name}` : 'Standard Product'}
                           {' · '}{item.barcode || 'No barcode'}
                           {' · '}{item.category || 'General'}
@@ -396,7 +396,7 @@ export const InventoryTable: React.FC = () => {
                         </p>
                       </div>
                       <span
-                        className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-black ${
+                        className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-black ${
                           item.stock <= 0
                             ? 'bg-red-50 text-red-700 border border-red-200'
                             : item.stock <= 5
@@ -407,14 +407,14 @@ export const InventoryTable: React.FC = () => {
                         {item.stock} Units
                       </span>
                     </div>
-                    <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                    <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
                       {role === 'admin' && (
                         <button
                           type="button"
                           onClick={() => openAdjust(item)}
-                          className="px-2.5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 text-[11px] font-bold transition-colors cursor-pointer"
+                          className="px-2 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 text-[10px] font-bold transition-colors cursor-pointer"
                         >
-                          <SlidersHorizontal size={13} className="inline mr-1" />
+                          <SlidersHorizontal size={12} className="inline mr-1" />
                           Adjust
                         </button>
                       )}
@@ -422,38 +422,38 @@ export const InventoryTable: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setPriceModalItem(item)}
-                          className="px-2.5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-amber-50 text-[11px] font-bold transition-colors cursor-pointer"
+                          className="px-2 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-amber-50 text-[10px] font-bold transition-colors cursor-pointer"
                         >
-                          <Edit2 size={13} className="inline mr-1" />
+                          <Edit2 size={12} className="inline mr-1" />
                           Price
                         </button>
                       )}
                       <button
                         type="button"
                         onClick={() => setHistoryDrawerItem(item)}
-                        className="p-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+                        className="p-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
                         title="Stock History"
                       >
-                        <History size={14} />
+                        <History size={13} />
                       </button>
                       {item.barcode && (
                         <button
                           type="button"
                           onClick={() => setPrintModalItem(item)}
-                          className="p-2 rounded-lg bg-[#0A0A0A] text-[#2E7D32] border border-[#2E7D32] hover:bg-[#1A1A1A] transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg bg-[#0A0A0A] text-[#2E7D32] border border-[#2E7D32] hover:bg-[#1A1A1A] transition-colors cursor-pointer"
                           title="Print Barcode Labels"
                         >
-                          <Printer size={14} />
+                          <Printer size={13} />
                         </button>
                       )}
                       {role === 'admin' && (
                         <button
                           type="button"
                           onClick={() => handleDeleteItem(item)}
-                          className="p-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
                           title={`Delete "${item.variant_name ? `${item.name} (${item.variant_name})` : item.name}"`}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                         </button>
                       )}
                     </div>

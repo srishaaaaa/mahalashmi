@@ -230,24 +230,24 @@ export default function AdvanceOrders({ onOrderCompleted }: AdvanceOrdersProps =
           <div className="px-4 py-12 text-center text-[#6B7280]">No advance orders match these filters.</div>
         ) : (
           filtered.map(order => (
-            <div key={order.id} className="px-4 py-3.5">
-              <div className="flex items-start justify-between gap-3">
+            <div key={order.id} className="px-2.5 py-2">
+              <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="font-bold text-[#273126] text-[13px] break-words">{order.customer_name}</p>
-                  <p className="text-[11px] text-[#8B9389] mt-0.5 break-words">
+                  <p className="font-bold text-[#273126] text-[12px] break-words leading-tight">{order.customer_name}</p>
+                  <p className="text-[10px] text-[#8B9389] mt-0.5 break-words leading-tight">
                     {order.deposit_id}
                     {' · '}{order.phone}
                     {' · '}{order.product_name}
                     {' · '}Due {new Date(`${order.expected_delivery_date}T00:00:00`).toLocaleDateString('en-IN')}
                   </p>
                 </div>
-                <p className="shrink-0 text-right font-bold text-red-600 text-[13px]">{formatCurrency(order.remaining_balance)}</p>
+                <p className="shrink-0 text-right font-bold text-red-600 text-[12px]">{formatCurrency(order.remaining_balance)}</p>
               </div>
-              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+              <div className="mt-1.5 flex flex-wrap items-center gap-1">
                 <select
                   value={order.status}
                   onChange={e => void changeStatus(order, e.target.value as AdvanceStatus)}
-                  className={`rounded-xl border px-2.5 py-2 text-xs font-black outline-none shadow-xs transition-colors cursor-pointer ${STATUS_STYLES[order.status]}`}
+                  className={`rounded-lg border px-2 py-1.5 text-[11px] font-black outline-none shadow-xs transition-colors cursor-pointer ${STATUS_STYLES[order.status]}`}
                 >
                   <option value="pending_deposit">Pending Deposit</option>
                   <option value="waiting_final_payment">Waiting for Final Payment</option>
@@ -259,22 +259,22 @@ export default function AdvanceOrders({ onOrderCompleted }: AdvanceOrdersProps =
                   <button
                     type="button"
                     onClick={() => setPaymentOrder(order)}
-                    className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-2 text-xs font-black shadow-xs transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+                    className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1.5 text-[11px] font-black shadow-xs transition-all active:scale-95 cursor-pointer whitespace-nowrap"
                   >
                     Receive Balance
                   </button>
                 )}
-                <button type="button" onClick={() => void openDetails(order)} className="w-9 h-9 rounded-lg bg-[#F4F2F6] hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="View Details">
-                  <Eye size={15}/>
+                <button type="button" onClick={() => void openDetails(order)} className="w-7 h-7 rounded-lg bg-[#F4F2F6] hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="View Details">
+                  <Eye size={13}/>
                 </button>
-                <button type="button" onClick={() => order.status === 'completed' ? printFinal(order) : printAdvanceReceipt(order)} className="w-9 h-9 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="Print">
-                  <Printer size={15}/>
+                <button type="button" onClick={() => order.status === 'completed' ? printFinal(order) : printAdvanceReceipt(order)} className="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="Print">
+                  <Printer size={13}/>
                 </button>
-                <button type="button" onClick={() => downloadFile(order.status === 'completed' ? invoiceFile(order) : advanceReceiptPdf(order))} className="w-9 h-9 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="Download">
-                  <Download size={15}/>
+                <button type="button" onClick={() => downloadFile(order.status === 'completed' ? invoiceFile(order) : advanceReceiptPdf(order))} className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="Download">
+                  <Download size={13}/>
                 </button>
-                <button type="button" onClick={() => order.status === 'completed' ? whatsappInvoice(order) : whatsappDepositReceipt(order)} className="w-9 h-9 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="Share via WhatsApp">
-                  <MessageCircle size={15}/>
+                <button type="button" onClick={() => order.status === 'completed' ? whatsappInvoice(order) : whatsappDepositReceipt(order)} className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="Share via WhatsApp">
+                  <MessageCircle size={13}/>
                 </button>
               </div>
             </div>
