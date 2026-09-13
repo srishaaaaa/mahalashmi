@@ -1175,14 +1175,14 @@ export default function Pos(props: PosProps = {}) {
                   className="w-full h-10 sm:h-11 px-3 sm:px-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#2E7D32] text-[13px] font-bold text-[#111111] placeholder:text-gray-400 placeholder:font-medium"
                 />
               </div>
-              <div>
+              <div className="min-w-0 overflow-hidden">
                 <label className="block text-[13px] md:text-[10px] font-bold text-[#374151] mb-1.5">Billing Date (Optional)</label>
                 <input
                   id="pos-billing-date"
                   type="datetime-local"
                   value={billingDate}
                   onChange={e => setBillingDate(e.target.value)}
-                  className="w-full h-12 px-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#2E7D32] text-[16px] md:text-[13px] font-bold text-[#111111]"
+                  className="block w-full max-w-full min-w-0 box-border h-12 px-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#2E7D32] text-[16px] md:text-[13px] font-bold text-[#111111]"
                 />
                 <p className="mt-1 text-[10px] text-gray-400 font-medium">Leave blank to use today's date &amp; time</p>
               </div>

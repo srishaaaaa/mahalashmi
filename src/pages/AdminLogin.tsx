@@ -57,6 +57,9 @@ export default function AdminLogin() {
         <div className="p-5 sm:p-7 lg:p-8 bg-white text-[#111111] overflow-y-auto hide-scrollbar flex flex-col justify-center">
           {/* Brand */}
           <div className="mb-4 sm:mb-5 flex flex-col items-center text-center lg:items-start lg:text-left">
+            <div className="mb-3 h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-[#2E7D32]/40 shadow-sm">
+              <img src={logoUrl} alt={shopName} className="h-full w-full object-cover" />
+            </div>
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#1B5E20]">{BRAND_SUBTITLE}</p>
             <h1 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-[#0A0A0A]">{shopName}</h1>
             <p className="mt-0.5 text-xs font-semibold text-[#7A786F]">{BRAND_TA}</p>
