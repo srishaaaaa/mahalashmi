@@ -46,7 +46,6 @@ export const InventoryTable: React.FC = () => {
   const [adjustModalItem, setAdjustModalItem] = useState<InventoryStockItem | null>(null)
   const [historyDrawerItem, setHistoryDrawerItem] = useState<InventoryStockItem | null>(null)
   const [priceModalItem, setPriceModalItem] = useState<InventoryStockItem | null>(null)
-  const [expandedItemId, setExpandedItemId] = useState<string | number | null>(null)
 
   const { play } = useSound()
   const getStockStatus = (stock: number): 'ok' | 'low' | 'out' => (stock <= 0 ? 'out' : stock <= 5 ? 'low' : 'ok')
@@ -383,100 +382,7 @@ export const InventoryTable: React.FC = () => {
               </div>
             ) : (
               <>
-              <div className="md:hidden">
-                <div className="flex items-center gap-2 px-2 py-1.5 bg-gray-50 border-b border-gray-200 text-[9px] font-black uppercase tracking-wider text-gray-500">
-                  <span className="flex-1">Product</span>
-                  <span className="w-16 shrink-0">Category</span>
-                  <span className="w-16 shrink-0 text-right">Stock</span>
-                </div>
-                <div className="divide-y divide-gray-100">
-                {filtered.map((item) => {
-                  const isExpanded = expandedItemId === item.id
-                  return (
-                  <div key={item.id}>
-                    <button
-                      type="button"
-                      onClick={() => setExpandedItemId(isExpanded ? null : item.id)}
-                      className="w-full flex items-center gap-2 p-2 text-left cursor-pointer hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-black text-gray-900 text-[12.5px] break-words leading-tight">{item.name}</p>
-                        <p className="text-[10px] text-gray-500 mt-0.5 break-words leading-tight">
-                          {item.variant_name ? `Size: ${item.variant_name}` : 'Standard Product'}
-                          {' · '}{formatCurrency(item.price)}
-                        </p>
-                      </div>
-                      <span className="w-16 shrink-0 text-[10px] text-gray-600 truncate">{item.category || 'General'}</span>
-                      <span
-                        className={`w-16 shrink-0 text-right px-2 py-0.5 rounded-full text-[10px] font-black ${
-                          item.stock <= 0
-                            ? 'bg-red-50 text-red-700 border border-red-200'
-                            : item.stock <= 5
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                            : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                        }`}
-                      >
-                        {item.stock}
-                      </span>
-                    </button>
-                    {isExpanded && (
-                      <div className="px-2 pb-2 flex items-center gap-1.5 flex-wrap bg-gray-50/60">
-                        {role === 'admin' && (
-                          <button
-                            type="button"
-                            onClick={() => openAdjust(item)}
-                            className="px-2 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 text-[10px] font-bold transition-colors cursor-pointer"
-                          >
-                            <SlidersHorizontal size={12} className="inline mr-1" />
-                            Adjust
-                          </button>
-                        )}
-                        {role === 'admin' && (
-                          <button
-                            type="button"
-                            onClick={() => setPriceModalItem(item)}
-                            className="px-2 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-amber-50 text-[10px] font-bold transition-colors cursor-pointer"
-                          >
-                            <Edit2 size={12} className="inline mr-1" />
-                            Price
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setHistoryDrawerItem(item)}
-                          className="p-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
-                          title="Stock History"
-                        >
-                          <History size={13} />
-                        </button>
-                        {item.barcode && (
-                          <button
-                            type="button"
-                            onClick={() => setPrintModalItem(item)}
-                            className="p-1.5 rounded-lg bg-[#0A0A0A] text-[#2E7D32] border border-[#2E7D32] hover:bg-[#1A1A1A] transition-colors cursor-pointer"
-                            title="Print Barcode Labels"
-                          >
-                            <Printer size={13} />
-                          </button>
-                        )}
-                        {role === 'admin' && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteItem(item)}
-                            className="p-1.5 rounded-lg border border-red-200 bg-white text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer"
-                            title={`Delete "${item.variant_name ? `${item.name} (${item.variant_name})` : item.name}"`}
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  )
-                })}
-                </div>
-              </div>
-              <div className="hidden md:block overflow-x-auto">
+              <div className="overflow-x-auto">
                 <table className="w-full min-w-[620px] text-left text-xs">
                   <thead className="bg-[#FBFAF6] border-b border-gray-200 text-xs font-bold text-gray-700">
                     <tr>
