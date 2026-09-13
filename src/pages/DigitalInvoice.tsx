@@ -4,7 +4,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { Invoice } from '../components/Invoice'
 import { Printer, ArrowLeft, MessageCircle } from 'lucide-react'
 import { printThermalReceipt } from '../lib/thermalPrint'
-import { invoicePdfFile, invoicePdfFileFromElement } from '../lib/invoicePdf'
+import { invoicePdfFile } from '../lib/invoicePdf'
 import { uploadInvoicePdf } from '../lib/storage'
 import { isUuid, normalizeStructuredOrderItem, formatInvoiceNo } from '../lib/retail'
 import { buildProfessionalWhatsAppMessage } from '../lib/whatsappMessage'
@@ -124,9 +124,25 @@ export default function DigitalInvoice() {
     .map((item: Record<string, unknown>) => normalizeStructuredOrderItem(item))
   const subtotal = invoiceItems.reduce((sum: number, item: ReturnType<typeof normalizeStructuredOrderItem>) => sum + item.line_total, 0)
 
+  const buildPdfData = () => ({
+    invoiceNo: invoice.invoice_no,
+    date: invoice.created_at,
+    customerName: invoice.customer_name,
+    phone: invoice.phone,
+    address: invoice.address,
+    items: invoiceItems as unknown as Array<Record<string, unknown>>,
+    subtotal,
+    shipping: Number(invoice.delivery_charge || 0),
+    total: Number(invoice.total || 0),
+    discountAmount: Number(invoice.discount_amount || 0),
+    manualDiscountAmount: Number(invoice.manual_discount_amount || 0),
+    gstAmount: Number(invoice.total_gst || invoice.gst_amount || 0),
+    couponCode: invoice.coupon_code || undefined,
+    paymentMode: invoice.payment_mode || invoice.payment_method || undefined,
+  })
+
   const downloadPdf = async () => {
-    if (!invoiceElementRef.current) return
-    const file = await invoicePdfFileFromElement(invoiceElementRef.current, invoice.invoice_no)
+    const file = invoicePdfFile(buildPdfData())
     const url = URL.createObjectURL(file)
     const link = document.createElement('a')
     link.href = url
@@ -163,24 +179,7 @@ export default function DigitalInvoice() {
       paymentMode: invoice.payment_mode || invoice.payment_method,
     })
 
-    const file = invoiceElementRef.current
-      ? await invoicePdfFileFromElement(invoiceElementRef.current, invoice.invoice_no)
-      : invoicePdfFile({
-      invoiceNo: invoice.invoice_no,
-      date: invoice.created_at,
-      customerName: invoice.customer_name,
-      phone: invoice.phone,
-      address: invoice.address,
-      items: invoiceItems as unknown as Array<Record<string, unknown>>,
-      subtotal,
-      shipping: Number(invoice.delivery_charge || 0),
-      total: Number(invoice.total || 0),
-      discountAmount: Number(invoice.discount_amount || 0),
-      manualDiscountAmount: Number(invoice.manual_discount_amount || 0),
-      gstAmount: Number(invoice.total_gst || invoice.gst_amount || 0),
-      couponCode: invoice.coupon_code || undefined,
-      paymentMode: invoice.payment_mode || invoice.payment_method || undefined,
-      })
+    const file = invoicePdfFile(buildPdfData())
 
     let downloadLink = ''
     try {

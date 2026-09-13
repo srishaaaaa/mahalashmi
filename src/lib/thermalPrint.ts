@@ -1,4 +1,4 @@
-import { BRAND_ADDRESS, BRAND_EMAIL, BRAND_EN, BRAND_INSTAGRAM, BRAND_PRIMARY_PHONE_DISPLAY } from './brand'
+import { BRAND_ADDRESS, BRAND_EMAIL, BRAND_EN, BRAND_INSTAGRAM, BRAND_LOGO, BRAND_PRIMARY_PHONE_DISPLAY } from './brand'
 import { formatCurrency, formatInvoiceNo } from './retail'
 import { formatPhoneDisplay } from './phone'
 import { useSettingsStore } from '../store/store'
@@ -47,6 +47,7 @@ export function printThermalReceipt(data: ThermalReceiptData) {
   const storePhone = data.storePhone || liveSettings?.phone || BRAND_PRIMARY_PHONE_DISPLAY
   const storeEmail = data.storeEmail || liveSettings?.email || BRAND_EMAIL
   const storeInstagram = liveSettings?.instagramHandle || BRAND_INSTAGRAM
+  const storeLogo = liveSettings?.logoUrl || BRAND_LOGO
 
   const dateStr = (() => {
     try { return new Date(data.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }
@@ -89,6 +90,7 @@ export function printThermalReceipt(data: ThermalReceiptData) {
       </head>
       <body>
         <div class="text-center mb-2">
+          <img src="${storeLogo}" alt="${storeName}" style="width: 48px; height: 48px; object-fit: cover; border-radius: 8px; margin-bottom: 4px;" />
           <div class="font-bold" style="font-size: 16px; letter-spacing: 2px;">${storeName}</div>
           <div style="font-size: 10px; margin-top: 2px;">${storeAddress}</div>
           <div class="mt-1" style="font-size: 10px;">Ph: ${storePhone}</div>
