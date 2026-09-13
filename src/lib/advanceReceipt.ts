@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf'
-import { BRAND_ADDRESS, BRAND_EN, BRAND_PHONE_DISPLAY } from './brand'
+import { BRAND_ADDRESS, BRAND_EN, BRAND_PHONE_DISPLAY, BRAND_LOGO } from './brand'
 import { getActiveLogo } from './activeLogo'
 import { formatCurrency } from './retail'
 import type { AdvanceOrder } from '../services/advanceOrderService'
@@ -12,6 +12,7 @@ function getShopInfo() {
     name: storeSettings?.name || BRAND_EN,
     address: storeSettings?.address || BRAND_ADDRESS,
     phone: storeSettings?.phone || BRAND_PHONE_DISPLAY,
+    logo: storeSettings?.logoUrl || BRAND_LOGO,
   }
 }
 
@@ -95,6 +96,7 @@ export function printAdvanceReceipt(order: AdvanceOrder) {
   .balance-row { font-size: 14px; font-weight: bold; }
 </style>
 </head><body>
+<div class="c"><img src="${esc(shop.logo)}" alt="${esc(shop.name)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;margin-bottom:4px;" /></div>
 <div class="c big">${esc(shop.name)}</div>
 <div class="c" style="font-size:10px;color:#555;">${esc(shop.address)}</div>
 <div class="c" style="font-size:10px;color:#555;">${esc(shop.phone)}</div>
