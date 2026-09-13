@@ -2217,7 +2217,7 @@ export default function Dashboard() {
                       <div>
                         <div className="flex items-start justify-between gap-2 mb-3">
                           <p className="text-[11px] font-bold text-[#111111]">{card.label}</p>
-                          <div className={`w-8 h-8 rounded-full ${card.bg} flex items-center justify-center ${card.color} shrink-0`}>{card.icon}</div>
+                          <div className={`w-9 h-9 rounded-xl border border-current/20 ${card.bg} flex items-center justify-center ${card.color} shrink-0 shadow-sm`}>{card.icon}</div>
                         </div>
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <p className={`text-[22px] sm:text-[24px] font-bold leading-tight ${card.valueColor || 'text-[#111111]'}`}>
