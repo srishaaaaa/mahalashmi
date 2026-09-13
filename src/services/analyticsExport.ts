@@ -239,7 +239,7 @@ export async function exportAnalyticsToPDF({
           <p style="margin: 8px 0 0 0; font-size: 9px; color: #666;">${shopAddress} • Tel: ${shopPhone}</p>
         </div>
         <div style="text-align: right;">
-          <span style="display: inline-block; padding: 4px 10px; background: #0A0A0A; color: #2E7D32; font-size: 10px; font-weight: 800; border-radius: 6px; text-transform: uppercase; margin-bottom: 4px;">
+          <span style="display: inline-block; padding: 4px 10px; background: #0A0A0A; color: #2E7D32; font-size: 10px; font-weight: 800; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">
             ${activeTab.toUpperCase()} VIEW
           </span>
           <p style="margin: 0; font-size: 10px; font-weight: 700; color: #333;">Period: <span style="color: #0A0A0A; font-weight: 900;">${filterText}</span></p>
@@ -250,22 +250,22 @@ export async function exportAnalyticsToPDF({
       <!-- KPI Summary Cards Grid -->
       <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
         <div style="background: #FBF9F4; border: 1px solid #B7E1BE; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between;">
-          <div style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #666; margin-bottom: 4px;">Total Revenue</div>
+          <div style="font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: #666; margin-bottom: 4px;">Total Revenue</div>
           <div style="font-size: 15px; font-weight: 900; color: #0A0A0A; line-height: 1.2;">${formatCurrency(data.totalCompletedRevenue)}</div>
           <div style="font-size: 8px; color: #10B981; font-weight: 700; margin-top: 4px;">POS & Walk-in sales</div>
         </div>
         <div style="background: ${data.isProfitable ? '#ECFDF5' : '#FFF1F2'}; border: 1px solid ${data.isProfitable ? '#A7F3D0' : '#FECDD3'}; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between;">
-          <div style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: ${data.isProfitable ? '#065F46' : '#9F1239'}; margin-bottom: 4px;">${data.isProfitable ? 'Net Profit' : 'Net Loss'}</div>
+          <div style="font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: ${data.isProfitable ? '#065F46' : '#9F1239'}; margin-bottom: 4px;">${data.isProfitable ? 'Net Profit' : 'Net Loss'}</div>
           <div style="font-size: 15px; font-weight: 900; color: ${data.isProfitable ? '#059669' : '#E11D48'}; line-height: 1.2;">${formatCurrency(Math.abs(data.netProfit))}</div>
           <div style="font-size: 8px; color: #666; font-weight: 700; margin-top: 4px;">Rev − ${formatCurrency(data.totalExpenses)} Exp</div>
         </div>
         <div style="background: #FBF9F4; border: 1px solid #B7E1BE; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between;">
-          <div style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #666; margin-bottom: 4px;">Completed Bills</div>
+          <div style="font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: #666; margin-bottom: 4px;">Completed Bills</div>
           <div style="font-size: 15px; font-weight: 900; color: #0A0A0A; line-height: 1.2;">${data.completedOrders} Orders</div>
           <div style="font-size: 8px; color: #1B5E20; font-weight: 700; margin-top: 4px;">Avg ${formatCurrency(data.averageRevenuePerBill)}/bill</div>
         </div>
         <div style="background: #FBF9F4; border: 1px solid #B7E1BE; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between;">
-          <div style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #666; margin-bottom: 4px;">Total Items Sold</div>
+          <div style="font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: #666; margin-bottom: 4px;">Total Items Sold</div>
           <div style="font-size: 15px; font-weight: 900; color: #0A0A0A; line-height: 1.2;">${Math.round(data.totalProductsSold)} Pcs</div>
           <div style="font-size: 8px; color: #6366F1; font-weight: 700; margin-top: 4px;">Top: ${data.bestProduct.slice(0, 14)}</div>
         </div>
@@ -373,7 +373,7 @@ export async function exportAnalyticsToPDF({
             </h3>
             <table style="width: 100%; border-collapse: collapse; font-size: 8.5px;">
               <thead>
-                <tr style="border-bottom: 1.5px solid #E5E7EB; text-align: left; color: #666; text-transform: uppercase; font-size: 7.5px;">
+                <tr style="border-bottom: 1.5px solid #E5E7EB; text-align: left; color: #666; text-transform: uppercase; letter-spacing: 0.3px; font-size: 8px;">
                   <th style="padding: 4px 0;">#</th>
                   <th style="padding: 4px 0;">Product</th>
                   <th style="padding: 4px 0; text-align: right;">Qty</th>
@@ -434,7 +434,7 @@ export async function exportAnalyticsToPDF({
           ? `
         <div style="background: #FBFAF6; border: 1px solid #B7E1BE; border-radius: 12px; padding: 10px 12px; margin-bottom: 16px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <div style="font-size: 10px; font-weight: 900; color: #0A0A0A; text-transform: uppercase;">Coupon & Promotional Discount Insights</div>
+            <div style="font-size: 10px; font-weight: 900; color: #0A0A0A; text-transform: uppercase; letter-spacing: 0.3px;">Coupon & Promotional Discount Insights</div>
             <div style="font-size: 8.5px; font-weight: 800; color: #1B5E20;">Total Savings: ${formatCurrency(data.totalCouponDiscounts)}</div>
           </div>
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
