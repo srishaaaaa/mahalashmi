@@ -181,8 +181,7 @@ export function printThermalReceipt(data: ThermalReceiptData) {
   doc.write(html)
   doc.close()
 
-  // Wait for resources to load
-  setTimeout(() => {
+  const runPrint = () => {
     iframe.contentWindow?.focus()
     iframe.contentWindow?.print()
 
@@ -190,5 +189,21 @@ export function printThermalReceipt(data: ThermalReceiptData) {
     setTimeout(() => {
       document.body.removeChild(iframe)
     }, 1000)
-  }, 250)
+  }
+
+  // The logo is a remote image (uploaded to Supabase storage) — a fixed
+  // short delay isn't reliably enough time for it to fetch over the
+  // network before print() fires, so it silently prints without a logo.
+  // Wait for the actual <img> to finish loading (or fail), with a safety
+  // timeout in case it never resolves.
+  const logoImg = doc.querySelector('img')
+  if (logoImg && !logoImg.complete) {
+    let printed = false
+    const doPrint = () => { if (!printed) { printed = true; runPrint() } }
+    logoImg.addEventListener('load', doPrint, { once: true })
+    logoImg.addEventListener('error', doPrint, { once: true })
+    setTimeout(doPrint, 2000)
+  } else {
+    setTimeout(runPrint, 250)
+  }
 }

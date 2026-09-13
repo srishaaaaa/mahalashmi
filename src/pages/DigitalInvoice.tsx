@@ -19,12 +19,11 @@ export default function DigitalInvoice() {
   const [error, setError] = useState('')
   const invoiceElementRef = useRef<HTMLDivElement>(null)
 
+  // navigate(-1) is unreliable inside in-app browsers (e.g. WhatsApp's),
+  // since their own navigation stack doesn't map cleanly onto the SPA's
+  // history — always go to a known destination instead.
   const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1)
-    } else {
-      navigate('/dashboard')
-    }
+    navigate('/dashboard')
   }
 
   useEffect(() => {

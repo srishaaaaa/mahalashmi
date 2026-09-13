@@ -1,12 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { X, Calendar, Tag, AlertCircle } from 'lucide-react'
 import { expenseService, type ExpenseCategory, type ExpenseRecord } from '../../services/expenseService'
 
 interface RecordExpenseModalProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess: (newExpense: ExpenseRecord) => void
+  onSuccess: (expense: ExpenseRecord) => void
   categories: ExpenseCategory[]
+  expenseToEdit?: ExpenseRecord | null
 }
 
 export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
@@ -14,13 +15,25 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
   onClose,
   onSuccess,
   categories,
+  expenseToEdit,
 }) => {
-  const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().slice(0, 10))
-  const [categoryId, setCategoryId] = useState<number | string>(() => categories[0]?.id || '')
-  const [amount, setAmount] = useState('')
-  const [description, setDescription] = useState('')
+  const isEditing = Boolean(expenseToEdit)
+  const [expenseDate, setExpenseDate] = useState(() => expenseToEdit?.expense_date || new Date().toISOString().slice(0, 10))
+  const [categoryId, setCategoryId] = useState<number | string>(() => expenseToEdit?.category_id ?? categories[0]?.id ?? '')
+  const [amount, setAmount] = useState(() => expenseToEdit ? String(expenseToEdit.amount) : '')
+  const [description, setDescription] = useState(() => expenseToEdit?.description || '')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+
+  useEffect(() => {
+    if (!isOpen) return
+    setExpenseDate(expenseToEdit?.expense_date || new Date().toISOString().slice(0, 10))
+    setCategoryId(expenseToEdit?.category_id ?? categories[0]?.id ?? '')
+    setAmount(expenseToEdit ? String(expenseToEdit.amount) : '')
+    setDescription(expenseToEdit?.description || '')
+    setErrorMsg('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, expenseToEdit])
 
   if (!isOpen) return null
 
@@ -39,16 +52,24 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
 
     setLoading(true)
     try {
-      const created = await expenseService.createExpense({
-        expense_date: expenseDate,
-        category_id: selectedCategory ? selectedCategory.id : null,
-        category_name: categoryName,
-        amount: numAmount,
-        description: description.trim(),
-        payment_mode: 'cash',
-        recorded_by_name: 'Admin',
-      })
-      onSuccess(created)
+      const saved = isEditing && expenseToEdit
+        ? await expenseService.updateExpense(expenseToEdit.id, {
+            expense_date: expenseDate,
+            category_id: selectedCategory ? selectedCategory.id : null,
+            category_name: categoryName,
+            amount: numAmount,
+            description: description.trim(),
+          })
+        : await expenseService.createExpense({
+            expense_date: expenseDate,
+            category_id: selectedCategory ? selectedCategory.id : null,
+            category_name: categoryName,
+            amount: numAmount,
+            description: description.trim(),
+            payment_mode: 'cash',
+            recorded_by_name: 'Admin',
+          })
+      onSuccess(saved)
       onClose()
     } catch (err: unknown) {
       console.error('Failed to save expense:', err)
@@ -67,7 +88,7 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
           <div className="flex items-center gap-2">
             <Tag size={17} className="text-[#2E7D32]" />
             <h3 className="text-sm font-bold text-[#0A0A0A]">
-              Record Expense
+              {isEditing ? 'Edit Expense' : 'Record Expense'}
             </h3>
           </div>
           <button
@@ -173,7 +194,7 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
               disabled={loading}
               className="flex-[1.5] h-11 rounded-xl bg-[#0A0A0A] border border-[#2E7D32] text-[#2E7D32] text-xs font-bold hover:bg-[#1A1A1A] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              {loading ? 'Saving...' : 'Save Expense'}
+              {loading ? 'Saving...' : isEditing ? 'Update Expense' : 'Save Expense'}
             </button>
           </div>
         </form>
