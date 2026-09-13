@@ -398,7 +398,7 @@ export const ExpensesView: React.FC = () => {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse whitespace-nowrap">
                 <thead>
                   <tr className="border-b border-gray-200 bg-[#FBFAF6]">
                     <th className="px-5 py-3.5 text-[11px] font-bold text-gray-600">

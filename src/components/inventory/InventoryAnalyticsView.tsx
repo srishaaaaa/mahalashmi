@@ -412,7 +412,7 @@ export const InventoryAnalyticsView: React.FC = () => {
         ) : (
           <>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs whitespace-nowrap">
               <thead className="bg-[#FBFAF6] border-b border-gray-200 text-[10px] font-black uppercase tracking-wider text-gray-600">
                 <tr>
                   <th className="p-3">Date &amp; Time</th>
