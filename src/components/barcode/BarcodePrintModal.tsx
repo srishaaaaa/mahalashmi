@@ -40,6 +40,7 @@ export const BarcodePrintModal: React.FC<BarcodePrintModalProps> = ({
   const [quantity, setQuantity] = useState(defaultQuantity)
   const [selectedPreset, setSelectedPreset] = useState<LabelSizePreset>(LABEL_PRESETS[0])
   const [copied, setCopied] = useState(false)
+  const [rotate90, setRotate90] = useState(false)
 
   if (!isOpen) return null
 
@@ -65,10 +66,7 @@ export const BarcodePrintModal: React.FC<BarcodePrintModalProps> = ({
     const fullTitle = `${productName}${variantName ? ` (${variantName})` : ''}`
 
     // Build standalone HTML for the printed stickers with strict thermal proportions
-    const stickersHtml = Array.from({ length: Math.max(1, quantity) })
-      .map(
-        () => `
-        <div class="sticker">
+    const stickerInner = `
           <div class="header">
             <div class="brand">${BRAND_EN}</div>
             <div class="prod-title">${fullTitle}</div>
@@ -80,10 +78,22 @@ export const BarcodePrintModal: React.FC<BarcodePrintModalProps> = ({
             <span>${mrp && mrp > price ? `<span class="mrp">MRP ₹${mrp}</span>` : `<span class="retail-tag">${BRAND_MONOGRAM} RETAIL</span>`}</span>
             <span class="price">₹${price}</span>
           </div>
-        </div>
-      `
+    `
+
+    // Some thermal printer drivers rotate the print job 90° relative to how
+    // the label stock actually feeds. When that's happening, "Rotate 90°"
+    // pre-rotates our content the other way so the two rotations cancel out
+    // and the label comes out upright on that printer.
+    const stickersHtml = Array.from({ length: Math.max(1, quantity) })
+      .map(() =>
+        rotate90
+          ? `<div class="sticker-outer"><div class="sticker sticker-rotated">${stickerInner}</div></div>`
+          : `<div class="sticker">${stickerInner}</div>`
       )
       .join('')
+
+    const pageWidthMm = rotate90 ? selectedPreset.heightMm : selectedPreset.widthMm
+    const pageHeightMm = rotate90 ? selectedPreset.widthMm : selectedPreset.heightMm
 
     const html = `
       <!DOCTYPE html>
@@ -93,7 +103,7 @@ export const BarcodePrintModal: React.FC<BarcodePrintModalProps> = ({
           <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
           <style>
             @page {
-              size: ${selectedPreset.widthMm}mm ${selectedPreset.heightMm}mm;
+              size: ${pageWidthMm}mm ${pageHeightMm}mm;
               margin: 0mm !important;
               marks: none !important;
             }
@@ -105,13 +115,25 @@ export const BarcodePrintModal: React.FC<BarcodePrintModalProps> = ({
             html, body {
               margin: 0 !important;
               padding: 0 !important;
-              width: ${selectedPreset.widthMm}mm !important;
-              height: ${selectedPreset.heightMm}mm !important;
+              width: ${pageWidthMm}mm !important;
+              height: ${pageHeightMm}mm !important;
               overflow: hidden !important;
               background: #fff !important;
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
+            }
+            .sticker-outer {
+              width: ${pageWidthMm}mm;
+              height: ${pageHeightMm}mm;
+              position: relative;
+              overflow: hidden;
+              page-break-after: always !important;
+              break-after: page !important;
+            }
+            .sticker-outer:last-child {
+              page-break-after: auto !important;
+              break-after: auto !important;
             }
             .sticker {
               width: ${selectedPreset.widthMm}mm;
@@ -132,6 +154,14 @@ export const BarcodePrintModal: React.FC<BarcodePrintModalProps> = ({
               box-sizing: border-box;
             }
             .sticker:last-child {
+              page-break-after: auto !important;
+              break-after: auto !important;
+            }
+            .sticker-rotated {
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%) rotate(90deg);
               page-break-after: auto !important;
               break-after: auto !important;
             }
@@ -347,6 +377,21 @@ export const BarcodePrintModal: React.FC<BarcodePrintModalProps> = ({
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="flex items-center gap-2.5 text-xs font-bold text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={rotate90}
+                  onChange={(e) => setRotate90(e.target.checked)}
+                  className="accent-[#0A0A0A] w-4 h-4 rounded cursor-pointer"
+                />
+                Rotate 90° before printing
+              </label>
+              <p className="text-[11px] text-gray-500 mt-1">
+                If labels print sideways on your thermal printer, turn this on to compensate — it pre-rotates the content so it comes out upright.
+              </p>
             </div>
           </div>
 
