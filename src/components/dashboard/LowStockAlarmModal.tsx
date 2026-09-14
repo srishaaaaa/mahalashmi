@@ -15,6 +15,7 @@ interface ProductStockRow {
   id: string | number
   name: string
   category: string
+  category_id: number | null
   stock_quantity: number
   low_stock_alert: number | null
   is_active: boolean
@@ -44,10 +45,14 @@ export default function LowStockAlarmModal({ triggerKey }: { triggerKey?: string
     const check = async () => {
       const { data } = await supabase
         .from('products')
-        .select('id, name, category, stock_quantity, low_stock_alert, is_active')
+        .select('id, name, category, category_id, stock_quantity, low_stock_alert, is_active')
         .eq('is_active', true)
       if (cancelled || !data) return
+      // Ad-hoc items quick-added during a POS sale (category "Unregistered")
+      // are deliberately excluded from Inventory's own stock tracking — the
+      // alarm should respect the same exclusion instead of alerting on them.
       const low = (data as ProductStockRow[])
+        .filter(p => !(p.category?.trim().toLowerCase() === 'unregistered' || p.category_id === 4))
         .filter(p => p.stock_quantity <= (p.low_stock_alert || 5))
         .map(p => ({
           id: p.id, name: p.name, category: p.category,
