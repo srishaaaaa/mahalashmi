@@ -128,7 +128,6 @@ export default function Pos(props: PosProps = {}) {
   const navigate = useNavigate()
   const { logout, role } = useAdminAuthStore()
   const { play } = useSound()
-  const [lowStockAlert, setLowStockAlert] = useState<{ name: string; stock: number }[]>([])
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [billingAdjOpen, setBillingAdjOpen] = useState(false)
 
@@ -788,21 +787,6 @@ export default function Pos(props: PosProps = {}) {
       setInvoice(createdInvoice)
       void persistInvoicePdf(createdInvoice)
 
-      // Low stock check — show visual alert banner + sound
-      const soldLowStockItems = items.flatMap(item => {
-        const product = products.find(p => p.id.toString() === item.id?.toString())
-        if (!product) return []
-        const newStock = (product.stockQuantity || 0) - item.qty
-        if (newStock <= (product.lowStockAlert || 5)) {
-          return [{ name: item.name, stock: Math.max(0, newStock) }]
-        }
-        return []
-      })
-      if (soldLowStockItems.length > 0) {
-        play('alert')
-        setLowStockAlert(soldLowStockItems)
-      }
-
       setItems([])
       setCustomer({ name: '', phone: '', address: '' })
       void fetchProducts()
@@ -912,37 +896,6 @@ export default function Pos(props: PosProps = {}) {
 
     return (
       <div className="mobile-page-shell print:bg-white print:min-h-0">
-        {lowStockAlert.length > 0 && (
-          <div className="fixed top-4 right-4 z-[9999] max-w-sm w-full print:hidden">
-            <div className="bg-white border-2 border-orange-400 rounded-2xl shadow-2xl p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <div className="bg-orange-100 p-2 rounded-xl shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-orange-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-black text-[#111111]">⚠️ Low Stock Alert!</p>
-                    <p className="text-[11px] text-[#6B7280] font-bold mt-0.5">These items need restocking:</p>
-                    <ul className="mt-2 space-y-1">
-                      {lowStockAlert.map((item, i) => (
-                        <li key={i} className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full shrink-0 ${item.stock <= 0 ? 'bg-red-500' : 'bg-orange-400'}`} />
-                          <span className="text-[12px] font-bold text-[#111111]">{item.name}</span>
-                          <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${item.stock <= 0 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
-                            {item.stock <= 0 ? 'Out of Stock' : `${item.stock} left`}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-                <button onClick={() => setLowStockAlert([])} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 shrink-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         {/* Screen UI */}
         <div className="max-w-2xl mx-auto px-4 py-6 print:hidden space-y-4">
           {/* Header */}
@@ -1046,37 +999,6 @@ export default function Pos(props: PosProps = {}) {
   // ══ MAIN POS SCREEN ══════════════════════════════════════════════════
   return (
     <div data-embedded={embeddedMode} data-panel={mobilePanelView} className="flex flex-col h-full bg-[#FAFAFA] print:hidden overflow-y-auto overflow-x-hidden hide-scrollbar">
-      {lowStockAlert.length > 0 && (
-        <div className="fixed top-4 right-4 z-[9999] max-w-sm w-full animate-in slide-in-from-top-2">
-          <div className="bg-white border-2 border-orange-400 rounded-2xl shadow-2xl p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <div className="bg-orange-100 p-2 rounded-xl shrink-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-orange-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-                </div>
-                <div>
-                  <p className="text-[13px] font-black text-[#111111]">⚠️ Low Stock Alert!</p>
-                  <p className="text-[11px] text-[#6B7280] font-bold mt-0.5">These items need restocking:</p>
-                  <ul className="mt-2 space-y-1">
-                    {lowStockAlert.map((item, i) => (
-                      <li key={i} className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full shrink-0 ${item.stock <= 0 ? 'bg-red-500' : 'bg-orange-400'}`} />
-                        <span className="text-[12px] font-bold text-[#111111]">{item.name}</span>
-                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${item.stock <= 0 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
-                          {item.stock <= 0 ? 'Out of Stock' : `${item.stock} left`}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-              <button onClick={() => setLowStockAlert([])} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Header */}
       <div className="px-3 pt-3 pb-2.5 sm:px-4 sm:pt-4 md:px-6 md:pt-6 md:pb-4 shrink-0 flex flex-col gap-3 min-[480px]:flex-row min-[480px]:items-start min-[480px]:justify-between">
         <div className="min-w-0">

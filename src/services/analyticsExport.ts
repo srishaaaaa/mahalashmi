@@ -115,9 +115,11 @@ export async function exportAnalyticsToExcel({ data, activeTab, datePreset, date
 
     rows.push(['--- TODAY\'S HOURLY SALES TREND ---'])
     rows.push(['Hour Slot', 'Revenue (INR)'])
-    data.todayHourlyTrend.forEach((item) => {
-      rows.push([item.hour, item.revenue.toFixed(2)])
-    })
+    data.todayHourlyTrend
+      .filter((item) => item.revenue > 0)
+      .forEach((item) => {
+        rows.push([item.hour, item.revenue.toFixed(2)])
+      })
     rows.push([])
 
     rows.push(['--- TOP PRODUCTS SOLD TODAY ---'])
