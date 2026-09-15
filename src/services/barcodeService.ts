@@ -53,6 +53,11 @@ export interface CreateBarcodeResponse {
   variant_name?: string
 }
 
+// ILIKE treats %, _ and \ as pattern wildcards — escape them so a lookup by
+// exact barcode value (which may itself legally contain '_' or '-') never
+// accidentally matches as a partial/wildcard pattern.
+const escapeLikePattern = (value: string): string => value.replace(/[\\%_]/g, (char) => `\\${char}`)
+
 export const barcodeService = {
   /**
    * Receive stock and create/reuse barcode in a single atomic transaction.
@@ -82,6 +87,10 @@ export const barcodeService = {
   async lookupBarcode(barcodeValue: string): Promise<BarcodeRegistryRecord | null> {
     const cleanValue = barcodeValue.trim()
     if (!cleanValue) return null
+    // Case-insensitive so a scanner/keyboard/OS that alters letter case
+    // (common on some hardware scanner configs and mobile virtual keyboards)
+    // still finds the barcode exactly as printed.
+    const likeValue = escapeLikePattern(cleanValue)
 
     // 1. Direct registry lookup
     const { data, error } = await supabase
@@ -91,8 +100,9 @@ export const barcodeService = {
         product:products (id, name, name_ta, price, offer_price, image_url, category),
         variant:product_variants (id, variant_name, price, stock, sku)
       `)
-      .eq('barcode_value', cleanValue)
+      .ilike('barcode_value', likeValue)
       .eq('is_active', true)
+      .limit(1)
       .maybeSingle()
 
     if (error) {
@@ -114,7 +124,8 @@ export const barcodeService = {
     const { data: varData } = await supabase
       .from('product_variants')
       .select('id, product_id, variant_name, price, stock, sku, barcode, product:products (id, name, name_ta, price, offer_price, image_url, category)')
-      .eq('barcode', cleanValue)
+      .ilike('barcode', likeValue)
+      .limit(1)
       .maybeSingle()
 
     if (varData) {
@@ -144,7 +155,8 @@ export const barcodeService = {
     const { data: prodData } = await supabase
       .from('products')
       .select('id, name, name_ta, price, offer_price, image_url, category, barcode, stock_quantity')
-      .eq('barcode', cleanValue)
+      .ilike('barcode', likeValue)
+      .limit(1)
       .maybeSingle()
 
     if (prodData) {

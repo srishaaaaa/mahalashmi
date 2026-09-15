@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Plus, Trash2, Tag, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { expenseService, type ExpenseCategory } from '../../services/expenseService'
+import { getErrorMessage } from '../../lib/errorMessage'
 
 interface ExpenseCategoriesViewProps {
   categories: ExpenseCategory[]
@@ -29,7 +30,7 @@ export const ExpenseCategoriesView: React.FC<ExpenseCategoriesViewProps> = ({
       onCategoriesUpdated()
     } catch (err: unknown) {
       console.error('Failed to create category:', err)
-      const msg = err instanceof Error ? err.message : 'Could not create category'
+      const msg = getErrorMessage(err, 'Could not create category')
       setNotice({ type: 'error', text: msg })
     } finally {
       setLoading(false)
@@ -47,7 +48,7 @@ export const ExpenseCategoriesView: React.FC<ExpenseCategoriesViewProps> = ({
       onCategoriesUpdated()
     } catch (err: unknown) {
       console.error('Failed to delete category:', err)
-      const msg = err instanceof Error ? err.message : 'Could not delete category'
+      const msg = getErrorMessage(err, 'Could not delete category')
       setNotice({ type: 'error', text: msg })
     }
   }

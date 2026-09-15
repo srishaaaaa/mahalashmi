@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { X, PackagePlus, ScanLine } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { getErrorMessage } from '../../lib/errorMessage'
 import type { ScannedItemPayload } from './BarcodeScannerInput'
 
 export interface QuickAddScannedProductModalProps {
@@ -77,7 +78,7 @@ export const QuickAddScannedProductModal: React.FC<QuickAddScannedProductModalPr
         category: data.category || undefined,
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create product')
+      setError(getErrorMessage(err, 'Could not create product'))
     } finally {
       setSaving(false)
     }

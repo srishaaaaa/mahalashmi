@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { CalendarDays, CheckCircle2, Clock3, Download, Eye, FileText, MessageCircle, PackageCheck, Printer, RefreshCw, Search, Trash2, X } from 'lucide-react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { getErrorMessage } from '../lib/errorMessage'
 import { formatCurrency } from '../lib/retail'
 import { invoicePdfFile } from '../lib/invoicePdf'
 import { printThermalReceipt } from '../lib/thermalPrint'
@@ -68,7 +69,7 @@ export default function AdvanceOrders({ onOrderCompleted }: AdvanceOrdersProps =
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
-    try { setOrders(await listAdvanceOrders()) } catch (err) { setError(err instanceof Error ? err.message : 'Unable to load advance orders') } finally { setLoading(false) }
+    try { setOrders(await listAdvanceOrders()) } catch (err) { setError(getErrorMessage(err, 'Unable to load advance orders')) } finally { setLoading(false) }
   }, [])
   useEffect(() => { void load() }, [load])
 
@@ -91,7 +92,7 @@ export default function AdvanceOrders({ onOrderCompleted }: AdvanceOrdersProps =
 
   const openDetails = async (order: AdvanceOrder) => {
     setSelected(order); setTimeline([]); setPayments([])
-    try { const history = await getAdvanceOrderHistory(order.id); setTimeline(history.timeline); setPayments(history.payments) } catch (err) { setError(err instanceof Error ? err.message : 'Unable to load order details') }
+    try { const history = await getAdvanceOrderHistory(order.id); setTimeline(history.timeline); setPayments(history.payments) } catch (err) { setError(getErrorMessage(err, 'Unable to load order details')) }
   }
 
   const analytics = useMemo(() => ({
@@ -140,12 +141,12 @@ export default function AdvanceOrders({ onOrderCompleted }: AdvanceOrdersProps =
         paymentMethod: form.paymentMethod,
       })
       window.open(toWhatsAppUrl(created.phone, advanceMsg), '_blank', 'noopener,noreferrer')
-    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to create advance order') } finally { setSaving(false) }
+    } catch (err) { setError(getErrorMessage(err, 'Unable to create advance order')) } finally { setSaving(false) }
   }
 
   const changeStatus = async (order: AdvanceOrder, status: AdvanceStatus) => {
     if (status === 'completed') { setPaymentOrder(order); return }
-    try { const updated = await updateAdvanceStatus(order.id, status); setOrders(rows => rows.map(row => row.id === order.id ? updated : row)); if (selected?.id === order.id) void openDetails(updated) } catch (err) { setError(err instanceof Error ? err.message : 'Unable to update status') }
+    try { const updated = await updateAdvanceStatus(order.id, status); setOrders(rows => rows.map(row => row.id === order.id ? updated : row)); if (selected?.id === order.id) void openDetails(updated) } catch (err) { setError(getErrorMessage(err, 'Unable to update status')) }
   }
 
   const handleDeleteOrder = async (order: AdvanceOrder) => {
@@ -155,7 +156,7 @@ export default function AdvanceOrders({ onOrderCompleted }: AdvanceOrdersProps =
       setOrders(rows => rows.filter(row => row.id !== order.id))
       if (selected?.id === order.id) setSelected(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to delete advance order')
+      setError(getErrorMessage(err, 'Unable to delete advance order'))
     }
   }
 
@@ -186,7 +187,7 @@ export default function AdvanceOrders({ onOrderCompleted }: AdvanceOrdersProps =
 
       // Redirect to WhatsApp with final invoice URL + Instagram + Feedback form
       whatsappInvoice(completed)
-    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to complete payment') } finally { setSaving(false) }
+    } catch (err) { setError(getErrorMessage(err, 'Unable to complete payment')) } finally { setSaving(false) }
   }
 
   const productRows = (order: AdvanceOrder) => order.products.length ? order.products : [{ name: order.product_name, quantity: 1, base_price: order.total_amount, line_total: order.total_amount, unit: 'piece', unit_type: 'unit' }]
@@ -218,7 +219,7 @@ export default function AdvanceOrders({ onOrderCompleted }: AdvanceOrdersProps =
   }
 
   const addEvent = async (order: AdvanceOrder, eventType: string, label: string) => {
-    try { await addAdvanceEvent(order.id, eventType, label); await openDetails(order); setNotice(`${label} added to ${order.deposit_id}.`) } catch (err) { setError(err instanceof Error ? err.message : 'Unable to add timeline event') }
+    try { await addAdvanceEvent(order.id, eventType, label); await openDetails(order); setNotice(`${label} added to ${order.deposit_id}.`) } catch (err) { setError(getErrorMessage(err, 'Unable to add timeline event')) }
   }
 
   const cards = [

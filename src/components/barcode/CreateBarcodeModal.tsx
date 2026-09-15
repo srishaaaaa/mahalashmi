@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { getErrorMessage } from '../../lib/errorMessage'
 import {
   X,
   Settings,
@@ -300,7 +301,7 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
       onSuccess?.()
       setShowSheetPreviewModal(true)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to receive stock with barcodes'
+      const msg = getErrorMessage(err, 'Failed to receive stock with barcodes')
       setStatusMessage({ type: 'error', text: msg })
     } finally {
       setGenerating(false)
@@ -680,6 +681,10 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
                           placeholder="Enter Item Code"
                           value={itemCode}
                           onChange={(e) => setItemCode(e.target.value)}
+                          autoCapitalize="off"
+                          autoCorrect="off"
+                          autoComplete="off"
+                          spellCheck={false}
                           className="w-full h-10 px-3 rounded-xl border border-gray-300 bg-white text-xs font-mono font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
                         />
                         <button

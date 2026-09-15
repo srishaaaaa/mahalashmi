@@ -28,8 +28,28 @@ export const BarcodeSettingsDrawer: React.FC<BarcodeSettingsDrawerProps> = ({
 
   if (!isOpen) return null
 
+  const allSizes = [...DEFAULT_LABEL_SIZES, ...customSizes]
+
+  // A "Label Printer" is a single continuous thermal roll — it only ever
+  // feeds one label across, never a side-by-side pair. Only "Regular
+  // Printer (A4 Sheet)" (Avery-style sticker sheets) can actually fit more
+  // than one label per row. Letting a label-printer user pick a 2-up size
+  // preset is exactly what produces the classic "every other label blank
+  // and misaligned" print: the browser lays out a 2-column grid, but the
+  // physical roll is only wide enough for one column, so column 2 prints
+  // into whatever is next along the roll instead of a real second label.
+  const sizesForCurrentPrinter = allSizes.filter((size) =>
+    settings.printerType === 'label' ? size.labelsPerRow === 1 : size.labelsPerRow > 1
+  )
+
   const handlePrinterChange = (type: 'label' | 'regular') => {
-    const updated: BarcodeSettings = { ...settings, printerType: type }
+    const validSizes = allSizes.filter((size) => (type === 'label' ? size.labelsPerRow === 1 : size.labelsPerRow > 1))
+    const stillValid = validSizes.some((size) => size.id === settings.selectedSizeId)
+    const updated: BarcodeSettings = {
+      ...settings,
+      printerType: type,
+      selectedSizeId: stillValid ? settings.selectedSizeId : (validSizes[0]?.id ?? settings.selectedSizeId),
+    }
     saveStoredBarcodeSettings(updated)
     onUpdateSettings(updated)
   }
@@ -47,8 +67,6 @@ export const BarcodeSettingsDrawer: React.FC<BarcodeSettingsDrawerProps> = ({
     saveStoredBarcodeSettings(updated)
     onUpdateSettings(updated)
   }
-
-  const allSizes = [...DEFAULT_LABEL_SIZES, ...customSizes]
 
   return (
     <>
@@ -112,8 +130,13 @@ export const BarcodeSettingsDrawer: React.FC<BarcodeSettingsDrawerProps> = ({
                   Select any 1 option
                 </span>
               </div>
+              <p className="text-[10px] text-gray-500 mb-2">
+                {settings.printerType === 'label'
+                  ? 'Showing single-label sizes only — a thermal roll feeds one label at a time.'
+                  : 'Showing multi-label sizes only — these fit side-by-side on an A4 sticker sheet.'}
+              </p>
               <div className="space-y-2.5 bg-[#FBFAF6] p-3 rounded-xl border border-gray-200">
-                {allSizes.map((size) => (
+                {sizesForCurrentPrinter.map((size) => (
                   <label
                     key={size.id}
                     className="flex items-center justify-between gap-2 text-xs font-bold text-gray-700 cursor-pointer hover:text-black"
@@ -211,6 +234,7 @@ export const BarcodeSettingsDrawer: React.FC<BarcodeSettingsDrawerProps> = ({
       {showCustomModal && (
         <CreateCustomSizeModal
           isOpen={showCustomModal}
+          printerType={settings.printerType}
           onClose={() => setShowCustomModal(false)}
           onCreated={(newSize) => {
             setCustomSizes(getStoredCustomSizes())

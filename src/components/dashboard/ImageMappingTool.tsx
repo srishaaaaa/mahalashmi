@@ -16,6 +16,7 @@ import {
   Image as ImageIcon, RefreshCw, Search, Tag, Trash2, Upload, X, XCircle,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { getErrorMessage } from '../../lib/errorMessage'
 import { uploadProductImage } from '../../lib/storage'
 import { useProductStore, useVariantStore } from '../../store/store'
 import type { ProductVariant } from '../../services/variantService'
@@ -299,7 +300,7 @@ export default function ImageMappingTool() {
           file: filename,
           productName: label,
           status: 'error',
-          message: err instanceof Error ? err.message : String(err),
+          message: getErrorMessage(err, String(err)),
         })
       }
 

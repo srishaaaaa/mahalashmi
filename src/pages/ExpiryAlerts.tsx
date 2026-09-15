@@ -4,6 +4,7 @@ import { CalendarClock, CalendarPlus, CalendarX2, Check, ChevronDown, ChevronUp,
 import { useAdminAuthStore, useProductStore, useSettingsStore } from '../store/store'
 import { formatCurrency } from '../lib/retail'
 import { supabase } from '../lib/supabase'
+import { getErrorMessage } from '../lib/errorMessage'
 
 type StatusFilter = 'expired' | 'soon' | 'all'
 
@@ -57,7 +58,7 @@ export default function ExpiryAlerts() {
       setPendingMfgDates(prev => { const next = { ...prev }; delete next[key]; return next })
       setPendingExpiryDates(prev => { const next = { ...prev }; delete next[key]; return next })
     } catch (err) {
-      setBulkError(err instanceof Error ? err.message : 'Failed to save dates')
+      setBulkError(getErrorMessage(err, 'Failed to save dates'))
     } finally {
       setSavingIds(prev => { const next = new Set(prev); next.delete(key); return next })
     }

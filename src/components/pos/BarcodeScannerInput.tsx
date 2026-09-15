@@ -36,7 +36,6 @@ export const BarcodeScannerInput: React.FC<BarcodeScannerInputProps> = ({
   const [manualCode, setManualCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
-  const [unknownBarcode, setUnknownBarcode] = useState('')
   const [lastScannedName, setLastScannedName] = useState('')
 
   // Camera scanner state
@@ -128,7 +127,6 @@ export const BarcodeScannerInput: React.FC<BarcodeScannerInputProps> = ({
   useEffect(() => {
     if (clearSignal === undefined) return
     setErrorMsg('')
-    setUnknownBarcode('')
   }, [clearSignal])
 
   // Handle scanned barcode lookup
@@ -138,15 +136,17 @@ export const BarcodeScannerInput: React.FC<BarcodeScannerInputProps> = ({
 
     setLoading(true)
     setErrorMsg('')
-    setUnknownBarcode('')
 
     try {
       const record = await barcodeService.lookupBarcode(clean)
 
       if (!record || !record.product) {
         playBeep(false)
-        setErrorMsg(`Barcode "${clean}" not recognized in ${BRAND_EN} catalog`)
-        setUnknownBarcode(clean)
+        // Go straight to "add as new product" instead of showing an
+        // intermediate "not recognized" banner the cashier has to notice
+        // and then tap through — every unrecognized scan means they're
+        // about to add it anyway, so skip the extra step.
+        onNotFound?.(clean)
         return
       }
 
@@ -173,7 +173,6 @@ export const BarcodeScannerInput: React.FC<BarcodeScannerInputProps> = ({
 
       playBeep(true)
       setLastScannedName(`${prod.name}${varnt?.variant_name ? ` (${varnt.variant_name})` : ''}`)
-      setUnknownBarcode('')
       onItemScanned(payload)
       setManualCode('')
 
@@ -356,6 +355,10 @@ export const BarcodeScannerInput: React.FC<BarcodeScannerInputProps> = ({
             value={manualCode}
             onChange={(e) => setManualCode(e.target.value)}
             disabled={disabled || loading}
+            autoCapitalize="off"
+            autoCorrect="off"
+            autoComplete="off"
+            spellCheck={false}
             className="w-full pl-10 pr-24 py-3 rounded-2xl border-2 border-[#B7E1BE] bg-[#FBFAF6] font-bold text-sm text-black placeholder:text-gray-400 outline-none focus:border-[#0A0A0A] focus:bg-white shadow-xs transition-all"
           />
 
@@ -396,15 +399,6 @@ export const BarcodeScannerInput: React.FC<BarcodeScannerInputProps> = ({
             <AlertCircle size={13} className="text-rose-600 shrink-0" />
             {errorMsg}
           </span>
-          {unknownBarcode && onNotFound && (
-            <button
-              type="button"
-              onClick={() => onNotFound(unknownBarcode)}
-              className="shrink-0 px-2.5 py-1 rounded-lg bg-[#0A0A0A] text-[#2E7D32] text-[11px] font-black hover:bg-[#1A1A1A] cursor-pointer"
-            >
-              + Add as New Product
-            </button>
-          )}
         </div>
       )}
 

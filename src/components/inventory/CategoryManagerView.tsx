@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Edit2, Trash2, Search, Check, Tag, Layers, RefreshCw, AlertCircle } from 'lucide-react'
 import { inventoryService, type CategoryRecord } from '../../services/inventoryService'
+import { getErrorMessage } from '../../lib/errorMessage'
 import { useSound } from '../../context/SoundContext'
 
 export const CategoryManagerView: React.FC = () => {
@@ -92,7 +93,7 @@ export const CategoryManagerView: React.FC = () => {
       resetForm()
       await loadCategories()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to save category'
+      const msg = getErrorMessage(err, 'Failed to save category')
       play('error')
       setErrorMessage(msg)
     } finally {
@@ -117,7 +118,7 @@ export const CategoryManagerView: React.FC = () => {
       setSuccessMessage(`Category "${cat.name_en}" deleted.`)
       await loadCategories()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete category'
+      const msg = getErrorMessage(err, 'Failed to delete category')
       play('error')
       setErrorMessage(msg)
     }
