@@ -50,7 +50,7 @@ export default function ExpiryAlarmModal({ triggerKey }: { triggerKey?: string |
     const alertDaysJustLoaded = prevAlertDays.current !== alertDays
     hasCheckedOnMount.current = true
     prevAlertDays.current = alertDays
-    if (!isInitialMount && !alertDaysJustLoaded && triggerKey !== 'inventory' && triggerKey !== 'expiry_alerts') return
+    if (!isInitialMount && !alertDaysJustLoaded && triggerKey !== 'expiry_alerts') return
 
     let cancelled = false
     const check = async () => {
