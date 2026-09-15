@@ -261,7 +261,7 @@ export default function AdvanceOrders({ onOrderCompleted }: AdvanceOrdersProps =
                     <p className="font-bold text-[#273126]">{order.customer_name}</p>
                     <p className="text-xs text-[#727970]">{order.phone}</p>
                   </td>
-                  <td className="max-w-[180px] px-4 py-3.5 align-middle">
+                  <td className="max-w-[180px] px-4 py-3.5 align-middle whitespace-normal">
                     <p className="break-words font-semibold text-[#273126]">{order.product_name}</p>
                     <p className="break-words text-xs text-[#858C83]">{order.category || 'Uncategorised'}</p>
                   </td>

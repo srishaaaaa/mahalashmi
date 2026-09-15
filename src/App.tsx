@@ -159,6 +159,7 @@ function AppShell() {
             <Route path="/admin" element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/advance-orders" element={<Dashboard />} />
+            <Route path="/expiry-alerts" element={<Dashboard />} />
           </Route>
 
           {/* Admin-Only Dedicated Routes */}

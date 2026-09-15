@@ -10,7 +10,7 @@ export default function StoreSettingsView() {
 
   const [form, setForm] = useState({
     name: '', ownerName: '', phone: '', email: '', address: '', instagramHandle: '',
-    gstEnabled: false, lowStockThreshold: 5,
+    gstEnabled: false, lowStockThreshold: 5, expiryAlertDays: 30,
   })
   const [saveMsg, setSaveMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [logoUploading, setLogoUploading] = useState(false)
@@ -42,6 +42,7 @@ export default function StoreSettingsView() {
         instagramHandle: settings.instagramHandle,
         gstEnabled: settings.gstEnabled,
         lowStockThreshold: settings.lowStockThreshold,
+        expiryAlertDays: settings.expiryAlertDays,
       })
     }
   }
@@ -192,6 +193,16 @@ export default function StoreSettingsView() {
                   />
                 </Field>
                 <p className="text-[11px] text-[#6B7280] mt-1.5">Triggers automatic alerts and banners when product stock reaches or drops below this count.</p>
+              </div>
+              <div className="flex-1">
+                <Field label="Expiry Alert Window (days)">
+                  <input
+                    type="number" min={1} step={1} className={inputCls}
+                    value={form.expiryAlertDays}
+                    onChange={e => setForm(f => ({ ...f, expiryAlertDays: Number(e.target.value) || 1 }))}
+                  />
+                </Field>
+                <p className="text-[11px] text-[#6B7280] mt-1.5">Products with an expiry date land in "Expiring Soon" once they're within this many days of it.</p>
               </div>
               <label className="flex items-start gap-2.5 sm:mt-6 cursor-pointer">
                 <input

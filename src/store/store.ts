@@ -66,6 +66,8 @@ export interface Product {
   supplier?: string
   size?: string
   color?: string
+  /** Optional expiry date (YYYY-MM-DD). Products without one are never flagged by the expiry alert. */
+  expiryDate?: string | null
 }
 
 interface AuthUser {
@@ -104,6 +106,8 @@ export interface StoreSettings {
   instagramHandle: string
   gstEnabled: boolean
   lowStockThreshold: number
+  /** How many days before a product's expiry date it starts showing under "Expiring Soon". Customizable in Store Settings. */
+  expiryAlertDays: number
   logoUrl: string | null
   /** Same image as logoUrl, pre-converted to a base64 data URI so PDF generation (invoicePdf.ts, advanceReceipt.ts) can embed it synchronously without an extra fetch. */
   logoBase64: string | null
@@ -118,6 +122,7 @@ export interface StoreSettingsInput {
   instagramHandle: string
   gstEnabled: boolean
   lowStockThreshold: number
+  expiryAlertDays: number
 }
 
 interface SettingsState {
@@ -256,6 +261,7 @@ const mapDbProduct = (input: unknown, categoriesById: Record<string, string> = {
     supplier: readString(p.supplier),
     size: readString(p.size),
     color: readString(p.color),
+    expiryDate: readString(p.expiry_date) || null,
   }
 }
 
@@ -441,6 +447,7 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
             instagramHandle: data.instagram_handle || '',
             gstEnabled: data.gst_enabled,
             lowStockThreshold: Number(data.low_stock_threshold ?? 5),
+            expiryAlertDays: Number(data.expiry_alert_days ?? 30),
             logoUrl,
             logoBase64: null,
           },
@@ -466,6 +473,7 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
         instagramHandle: BRAND_INSTAGRAM,
         gstEnabled: false,
         lowStockThreshold: 5,
+        expiryAlertDays: 30,
         logoUrl: null,
         logoBase64: null,
       },
@@ -487,6 +495,7 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
       instagram_handle: input.instagramHandle,
       gst_enabled: input.gstEnabled,
       low_stock_threshold: input.lowStockThreshold,
+      expiry_alert_days: input.expiryAlertDays,
       updated_at: new Date().toISOString(),
     }).eq('id', 1)
     set({ saving: false })
