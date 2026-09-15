@@ -166,6 +166,18 @@
     overscroll-behavior: contain;
     flex: 1 1 auto;
   }
+
+  /* Smooth, native-feeling scrolling everywhere, on every device:
+     - -webkit-overflow-scrolling gives inertial/momentum scrolling on
+       older iOS Safari instead of a stiff, step-by-step scroll.
+     - overscroll-behavior: contain stops a nested panel (a modal, a
+       sidebar, a scrollable table) from "chaining" its scroll into the
+       page behind it once it hits the top/bottom edge - that chain is
+       what reads as a jerky bounce on phones. */
+  .overflow-y-auto, .overflow-x-auto, .overflow-auto, .overflow-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
 }
 
 @layer components {
