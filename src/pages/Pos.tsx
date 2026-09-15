@@ -1275,7 +1275,7 @@ export default function Pos(props: PosProps = {}) {
                             <p className="text-[16px] font-bold text-[#111111] break-words">{item.name} {item.variantName ? `- ${item.variantName}` : ''}</p>
                           </div>
                         )}
-                        {(item.hasSpecialOffer || item.specialOfferNote || item.specialOfferCost) && (
+                        {Boolean(item.hasSpecialOffer || item.specialOfferNote || item.specialOfferCost) && (
                           <div className="mt-2">
                             {editingOfferId === item.id ? (
                               <div className="flex flex-col gap-1.5">
@@ -1387,7 +1387,7 @@ export default function Pos(props: PosProps = {}) {
                           </span>
                         )}
                       </div>
-                      {(item.hasSpecialOffer || item.specialOfferNote || item.specialOfferCost) && (
+                      {Boolean(item.hasSpecialOffer || item.specialOfferNote || item.specialOfferCost) && (
                         editingOfferId === item.id ? (
                           <div className="flex items-center gap-1.5 mx-3">
                             <input
