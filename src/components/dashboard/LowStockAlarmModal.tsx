@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Volume2, VolumeX, Package } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useSound } from '../../context/SoundContext'
+import { useAlarmQueueStore } from '../../store/alarmQueueStore'
 
 interface LowStockItem {
   id: string | number
@@ -35,6 +36,10 @@ export default function LowStockAlarmModal({ triggerKey }: { triggerKey?: string
   const intervalRef = useRef<number | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const hasCheckedOnMount = useRef(false)
+  const queue = useAlarmQueueStore(s => s.queue)
+  const enqueueAlarm = useAlarmQueueStore(s => s.enqueue)
+  const dequeueAlarm = useAlarmQueueStore(s => s.dequeue)
+  const isFront = queue[0] === 'lowStock'
 
   useEffect(() => {
     const isInitialMount = !hasCheckedOnMount.current
@@ -58,7 +63,10 @@ export default function LowStockAlarmModal({ triggerKey }: { triggerKey?: string
           id: p.id, name: p.name, category: p.category,
           stock_quantity: p.stock_quantity, low_stock_alert: p.low_stock_alert || 5,
         }))
-      if (low.length > 0) setItems(low)
+      if (low.length > 0) {
+        setItems(low)
+        enqueueAlarm('lowStock')
+      }
     }
     void check()
     return () => { cancelled = true }
@@ -94,13 +102,13 @@ export default function LowStockAlarmModal({ triggerKey }: { triggerKey?: string
   }
 
   useEffect(() => {
-    if (items && items.length > 0) {
+    if (items && items.length > 0 && isFront) {
       beep()
       intervalRef.current = window.setInterval(beep, 2500)
     }
     return () => { if (intervalRef.current) window.clearInterval(intervalRef.current) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items])
+  }, [items, isFront])
 
   useEffect(() => {
     return () => {
@@ -113,9 +121,10 @@ export default function LowStockAlarmModal({ triggerKey }: { triggerKey?: string
   const acknowledge = () => {
     if (intervalRef.current) window.clearInterval(intervalRef.current)
     setItems(null)
+    dequeueAlarm('lowStock')
   }
 
-  if (!items || items.length === 0) return null
+  if (!items || items.length === 0 || !isFront) return null
 
   const outCount = items.filter(p => p.stock_quantity <= 0).length
   const lowCount = items.length - outCount

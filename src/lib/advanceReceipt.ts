@@ -186,9 +186,10 @@ export function printAdvanceReceipt(order: AdvanceOrder) {
   body {
     font-family: Arial, sans-serif;
     font-size: 12px;
+    font-weight: 600;
     width: 72mm;
     padding: 4mm;
-    color: #111;
+    color: #000;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -200,19 +201,19 @@ export function printAdvanceReceipt(order: AdvanceOrder) {
   .big { font-size: 15px; font-weight: bold; }
   .bold { font-weight: bold; }
   .warn { font-size: 9px; font-weight: bold; margin-top: 10px; text-align: center; }
-  .label { font-size: 10px; color: #555; }
+  .label { font-size: 10px; color: #333; }
   .balance-row { font-size: 14px; font-weight: bold; }
 </style>
 </head><body>
 <div class="c big">${esc(shop.name)}</div>
-<div class="c" style="font-size:10px;color:#555;">${esc(shop.address)}</div>
-<div class="c" style="font-size:10px;color:#555;">${esc(shop.phone)}</div>
+<div class="c" style="font-size:10px;color:#333;">${esc(shop.address)}</div>
+<div class="c" style="font-size:10px;color:#333;">${esc(shop.phone)}</div>
 <div class="line"></div>
 <div class="c big">ADVANCE RECEIPT</div>
 <div class="c" style="font-size:10px;">Not a final tax invoice</div>
 <div class="line"></div>
 <div><span class="bold">${esc(order.deposit_id)}</span></div>
-<div style="font-size:10px;color:#555;">${new Date(order.created_at).toLocaleString('en-IN')}</div>
+<div style="font-size:10px;color:#333;">${new Date(order.created_at).toLocaleString('en-IN')}</div>
 <div class="line"></div>
 <div class="r"><span class="label">Customer</span><span class="bold">${esc(order.customer_name)}</span></div>
 <div class="r"><span class="label">Phone</span><span>${esc(formatPhoneDisplay(order.phone))}</span></div>
