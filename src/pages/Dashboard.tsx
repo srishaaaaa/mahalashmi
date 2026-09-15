@@ -55,7 +55,7 @@ import { useNavigationStore } from '../store/navigationStore'
 import { useHardwareBarcodeScanner } from '../hooks/useHardwareBarcodeScanner'
 import { BarcodeRedirectDialog } from '../components/pos/BarcodeRedirectDialog'
 import ExpiryAlarmModal from '../components/dashboard/ExpiryAlarmModal'
-import { exportAnalyticsToCSV, exportAnalyticsToPDF } from '../services/analyticsExport'
+import { exportAnalyticsToExcel, exportAnalyticsToPDF } from '../services/analyticsExport'
 import StoreSettingsView from '../components/dashboard/StoreSettingsView'
 import LowStockAlarmModal from '../components/dashboard/LowStockAlarmModal'
 import { BRAND_LOGO, BRAND_EN } from '../lib/brand'
@@ -194,7 +194,7 @@ export default function Dashboard() {
   const [orders, setOrders] = useState<DashboardOrder[]>([])
   const [orderItems, setOrderItems] = useState<DashboardOrderItem[]>([])
   const [coupons, setCoupons] = useState<DashboardCoupon[]>([])
-  const [couponForm, setCouponForm] = useState({ code: '', percentage: 10, expiry_date: '', usage_limit: '', min_order_value: '' })
+  const [couponForm, setCouponForm] = useState({ code: '', percentage: '10', expiry_date: '', usage_limit: '', min_order_value: '' })
   const [couponSaveError, setCouponSaveError] = useState('')
   const [couponSaveSuccess, setCouponSaveSuccess] = useState('')
   const [editingCouponId, setEditingCouponId] = useState<number | null>(null)
@@ -972,7 +972,7 @@ export default function Dashboard() {
         setCouponSaveError(msg.includes('unique') || msg.includes('duplicate') ? `Coupon code "${code}" already exists` : msg)
       }
     } else {
-      setCouponForm({ code: '', percentage: 10, expiry_date: '', usage_limit: '', min_order_value: '' })
+      setCouponForm({ code: '', percentage: '10', expiry_date: '', usage_limit: '', min_order_value: '' })
       setEditingCouponId(null)
       setCouponSaveSuccess(editingCouponId !== null ? 'Coupon updated!' : 'Coupon created!')
       await loadCoupons()
@@ -983,7 +983,7 @@ export default function Dashboard() {
     setEditingCouponId(coupon.id)
     setCouponForm({
       code: coupon.code,
-      percentage: coupon.percentage,
+      percentage: String(coupon.percentage),
       expiry_date: coupon.expiry_date ? coupon.expiry_date.slice(0, 10) : '',
       usage_limit: coupon.usage_limit !== null ? String(coupon.usage_limit) : '',
       min_order_value: coupon.min_order_value ? String(coupon.min_order_value) : '',
@@ -994,7 +994,7 @@ export default function Dashboard() {
 
   const cancelEditCoupon = () => {
     setEditingCouponId(null)
-    setCouponForm({ code: '', percentage: 10, expiry_date: '', usage_limit: '', min_order_value: '' })
+    setCouponForm({ code: '', percentage: '10', expiry_date: '', usage_limit: '', min_order_value: '' })
     setCouponSaveError('')
     setCouponSaveSuccess('')
   }
@@ -2065,7 +2065,7 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={() => {
-                    exportAnalyticsToCSV({
+                    void exportAnalyticsToExcel({
                       data: analytics,
                       activeTab: posAnalyticsTab,
                       datePreset: analyticsDatePreset,
@@ -2074,10 +2074,10 @@ export default function Dashboard() {
                     })
                   }}
                   className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-[#B7E1BE] text-[#0A0A0A] font-bold text-xs hover:bg-[#FBFAF6] shadow-xs transition-all cursor-pointer hover:scale-[1.02]"
-                  title="Export current analytics view to CSV"
+                  title="Export current analytics view to Excel"
                 >
                   <Download size={14} className="text-[#1B5E20]" />
-                  <span>Export CSV</span>
+                  <span>Export Excel</span>
                 </button>
 
                 <button
@@ -3188,7 +3188,7 @@ export default function Dashboard() {
                       className="w-full rounded-xl border border-[#A7F3D0] bg-white px-3 py-2.5 text-[12px] font-bold text-[#111111] outline-none transition-colors focus:border-[#2E7D32]"
                       placeholder="10"
                       value={couponForm.percentage}
-                      onChange={e => setCouponForm(f => ({ ...f, percentage: Number(e.target.value) }))}
+                      onChange={e => setCouponForm(f => ({ ...f, percentage: e.target.value }))}
                     />
                   </div>
                   <div className="space-y-1.5">

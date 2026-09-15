@@ -16,6 +16,7 @@ import {
   type InventoryStockItem,
 } from '../../services/inventoryService'
 import { BRAND_MONOGRAM } from '../../lib/brand'
+import { downloadXlsx, type XlsxColumn } from '../../lib/xlsxExport'
 
 export const InventoryAnalyticsView: React.FC = () => {
   const [range, setRange] = useState<'all' | 'today' | 'week' | 'month'>('all')
@@ -90,21 +91,21 @@ export const InventoryAnalyticsView: React.FC = () => {
       const items: InventoryStockItem[] = await inventoryService.fetchInventoryItems()
       if (!items || items.length === 0) return
 
-      const headers = [
-        'Product ID',
-        'Product Name',
-        'Tamil Name',
-        'Variant ID',
-        'Variant Name (Size)',
-        'Category',
-        'Barcode',
-        'Current Stock (Units)',
-        'Purchase Price (INR)',
-        'Selling Price (INR)',
-        'Total Valuation Cost (INR)',
-        'Total Valuation Retail (INR)',
-        'Stock Status',
-        'Last Updated'
+      const columns: XlsxColumn[] = [
+        { header: 'Product ID', width: 12 },
+        { header: 'Product Name', width: 30 },
+        { header: 'Tamil Name', width: 24 },
+        { header: 'Variant ID', width: 14 },
+        { header: 'Variant Name (Size)', width: 20 },
+        { header: 'Category', width: 18 },
+        { header: 'Barcode', width: 18 },
+        { header: 'Current Stock (Units)', width: 16 },
+        { header: 'Purchase Price (INR)', width: 16 },
+        { header: 'Selling Price (INR)', width: 16 },
+        { header: 'Total Valuation Cost (INR)', width: 20 },
+        { header: 'Total Valuation Retail (INR)', width: 22 },
+        { header: 'Stock Status', width: 14 },
+        { header: 'Last Updated', width: 20 },
       ]
 
       const rows = items.map((it: InventoryStockItem) => {
@@ -117,11 +118,11 @@ export const InventoryAnalyticsView: React.FC = () => {
 
         return [
           it.product_id,
-          `"${(it.name || '').replace(/"/g, '""')}"`,
-          `"${(it.name_ta || '').replace(/"/g, '""')}"`,
+          it.name || '',
+          it.name_ta || '',
           it.variant_id || '',
-          `"${(it.variant_name || '').replace(/"/g, '""')}"`,
-          `"${(it.category || 'General').replace(/"/g, '""')}"`,
+          it.variant_name || '',
+          it.category || 'General',
           it.barcode || '',
           stock,
           costPrice,
@@ -133,18 +134,12 @@ export const InventoryAnalyticsView: React.FC = () => {
         ]
       })
 
-      const csvContent =
-        [headers.join(','), ...rows.map((e: (string | number)[]) => e.join(','))].join('\r\n')
-
-      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${BRAND_MONOGRAM}_Inventory_Snapshot_${new Date().toISOString().slice(0, 10)}.csv`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await downloadXlsx({
+        filename: `${BRAND_MONOGRAM}_Inventory_Snapshot_${new Date().toISOString().slice(0, 10)}`,
+        sheetName: 'Inventory Snapshot',
+        columns,
+        rows,
+      })
     } catch (err) {
       console.error('Failed to export inventory snapshot:', err)
     } finally {
@@ -152,46 +147,40 @@ export const InventoryAnalyticsView: React.FC = () => {
     }
   }
 
-  const exportCsv = () => {
+  const exportCsv = async () => {
     if (filteredMovements.length === 0) return
-    const headers = [
-      'Date & Time',
-      'Movement Type',
-      'Product Name',
-      'Variant',
-      'Barcode',
-      'Qty Delta',
-      'Qty Before',
-      'Qty After',
-      'Created By',
-      'Note',
+    const columns: XlsxColumn[] = [
+      { header: 'Date & Time', width: 20 },
+      { header: 'Movement Type', width: 16 },
+      { header: 'Product Name', width: 30 },
+      { header: 'Variant', width: 18 },
+      { header: 'Barcode', width: 18 },
+      { header: 'Qty Delta', width: 12 },
+      { header: 'Qty Before', width: 12 },
+      { header: 'Qty After', width: 12 },
+      { header: 'Created By', width: 16 },
+      { header: 'Note', width: 30 },
     ]
 
     const rows = filteredMovements.map((m) => [
       new Date(m.created_at).toLocaleString(),
       m.movement_type,
-      `"${(m.product?.name || 'Unknown').replace(/"/g, '""')}"`,
-      `"${(m.variant?.variant_name || '').replace(/"/g, '""')}"`,
+      m.product?.name || 'Unknown',
+      m.variant?.variant_name || '',
       m.barcode_id || '',
       m.quantity_delta,
       m.quantity_before,
       m.quantity_after,
-      `"${(m.created_by_name || '').replace(/"/g, '""')}"`,
-      `"${(m.note || '').replace(/"/g, '""')}"`,
+      m.created_by_name || '',
+      m.note || '',
     ])
 
-    const csvContent =
-      [headers.join(','), ...rows.map((e) => e.join(','))].join('\r\n')
-
-    const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${BRAND_MONOGRAM}_Inventory_Movements_${range}_${Date.now()}.csv`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    await downloadXlsx({
+      filename: `${BRAND_MONOGRAM}_Inventory_Movements_${range}_${Date.now()}`,
+      sheetName: 'Inventory Movements',
+      columns,
+      rows,
+    })
   }
 
   const getMovementBadge = (type: InventoryMovement['movement_type']) => {
