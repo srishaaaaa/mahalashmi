@@ -3,6 +3,7 @@ import html2canvas from 'html2canvas'
 import { BRAND_EN, BRAND_ADDRESS, BRAND_PHONE_DISPLAY, BRAND_MONOGRAM, BRAND_LOGO } from '../lib/brand'
 import { formatCurrency } from '../lib/retail'
 import { useSettingsStore } from '../store/store'
+import { downloadXlsxSections } from '../lib/xlsxExport'
 
 export interface AnalyticsExportData {
   totalCompletedRevenue: number
@@ -60,9 +61,10 @@ const getFilterLabel = (preset: string, from?: string, to?: string) => {
 }
 
 /**
- * Export Analytics to CSV format based on the selected tab and active date filter
+ * Export Analytics to a real .xlsx workbook (with explicit column widths)
+ * based on the selected tab and active date filter.
  */
-export function exportAnalyticsToCSV({ data, activeTab, datePreset, dateFrom, dateTo }: ExportOptions) {
+export async function exportAnalyticsToExcel({ data, activeTab, datePreset, dateFrom, dateTo }: ExportOptions) {
   const filterText = getFilterLabel(datePreset, dateFrom, dateTo)
   const shopName = useSettingsStore.getState().settings?.name || BRAND_EN
   const rows: string[][] = []
@@ -158,28 +160,13 @@ export function exportAnalyticsToCSV({ data, activeTab, datePreset, dateFrom, da
     })
   }
 
-  // Convert array rows to CSV with proper escaping
-  const csvContent = rows
-    .map((row) =>
-      row
-        .map((col) => {
-          const str = String(col ?? '')
-          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-            return `"${str.replace(/"/g, '""')}"`
-          }
-          return str
-        })
-        .join(',')
-    )
-    .join('\r\n')
-
-  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${BRAND_MONOGRAM}_Analytics_${activeTab}_${datePreset || 'all'}_${new Date().toISOString().slice(0, 10)}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  await downloadXlsxSections({
+    filename: `${BRAND_MONOGRAM}_Analytics_${activeTab}_${datePreset || 'all'}_${new Date().toISOString().slice(0, 10)}`,
+    sheetName: `Analytics ${activeTab}`,
+    // Widest section across all tabs is 6 columns (Rank/Product Name/Variant/Units Sold/Revenue/Bill Count).
+    columnWidths: [10, 34, 18, 16, 18, 14],
+    rows,
+  })
 }
 
 /**
