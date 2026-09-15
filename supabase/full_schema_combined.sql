@@ -3143,3 +3143,17 @@ ALTER TABLE public.products ADD COLUMN IF NOT EXISTS expiry_date DATE;
 ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS expiry_alert_days INTEGER NOT NULL DEFAULT 30;
 
 NOTIFY pgrst, 'reload schema';
+
+-- ---------------------------------------------------------------------------
+-- Source: 20260915_0026_manufacture_date.sql
+-- ---------------------------------------------------------------------------
+-- ============================================================================
+-- Migration: 20260915_0026_manufacture_date.sql
+-- Description: Adds per-product manufacture date, displayed alongside the
+--              expiry date on the Expiry Alerts screen and in the product
+--              editor (mirrors the expiry_date column added in 0025).
+-- ============================================================================
+
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS mfg_date DATE;
+
+NOTIFY pgrst, 'reload schema';
