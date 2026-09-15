@@ -230,7 +230,7 @@ export default function CatalogModal({ isOpen, onClose, onAdd }: CatalogModalPro
                           <Trash2 size={14} />
                         </button>
                       </div>
-                      <div onClick={() => onAdd(product)} className="cursor-pointer flex-1 pr-14 md:pr-0">
+                      <div onClick={() => onAdd(product)} className="cursor-pointer flex-1 pr-14">
                         <h4 className="text-[13px] font-black text-[#111111] leading-tight break-words group-hover:text-[#2E7D32] transition-colors">{product.name}</h4>
                         {product.nameTa && <p className="text-[10px] font-bold text-[#374151] mt-0.5 break-words">{product.nameTa}</p>}
                       </div>
