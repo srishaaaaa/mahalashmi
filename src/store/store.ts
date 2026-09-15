@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { isSupabaseConfigured } from '../lib/supabase'
+import { getErrorMessage } from '../lib/errorMessage'
 import { supabase } from '../lib/supabase'
 import { fetchAllCategories, fetchAllProducts } from '../services/productService'
 import { fetchAllVariants, type ProductVariant } from '../services/variantService'
@@ -382,7 +383,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
       set({ products: normalized, loading: false, lastFetch: Date.now() })
     } catch (err) {
       set({
-        error: err instanceof Error ? err.message : 'Unable to fetch products',
+        error: getErrorMessage(err, 'Unable to fetch products'),
         loading: false,
       })
     }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { X, PlusCircle, AlertCircle } from 'lucide-react'
 import { useLangStore } from '../../store/langStore'
+import { getErrorMessage } from '../../lib/errorMessage'
 
 interface Props {
   isOpen: boolean
@@ -62,7 +63,7 @@ export const AddUnregisteredItemModal: React.FC<Props> = ({ isOpen, onClose, onS
       setError('')
       onClose()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to add item'
+      const msg = getErrorMessage(err, 'Failed to add item')
       setError(msg)
     } finally {
       setIsSubmitting(false)

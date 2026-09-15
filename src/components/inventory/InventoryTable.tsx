@@ -26,6 +26,7 @@ import { CategoryManagerView } from './CategoryManagerView'
 import { InventoryAnalyticsView } from './InventoryAnalyticsView'
 import { AddEditProductView } from './AddEditProductView'
 import { useSound } from '../../context/SoundContext'
+import { getErrorMessage } from '../../lib/errorMessage'
 
 type InventoryTab = 'stock' | 'products' | 'categories' | 'analytics'
 
@@ -81,7 +82,7 @@ export const InventoryTable: React.FC = () => {
       await loadData()
     } catch (err) {
       console.error('Failed to delete inventory item:', err)
-      alert(err instanceof Error ? err.message : 'Failed to delete item')
+      alert(getErrorMessage(err, 'Failed to delete item'))
       setLoading(false)
     }
   }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { X, Tag, IndianRupee, AlertCircle, Barcode, Check } from 'lucide-react'
 import { updateItemPrice } from '../../services/productService'
+import { getErrorMessage } from '../../lib/errorMessage'
 import type { InventoryStockItem } from '../../services/inventoryService'
 import { useSound } from '../../context/SoundContext'
 
@@ -67,7 +68,7 @@ export const QuickPriceModal: React.FC<Props> = ({ isOpen, item, onClose, onSucc
       onClose()
     } catch (err: unknown) {
       play('error')
-      setError(err instanceof Error ? err.message : 'Failed to update price')
+      setError(getErrorMessage(err, 'Failed to update price'))
     } finally {
       setLoading(false)
     }

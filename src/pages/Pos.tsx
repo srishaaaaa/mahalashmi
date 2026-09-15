@@ -8,6 +8,7 @@ import {
   Wifi, WifiOff, Layers, X, ChevronDown, Power
 } from 'lucide-react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import { getErrorMessage } from '../lib/errorMessage'
 import { useProductStore, useVariantStore, useAdminAuthStore, type Product } from '../store/store'
 import { useNavigationStore } from '../store/navigationStore'
 import { barcodeService } from '../services/barcodeService'
@@ -681,7 +682,7 @@ export default function Pos(props: PosProps = {}) {
       setDepositOpen(false)
       clearAll()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create deposit order')
+      setError(getErrorMessage(err, 'Failed to create deposit order'))
     } finally {
       setSaving(false)
     }
@@ -806,7 +807,7 @@ export default function Pos(props: PosProps = {}) {
       setCustomer({ name: '', phone: '', address: '' })
       void fetchProducts()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to generate bill')
+      setError(getErrorMessage(err, 'Failed to generate bill'))
     } finally {
       setSaving(false)
     }

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { inventoryService, type InventoryStockItem } from '../../services/inventoryService'
 import { BRAND_EN } from '../../lib/brand'
+import { getErrorMessage } from '../../lib/errorMessage'
 import { useSound } from '../../context/SoundContext'
 
 export interface AdjustStockModalProps {
@@ -129,7 +130,7 @@ export const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
       onClose()
     } catch (err: unknown) {
       play('error')
-      const msg = err instanceof Error ? err.message : 'Failed to adjust stock'
+      const msg = getErrorMessage(err, 'Failed to adjust stock')
       setError(msg)
     } finally {
       setSubmitting(false)

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { X, Calendar, Tag, AlertCircle } from 'lucide-react'
 import { expenseService, type ExpenseCategory, type ExpenseRecord } from '../../services/expenseService'
+import { getErrorMessage } from '../../lib/errorMessage'
 
 interface RecordExpenseModalProps {
   isOpen: boolean
@@ -73,7 +74,7 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
       onClose()
     } catch (err: unknown) {
       console.error('Failed to save expense:', err)
-      const msg = err instanceof Error ? err.message : 'An error occurred while saving expense'
+      const msg = getErrorMessage(err, 'An error occurred while saving expense')
       setErrorMsg(msg)
     } finally {
       setLoading(false)

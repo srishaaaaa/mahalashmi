@@ -16,6 +16,7 @@ import { useProductStore, type Product } from '../../store/store'
 import { fetchVariantsByProduct } from '../../services/variantService'
 import { inventoryService, type CategoryRecord } from '../../services/inventoryService'
 import { useSound } from '../../context/SoundContext'
+import { getErrorMessage } from '../../lib/errorMessage'
 
 export interface VariantInputRow {
   id: string
@@ -174,7 +175,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     } catch (err) {
       console.error('Failed to delete product:', err)
       play('error')
-      setStatusMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to delete product' })
+      setStatusMessage({ type: 'error', text: getErrorMessage(err, 'Failed to delete product') })
     } finally {
       setLoading(false)
     }
@@ -560,7 +561,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
       await fetchProducts()
       onStockUpdated?.()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'An error occurred while saving'
+      const msg = getErrorMessage(err, 'An error occurred while saving')
       play('error')
       setStatusMessage({ type: 'error', text: msg })
     } finally {
@@ -819,6 +820,10 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                   placeholder={hasVariants ? 'Defined at variant level' : 'e.g. 8901234567'}
                   value={barcode}
                   onChange={(e) => setBarcode(e.target.value)}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  autoComplete="off"
+                  spellCheck={false}
                   className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A] disabled:bg-gray-100 disabled:text-gray-400"
                 />
               </div>

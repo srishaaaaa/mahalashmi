@@ -28,7 +28,12 @@ export interface BarcodeSettings {
 
 export const DEFAULT_BARCODE_SETTINGS: BarcodeSettings = {
   printerType: 'label',
-  selectedSizeId: '2_38x25',
+  // Must be a labelsPerRow:1 size — printerType 'label' means a single
+  // continuous thermal roll, which only ever feeds one label across. Pairing
+  // it with a 2-up preset (as this used to default to) sends a 2-column grid
+  // to a roll that's only wide enough for one column, producing every other
+  // label blank/misaligned.
+  selectedSizeId: '1_50x25',
   showSalePrice: true,
   showCompanyName: true,
   showItemName: true,

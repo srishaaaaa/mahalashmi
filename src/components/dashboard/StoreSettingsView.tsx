@@ -88,7 +88,7 @@ export default function StoreSettingsView() {
   const logoSrc = settings?.logoUrl || BRAND_LOGO
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-5xl">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-[20px] sm:text-[22px] font-black text-[#111111]">Store Configuration &amp; Settings</h2>

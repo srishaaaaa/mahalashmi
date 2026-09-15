@@ -4,17 +4,20 @@ import { type LabelSizeConfig, saveStoredCustomSize } from '../../lib/barcode'
 
 interface CreateCustomSizeModalProps {
   isOpen: boolean
+  /** A "label" printer is a single continuous thermal roll — it can only ever fit one label across, so labelsPerRow is locked to 1. */
+  printerType: 'label' | 'regular'
   onClose: () => void
   onCreated: (newSize: LabelSizeConfig) => void
 }
 
 export const CreateCustomSizeModal: React.FC<CreateCustomSizeModalProps> = ({
   isOpen,
+  printerType,
   onClose,
   onCreated,
 }) => {
   const [name, setName] = useState('')
-  const [labelsPerRow, setLabelsPerRow] = useState<number>(2)
+  const [labelsPerRow, setLabelsPerRow] = useState<number>(printerType === 'label' ? 1 : 2)
   const [widthMm, setWidthMm] = useState<string>('50')
   const [heightMm, setHeightMm] = useState<string>('38')
   const [horizontalGapMm, setHorizontalGapMm] = useState<string>('2')
@@ -112,13 +115,23 @@ export const CreateCustomSizeModal: React.FC<CreateCustomSizeModalProps> = ({
                 </label>
                 <select
                   value={labelsPerRow}
+                  disabled={printerType === 'label'}
                   onChange={(e) => setLabelsPerRow(Number(e.target.value))}
-                  className="w-full h-10 px-3 rounded-xl border border-gray-300 bg-[#FBFAF6] text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A] focus:bg-white"
+                  className="w-full h-10 px-3 rounded-xl border border-gray-300 bg-[#FBFAF6] text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A] focus:bg-white disabled:bg-gray-100 disabled:text-gray-400"
                 >
                   <option value={1}>1</option>
-                  <option value={2}>2</option>
-                  <option value={3}>3</option>
+                  {printerType === 'regular' && (
+                    <>
+                      <option value={2}>2</option>
+                      <option value={3}>3</option>
+                    </>
+                  )}
                 </select>
+                {printerType === 'label' && (
+                  <p className="mt-1 text-[10px] text-gray-500 font-medium">
+                    Locked to 1 — a thermal roll feeds one label at a time.
+                  </p>
+                )}
               </div>
 
               <div>
