@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CalendarClock, CalendarX2, Download, RefreshCw, Search } from 'lucide-react'
-import { useProductStore, useSettingsStore } from '../store/store'
+import { CalendarClock, CalendarPlus, CalendarX2, Check, ChevronDown, ChevronUp, Download, RefreshCw, Save, Search } from 'lucide-react'
+import { useAdminAuthStore, useProductStore, useSettingsStore } from '../store/store'
 import { formatCurrency } from '../lib/retail'
+import { supabase } from '../lib/supabase'
 
 type StatusFilter = 'expired' | 'soon' | 'all'
 
@@ -11,11 +12,57 @@ const excelSafeText = (value: string) => `="${String(value).replace(/"/g, '""')}
 export default function ExpiryAlerts() {
   const { products, fetchProducts } = useProductStore()
   const alertDays = useSettingsStore(s => s.settings?.expiryAlertDays ?? 30)
+  const role = useAdminAuthStore(state => state.role)
+  const isAdmin = role === 'admin'
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('expired')
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkSearch, setBulkSearch] = useState('')
+  const [pendingDates, setPendingDates] = useState<Record<string, string>>({})
+  const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
+  const [bulkError, setBulkError] = useState('')
 
   useEffect(() => { void fetchProducts() }, [fetchProducts])
+
+  const untracked = useMemo(() => {
+    return products
+      .filter(p => p.isActive !== false)
+      .filter(p => (p.category || '').trim().toLowerCase() !== 'unregistered')
+      .filter(p => !p.expiryDate)
+      .filter(p =>
+        p.name.toLowerCase().includes(bulkSearch.toLowerCase()) ||
+        (p.category || '').toLowerCase().includes(bulkSearch.toLowerCase())
+      )
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [products, bulkSearch])
+
+  const saveExpiryDate = async (productId: string | number, date: string) => {
+    const key = String(productId)
+    setBulkError('')
+    setSavingIds(prev => new Set(prev).add(key))
+    try {
+      const { error } = await supabase.from('products').update({ expiry_date: date }).eq('id', productId)
+      if (error) throw error
+      setPendingDates(prev => { const next = { ...prev }; delete next[key]; return next })
+    } catch (err) {
+      setBulkError(err instanceof Error ? err.message : 'Failed to save expiry date')
+    } finally {
+      setSavingIds(prev => { const next = new Set(prev); next.delete(key); return next })
+    }
+  }
+
+  const saveOne = async (productId: string | number, date: string) => {
+    await saveExpiryDate(productId, date)
+    await fetchProducts(true)
+  }
+
+  const saveAllPending = async () => {
+    const entries = Object.entries(pendingDates).filter(([, date]) => date)
+    if (entries.length === 0) return
+    await Promise.all(entries.map(([id, date]) => saveExpiryDate(id, date)))
+    await fetchProducts(true)
+  }
 
   const tracked = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -74,16 +121,34 @@ export default function ExpiryAlerts() {
           <h2 className="text-2xl font-black text-[#273126]">Expiry Alerts</h2>
           <p className="mt-1 text-sm text-[#6B7280]">
             Flagging items within {alertDays} days of their expiry date.{' '}
-            <button
-              type="button"
-              onClick={() => navigate('/dashboard?tab=settings')}
-              className="font-bold text-[#2E7D32] hover:underline cursor-pointer"
-            >
-              Customize window
-            </button>
+            {isAdmin ? (
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard?tab=settings')}
+                className="font-bold text-[#2E7D32] hover:underline cursor-pointer"
+              >
+                Customize window
+              </button>
+            ) : (
+              <span className="text-[#9CA3AF]">Set by your admin in Store Settings.</span>
+            )}
           </p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => setBulkOpen(o => !o)}
+            className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold cursor-pointer ${
+              bulkOpen ? 'border-[#2E7D32] bg-[#2E7D32] text-white' : 'border-[#ECE9E2] bg-white text-[#273126]'
+            }`}
+          >
+            <CalendarPlus size={16} /> Set Expiry Dates
+            {untracked.length > 0 && !bulkOpen && (
+              <span className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-black">
+                {untracked.length}
+              </span>
+            )}
+            {bulkOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          </button>
           <button
             onClick={exportCSV}
             disabled={filtered.length === 0}
@@ -96,6 +161,77 @@ export default function ExpiryAlerts() {
           </button>
         </div>
       </div>
+
+      {bulkOpen && (
+        <div className="rounded-2xl border border-[#2E7D32]/30 bg-[#FBFAF6] p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div>
+              <h3 className="text-sm font-black text-[#273126]">Set Expiry Dates for Existing Products</h3>
+              <p className="text-xs text-[#6B7280] mt-0.5">
+                {untracked.length === 0
+                  ? 'Every active product already has an expiry date set.'
+                  : `${untracked.length} product${untracked.length === 1 ? '' : 's'} still need one.`}
+              </p>
+            </div>
+            {Object.keys(pendingDates).length > 0 && (
+              <button
+                onClick={() => void saveAllPending()}
+                disabled={savingIds.size > 0}
+                className="flex items-center gap-2 rounded-xl bg-[#0A0A0A] px-4 py-2 text-sm font-black text-white hover:bg-[#2E7D32] disabled:opacity-50 cursor-pointer"
+              >
+                <Save size={15} /> Save All ({Object.keys(pendingDates).length})
+              </button>
+            )}
+          </div>
+
+          {bulkError && (
+            <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{bulkError}</div>
+          )}
+
+          <label className="relative block mb-3">
+            <Search className="absolute left-3 top-3 text-[#9CA3AF]" size={15} />
+            <input
+              className="w-full h-10 rounded-xl border border-[#E5E7EB] bg-white pl-9 pr-3 text-xs font-semibold text-[#273126] outline-none focus:border-[#2E7D32]"
+              value={bulkSearch}
+              onChange={e => setBulkSearch(e.target.value)}
+              placeholder="Search products without an expiry date"
+            />
+          </label>
+
+          <div className="max-h-[360px] overflow-y-auto rounded-xl border border-[#ECE9E2] bg-white divide-y divide-[#F0EEE9]">
+            {untracked.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-[#6B7280]">Nothing left to date.</p>
+            ) : (
+              untracked.map(p => {
+                const key = String(p.id)
+                const isSaving = savingIds.has(key)
+                return (
+                  <div key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-[#273126] truncate">{p.name}</p>
+                      <p className="text-[10px] text-[#9CA3AF]">{p.category || 'General'}</p>
+                    </div>
+                    <input
+                      type="date"
+                      value={pendingDates[key] || ''}
+                      onChange={e => setPendingDates(prev => ({ ...prev, [key]: e.target.value }))}
+                      className="h-9 rounded-lg border border-[#E5E7EB] bg-white px-2.5 text-xs font-bold text-[#273126] outline-none focus:border-[#2E7D32]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => pendingDates[key] && void saveOne(p.id, pendingDates[key])}
+                      disabled={!pendingDates[key] || isSaving}
+                      className="flex items-center gap-1 rounded-lg bg-[#2E7D32] px-2.5 py-1.5 text-[11px] font-black text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {isSaving ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />} Save
+                    </button>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         {cards.map(([label, value, Icon, color]) => (
@@ -154,9 +290,14 @@ export default function ExpiryAlerts() {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-[#6B7280]">
-                    {tracked.length === 0
-                      ? 'No products have an expiry date set yet. Add one from Inventory → Add / Edit Products.'
-                      : 'No items match these filters.'}
+                    {tracked.length === 0 ? (
+                      <>
+                        No products have an expiry date set yet.{' '}
+                        <button type="button" onClick={() => setBulkOpen(true)} className="font-bold text-[#2E7D32] hover:underline cursor-pointer">
+                          Set expiry dates now
+                        </button>
+                      </>
+                    ) : 'No items match these filters.'}
                   </td>
                 </tr>
               ) : (

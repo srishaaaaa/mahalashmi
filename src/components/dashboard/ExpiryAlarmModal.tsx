@@ -3,6 +3,7 @@ import { CalendarClock, Volume2, VolumeX, Package } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useSound } from '../../context/SoundContext'
 import { useSettingsStore } from '../../store/store'
+import { useAlarmQueueStore } from '../../store/alarmQueueStore'
 
 interface ExpiringItem {
   id: string | number
@@ -34,11 +35,22 @@ export default function ExpiryAlarmModal({ triggerKey }: { triggerKey?: string |
   const intervalRef = useRef<number | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const hasCheckedOnMount = useRef(false)
+  const prevAlertDays = useRef(alertDays)
+  const queue = useAlarmQueueStore(s => s.queue)
+  const enqueueAlarm = useAlarmQueueStore(s => s.enqueue)
+  const dequeueAlarm = useAlarmQueueStore(s => s.dequeue)
+  const isFront = queue[0] === 'expiry'
 
   useEffect(() => {
     const isInitialMount = !hasCheckedOnMount.current
+    // Store Settings loads asynchronously — the very first run may use the
+    // 30-day fallback before the store's real expiry_alert_days arrives.
+    // Once it does, alertDays changes and that alone should trigger a
+    // recheck, even if the user isn't currently on Inventory/Expiry Alerts.
+    const alertDaysJustLoaded = prevAlertDays.current !== alertDays
     hasCheckedOnMount.current = true
-    if (!isInitialMount && triggerKey !== 'inventory' && triggerKey !== 'expiry_alerts') return
+    prevAlertDays.current = alertDays
+    if (!isInitialMount && !alertDaysJustLoaded && triggerKey !== 'inventory' && triggerKey !== 'expiry_alerts') return
 
     let cancelled = false
     const check = async () => {
@@ -62,7 +74,10 @@ export default function ExpiryAlarmModal({ triggerKey }: { triggerKey?: string |
         .filter(p => p.daysLeft <= alertDays)
         .sort((a, b) => a.daysLeft - b.daysLeft)
 
-      if (expiring.length > 0) setItems(expiring)
+      if (expiring.length > 0) {
+        setItems(expiring)
+        enqueueAlarm('expiry')
+      }
     }
     void check()
     return () => { cancelled = true }
@@ -95,13 +110,13 @@ export default function ExpiryAlarmModal({ triggerKey }: { triggerKey?: string |
   }
 
   useEffect(() => {
-    if (items && items.length > 0) {
+    if (items && items.length > 0 && isFront) {
       beep()
       intervalRef.current = window.setInterval(beep, 3500)
     }
     return () => { if (intervalRef.current) window.clearInterval(intervalRef.current) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items])
+  }, [items, isFront])
 
   useEffect(() => {
     return () => {
@@ -114,9 +129,10 @@ export default function ExpiryAlarmModal({ triggerKey }: { triggerKey?: string |
   const acknowledge = () => {
     if (intervalRef.current) window.clearInterval(intervalRef.current)
     setItems(null)
+    dequeueAlarm('expiry')
   }
 
-  if (!items || items.length === 0) return null
+  if (!items || items.length === 0 || !isFront) return null
 
   const expiredCount = items.filter(p => p.daysLeft < 0).length
   const soonCount = items.length - expiredCount
@@ -175,7 +191,7 @@ export default function ExpiryAlarmModal({ triggerKey }: { triggerKey?: string |
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 pt-1">
-            <p className="text-[11px] text-[#9CA3AF] font-bold sm:max-w-[140px] shrink-0 order-2 sm:order-1">Will sound again on next login or Inventory visit.</p>
+            <p className="text-[11px] text-[#9CA3AF] font-bold sm:max-w-[140px] shrink-0 order-2 sm:order-1">Will sound again on next login or Expiry Alerts visit.</p>
             <button onClick={acknowledge}
               className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-black text-sm py-3 rounded-xl order-1 sm:order-2">
               <VolumeX size={16} /> Silence Alarm &amp; Acknowledge

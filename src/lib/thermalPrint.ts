@@ -66,11 +66,14 @@ export function printThermalReceipt(data: ThermalReceiptData) {
           body {
             font-family: 'Courier New', Courier, monospace, sans-serif;
             font-size: 12px;
+            font-weight: 600;
             color: #000;
             margin: 0;
             padding: 4mm;
             width: 80mm;
             box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           .text-center { text-align: center; }
           .text-right { text-align: right; }
@@ -92,7 +95,7 @@ export function printThermalReceipt(data: ThermalReceiptData) {
           <div class="font-bold" style="font-size: 16px; letter-spacing: 2px;">${storeName}</div>
           <div style="font-size: 10px; margin-top: 2px;">${storeAddress}</div>
           <div class="mt-1" style="font-size: 10px;">Ph: ${storePhone}</div>
-          <div style="font-size: 9px; color: #333;">${storeEmail} | Insta: @${storeInstagram}</div>
+          <div style="font-size: 9px; color: #000;">${storeEmail} | Insta: @${storeInstagram}</div>
         </div>
 
         <div class="border-bottom border-top" style="font-size: 11px;">
@@ -118,7 +121,7 @@ export function printThermalReceipt(data: ThermalReceiptData) {
                 <tr>
                   <td class="text-left item-name">
                     ${item.name} <br/>
-                    <span style="font-size: 9px; color: #444;">@ ${formatCurrency(item.price)}${unit ? ` / ${unit}` : ' each'}</span>
+                    <span style="font-size: 9px; color: #000;">@ ${formatCurrency(item.price)}${unit ? ` / ${unit}` : ' each'}</span>
                   </td>
                   <td class="text-right">${item.qty}</td>
                   <td class="text-right">${formatCurrency(lineTotal)}</td>
