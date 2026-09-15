@@ -8,8 +8,6 @@ import { getErrorMessage } from '../lib/errorMessage'
 
 type StatusFilter = 'expired' | 'soon' | 'all'
 
-const excelSafeText = (value: string) => `="${String(value).replace(/"/g, '""')}"`
-
 export default function ExpiryAlerts() {
   const { products, fetchProducts } = useProductStore()
   const alertDays = useSettingsStore(s => s.settings?.expiryAlertDays ?? 30)
@@ -109,8 +107,8 @@ export default function ExpiryAlerts() {
       p.category || 'General',
       String(p.stockQuantity ?? p.stock ?? 0),
       Number(p.price || 0).toFixed(2),
-      excelSafeText(p.mfgDate || ''),
-      excelSafeText(p.expiryDate || ''),
+      p.mfgDate || '',
+      p.expiryDate || '',
       p.daysLeft < 0 ? `Expired ${Math.abs(p.daysLeft)} day(s) ago` : `Expires in ${p.daysLeft} day(s)`,
     ])
     const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
