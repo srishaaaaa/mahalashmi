@@ -339,7 +339,7 @@ export default function ExpiryAlerts() {
                   return (
                     <tr key={p.id} className="hover:bg-emerald-50/30 transition-colors">
                       <td className="px-4 py-3.5 align-middle text-[#9CA3AF]">{idx + 1}</td>
-                      <td className="max-w-[200px] whitespace-normal break-words px-4 py-3.5 align-middle font-bold text-[#273126]">{p.name}</td>
+                      <td className="whitespace-nowrap px-4 py-3.5 align-middle font-bold text-[#273126]">{p.name}</td>
                       <td className="px-4 py-3.5 align-middle text-[#6B7280] whitespace-nowrap">{p.category || 'General'}</td>
                       <td className="px-4 py-3.5 align-middle whitespace-nowrap">{p.stockQuantity ?? p.stock ?? 0}</td>
                       <td className="px-4 py-3.5 align-middle whitespace-nowrap">{formatCurrency(p.price || 0)}</td>
