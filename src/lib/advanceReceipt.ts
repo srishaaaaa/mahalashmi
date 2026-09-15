@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf'
-import { BRAND_ADDRESS, BRAND_EN, BRAND_PHONE_DISPLAY, BRAND_LOGO } from './brand'
+import { BRAND_ADDRESS, BRAND_EN, BRAND_PHONE_DISPLAY } from './brand'
 import { getActiveLogo } from './activeLogo'
 import { formatCurrency } from './retail'
 import type { AdvanceOrder } from '../services/advanceOrderService'
@@ -12,7 +12,6 @@ function getShopInfo() {
     name: storeSettings?.name || BRAND_EN,
     address: storeSettings?.address || BRAND_ADDRESS,
     phone: storeSettings?.phone || BRAND_PHONE_DISPLAY,
-    logo: storeSettings?.logoUrl || BRAND_LOGO,
   }
 }
 
@@ -30,28 +29,137 @@ const pdfMoney = (value: number): string => {
 export function advanceReceiptPdf(order: AdvanceOrder) {
   const shop = getShopInfo()
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-  doc.setFillColor('#0A0A0A'); doc.rect(0, 0, 210, 5, 'F')
+  const pageWidth = 210
+  const left = 16
+  const right = 194
+  const primaryColor = '#2E7D32'
+  const ink = '#18202a'
+  const muted = '#68717c'
+  let y = 16
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.setTextColor(muted)
+  doc.text('ADVANCE RECEIPT', left, y)
+  doc.text(order.deposit_id, right, y, { align: 'right' })
+  y += 7
+  doc.setDrawColor('#d8dce0')
+  doc.line(left, y, right, y)
+  y += 10
+
+  let logoRendered = false
   const activeLogo = getActiveLogo()
   if (activeLogo) {
-    try { doc.addImage(activeLogo.base64, activeLogo.format, 16, 10, 12, 12) } catch (_err) { /* ignore missing logo */ }
+    try {
+      doc.addImage(activeLogo.base64, activeLogo.format, left, y, 20, 20)
+      logoRendered = true
+    } catch { /* fall through to text logo */ }
   }
-  doc.setTextColor('#111111'); doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.text(shop.name.toUpperCase(), 38, 20)
-  doc.setTextColor('#6b7280'); doc.setFontSize(8); doc.text('ADVANCE RECEIPT - NOT A TAX INVOICE', 38, 26)
+  if (!logoRendered) {
+    doc.setTextColor(primaryColor)
+    doc.setFontSize(16)
+    doc.text(shop.name, left, y + 10)
+  }
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(13)
+  doc.setTextColor(primaryColor)
+  doc.text(shop.name, left + 24, y + 5)
+  doc.setFontSize(8)
+  doc.setTextColor(muted)
+  doc.setFont('helvetica', 'normal')
+  doc.text(shop.address, left + 24, y + 10, { maxWidth: 85 })
+  doc.text(`Phone: ${shop.phone}`, left + 24, y + 18)
+  doc.text(`Created: ${new Date(order.created_at).toLocaleString('en-IN')}`, right, y + 2, { align: 'right' })
+  doc.text('NOT A TAX INVOICE', right, y + 7, { align: 'right' })
+  y += 28
 
-  doc.setFont('helvetica', 'normal'); doc.text(shop.address, 194, 20, { align: 'right', maxWidth: 76 }); doc.text(shop.phone, 194, 30, { align: 'right' })
-  doc.setDrawColor('#2E7D32'); doc.line(16, 38, 194, 38)
-  doc.setTextColor('#111827'); doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.text(order.deposit_id, 16, 51)
-  doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor('#6b7280'); doc.text(`Created: ${new Date(order.created_at).toLocaleString('en-IN')}`, 194, 51, { align: 'right' })
-  const rows = [
-    ['Customer', order.customer_name], ['Phone', formatPhoneDisplay(order.phone)], ['Address', order.address || '-'], ['Product', order.product_name],
-    ['Category', order.category || '-'], ['Expected delivery', new Date(`${order.expected_delivery_date}T00:00:00`).toLocaleDateString('en-IN')],
+  const customerName = String(order.customer_name || '-').trim()
+  const customerPhone = formatPhoneDisplay(order.phone)
+  const customerAddress = String(order.address || '').trim()
+  const customerNameLines = doc.splitTextToSize(customerName, 165) as string[]
+  const customerAddressLines = customerAddress
+    ? doc.splitTextToSize(`Address: ${customerAddress}`, 165) as string[]
+    : []
+  const customerBoxHeight = 19 + customerNameLines.length * 4 + customerAddressLines.length * 4
+
+  doc.setFillColor('#FBFAF6')
+  doc.roundedRect(left, y, right - left, customerBoxHeight, 2, 2, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7)
+  doc.setTextColor(muted)
+  doc.text('BILL TO', left + 5, y + 7)
+  doc.setFontSize(10)
+  doc.setTextColor(ink)
+  doc.text(customerNameLines, left + 5, y + 13)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(muted)
+  const phoneY = y + 13 + customerNameLines.length * 4 + 2
+  doc.text(`Mobile Number: ${customerPhone}`, left + 5, phoneY)
+  if (customerAddressLines.length > 0) {
+    doc.text(customerAddressLines, left + 5, phoneY + 5)
+  }
+  y += customerBoxHeight + 9
+
+  doc.setFillColor(primaryColor)
+  doc.rect(left, y, right - left, 9, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7)
+  doc.setTextColor('#ffffff')
+  doc.text('#', left + 4, y + 6)
+  doc.text('ORDER DESCRIPTION', left + 14, y + 6)
+  doc.text('DELIVERY', 166, y + 6, { align: 'right' })
+  doc.text('AMOUNT', right - 4, y + 6, { align: 'right' })
+  y += 14
+
+  const productLines = doc.splitTextToSize(order.product_name, 105) as string[]
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.setTextColor(ink)
+  doc.text('1', left + 4, y)
+  doc.text(productLines, left + 14, y)
+  if (order.category) {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.setTextColor(muted)
+    doc.text(order.category, left + 14, y + productLines.length * 4 + 3)
+  }
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7)
+  doc.setTextColor(muted)
+  doc.text(new Date(`${order.expected_delivery_date}T00:00:00`).toLocaleDateString('en-IN'), 166, y, { align: 'right' })
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.setTextColor(ink)
+  doc.text(pdfMoney(order.total_amount), right - 4, y, { align: 'right' })
+  y += Math.max(10, productLines.length * 4 + 4)
+  doc.setDrawColor('#e8eaed')
+  doc.line(left, y - 3, right, y - 3)
+
+  y = Math.max(y + 6, 150)
+  const rows: Array<[string, string, string]> = [
+    ['Total Amount', pdfMoney(order.total_amount), ink],
+    ['Deposit Paid', pdfMoney(order.deposit_amount), primaryColor],
   ]
-  let y = 66
-  rows.forEach(([label, value]) => { doc.setFont('helvetica', 'bold'); doc.setTextColor('#6b7280'); doc.text(label.toUpperCase(), 16, y); doc.setFont('helvetica', 'normal'); doc.setTextColor('#111827'); doc.text(String(value), 64, y, { maxWidth: 126 }); y += 10 })
-  y += 4; doc.setFillColor('#FBFAF6'); doc.roundedRect(16, y, 178, 42, 3, 3, 'F')
-  const money = [[ 'Total order amount', order.total_amount ], [ 'Deposit paid', order.deposit_amount ], [ 'Remaining balance', order.remaining_balance ]] as const
-  money.forEach(([label, value], index) => { const rowY = y + 11 + index * 11; doc.setFont('helvetica', index === 2 ? 'bold' : 'normal'); doc.setTextColor(index === 2 ? '#1B5E20' : '#374151'); doc.text(label, 22, rowY); doc.text(pdfMoney(value), 188, rowY, { align: 'right' }) })
-  doc.setFont('helvetica', 'bold'); doc.setTextColor('#b45309'); doc.setFontSize(9); doc.text('This receipt records an advance payment only. It is not a final invoice.', 105, y + 55, { align: 'center' })
+  doc.setFontSize(9)
+  rows.forEach(([label, value, color]) => { doc.setFont('helvetica', 'normal'); doc.setTextColor(color); doc.text(label, 143, y, { align: 'right' }); doc.text(value, right - 4, y, { align: 'right' }); y += 7 })
+  doc.setDrawColor(primaryColor)
+  doc.setLineWidth(0.7)
+  doc.line(118, y - 3, right, y - 3)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(14)
+  doc.setTextColor(primaryColor)
+  doc.text('BALANCE DUE', 143, y + 6, { align: 'right' })
+  doc.text(pdfMoney(order.remaining_balance), right - 4, y + 6, { align: 'right' })
+
+  y = 275
+  doc.setDrawColor('#d8dce0')
+  doc.setLineWidth(0.2)
+  doc.line(left, y, right, y)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.setTextColor(primaryColor)
+  doc.text('ADVANCE PAYMENT ONLY — NOT A FINAL INVOICE', pageWidth / 2, y + 8, { align: 'center' })
   return new File([doc.output('blob')], `Advance-Receipt-${order.deposit_id}.pdf`, { type: 'application/pdf' })
 }
 
@@ -96,7 +204,6 @@ export function printAdvanceReceipt(order: AdvanceOrder) {
   .balance-row { font-size: 14px; font-weight: bold; }
 </style>
 </head><body>
-<div class="c"><img src="${esc(shop.logo)}" alt="${esc(shop.name)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;margin-bottom:4px;" /></div>
 <div class="c big">${esc(shop.name)}</div>
 <div class="c" style="font-size:10px;color:#555;">${esc(shop.address)}</div>
 <div class="c" style="font-size:10px;color:#555;">${esc(shop.phone)}</div>
@@ -131,18 +238,7 @@ ${order.category ? `<div class="r"><span class="label">Category</span><span>${es
     setTimeout(() => frame.remove(), 1500)
   }
 
-  // Wait for the remote logo image to actually load before printing —
-  // a fixed short delay isn't reliably enough time for the network fetch.
-  const logoImg = doc.querySelector('img')
-  if (logoImg && !logoImg.complete) {
-    let printed = false
-    const doPrint = () => { if (!printed) { printed = true; runPrint() } }
-    logoImg.addEventListener('load', doPrint, { once: true })
-    logoImg.addEventListener('error', doPrint, { once: true })
-    setTimeout(doPrint, 2000)
-  } else {
-    setTimeout(runPrint, 300)
-  }
+  setTimeout(runPrint, 300)
 }
 
 export function downloadFile(file: File) { const url = URL.createObjectURL(file); const link = document.createElement('a'); link.href = url; link.download = file.name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 500) }
