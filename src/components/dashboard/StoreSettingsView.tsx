@@ -50,7 +50,7 @@ export default function StoreSettingsView() {
   const handleSave = async (e: FormEvent) => {
     e.preventDefault()
     setSaveMsg(null)
-    const { error } = await updateSettings(form)
+    const { error } = await updateSettings({ ...form, instagramHandle: form.instagramHandle.trim().replace(/^@+/, '') })
     setSaveMsg(error ? { type: 'err', text: error } : { type: 'ok', text: 'Configuration saved.' })
     if (!error) setTimeout(() => setSaveMsg(null), 3000)
   }
