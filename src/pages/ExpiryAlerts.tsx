@@ -24,7 +24,11 @@ export default function ExpiryAlerts() {
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
   const [bulkError, setBulkError] = useState('')
 
-  useEffect(() => { void fetchProducts() }, [fetchProducts])
+  // Force a fresh fetch every time this screen is opened — products get their
+  // expiry/mfg dates edited elsewhere (Inventory, the bulk panel below), and
+  // the store's 5-minute fetch cache would otherwise show a stale snapshot
+  // here right after such an edit.
+  useEffect(() => { void fetchProducts(true) }, [fetchProducts])
 
   const untracked = useMemo(() => {
     return products
