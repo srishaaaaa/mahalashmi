@@ -7,6 +7,9 @@ import {
   Package,
   Tag,
   Boxes,
+  ArrowLeft,
+  Pencil,
+  Layers,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useProductStore, type Product } from '../../store/store'
@@ -30,6 +33,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [search, setSearch] = useState('')
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
+  const [mobileView, setMobileView] = useState<'catalog' | 'form'>('catalog')
 
   // Form State
   const [name, setName] = useState('')
@@ -39,6 +43,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
   const [purchasePrice, setPurchasePrice] = useState<string>('')
   const [stockQuantity, setStockQuantity] = useState<string>('0')
   const [lowStockAlert, setLowStockAlert] = useState<string>('5')
+  const [expiryDate, setExpiryDate] = useState<string>('')
   const [barcode, setBarcode] = useState<string>('')
   const [description, setDescription] = useState<string>('')
   const [hasVariants, setHasVariants] = useState<boolean>(false)
@@ -66,6 +71,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     setPurchasePrice('')
     setStockQuantity('0')
     setLowStockAlert('5')
+    setExpiryDate('')
     setBarcode('')
     setDescription('')
     setHasVariants(false)
@@ -77,6 +83,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
   }
 
   const startEditProduct = async (p: Product) => {
+    setMobileView('form')
     setSelectedProductId(Number(p.id))
     setName(p.name || '')
     setNameTa(p.nameTa || p.tamilName || '')
@@ -85,6 +92,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     setPurchasePrice(String(p.purchasePrice || ''))
     setStockQuantity(String(p.stockQuantity ?? p.stock ?? 0))
     setLowStockAlert(p.lowStockAlert ? String(p.lowStockAlert) : '5')
+    setExpiryDate(p.expiryDate || '')
     setBarcode(p.barcode || '')
     setDescription(p.description || '')
     setHasVariants(Boolean(p.hasVariants))
@@ -156,6 +164,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
       await inventoryService.deleteInventoryItem(id)
       await fetchProducts(true)
       resetForm()
+      setMobileView('catalog')
       onStockUpdated?.()
       play('success')
       setStatusMessage({ type: 'success', text: `Product "${prodName}" deleted successfully.` })
@@ -225,6 +234,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               offer_price: priceNum,
               purchase_price: costNum,
               low_stock_alert: alertThreshold,
+              expiry_date: expiryDate || null,
               barcode: barcode.trim() || null,
               description: description.trim() || '',
               has_variants: false,
@@ -363,6 +373,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               offer_price: priceNum,
               purchase_price: costNum,
               low_stock_alert: alertThreshold,
+              expiry_date: expiryDate || null,
               barcode: null,
               description: description.trim() || '',
               has_variants: true,
@@ -396,6 +407,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               offer_price: priceNum,
               purchase_price: costNum,
               low_stock_alert: alertThreshold,
+              expiry_date: expiryDate || null,
               barcode: barcode.trim() || null,
               description: description.trim() || '',
               has_variants: false,
@@ -464,6 +476,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               offer_price: priceNum,
               purchase_price: costNum,
               low_stock_alert: alertThreshold,
+              expiry_date: expiryDate || null,
               barcode: null,
               description: description.trim() || '',
               has_variants: true,
@@ -555,13 +568,37 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
   )
 
   return (
-    <div className="h-[calc(100vh-210px)] min-h-[480px] flex flex-col lg:flex-row gap-5 overflow-hidden">
+    <div className="h-[calc(100vh-210px)] min-h-[480px] flex flex-col gap-3 lg:gap-5 overflow-hidden">
+      {/* Mobile-only: switch between browsing the catalog and the add/edit form */}
+      <div className="lg:hidden flex items-center gap-2 rounded-2xl border border-gray-200 bg-white p-1.5 shrink-0">
+        <button
+          type="button"
+          onClick={() => setMobileView('catalog')}
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition-colors cursor-pointer ${
+            mobileView === 'catalog' ? 'bg-[#0A0A0A] text-white' : 'text-gray-600'
+          }`}
+        >
+          <Layers size={14} /> Catalog ({products.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => { resetForm(); setMobileView('form') }}
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition-colors cursor-pointer ${
+            mobileView === 'form' ? 'bg-[#2E7D32] text-white' : 'text-gray-600'
+          }`}
+        >
+          <Plus size={14} /> Add New Product
+        </button>
+      </div>
+
+      <div className="flex-1 flex flex-col lg:flex-row gap-5 min-h-0 overflow-hidden">
       {/* LEFT COLUMN: Products Browser List */}
-      <div className="w-full lg:w-80 xl:w-96 flex flex-col bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm shrink-0 h-full min-h-0">
-        <div className="p-3.5 border-b border-gray-200 bg-[#FAFAFA] flex items-center justify-between shrink-0">
+      <div className={`${mobileView === 'form' ? 'hidden lg:flex' : 'flex'} w-full lg:w-80 xl:w-96 flex-col bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm shrink-0 h-full min-h-0`}>
+        <div className="p-3.5 border-b border-gray-200 bg-[#FAFAFA] shrink-0">
           <h4 className="text-xs font-bold text-gray-800">
             Product Catalog ({products.length})
           </h4>
+          <p className="text-[10px] text-gray-500 mt-0.5">Select any item to view or edit product details</p>
         </div>
 
         <div className="p-3 border-b border-gray-100 bg-[#FBFAF6] shrink-0">
@@ -577,85 +614,125 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto divide-y divide-gray-100 min-h-0 hide-scrollbar">
+        <div className="flex-1 overflow-y-auto min-h-0 hide-scrollbar">
           {filteredProducts.length === 0 ? (
             <div className="p-8 text-center text-xs text-gray-400 font-bold">
               No products found.
             </div>
           ) : (
-            filteredProducts.map((p) => (
-              <div
-                key={p.id}
-                onClick={() => startEditProduct(p)}
-                className={`group p-3.5 hover:bg-[#FBFAF6] cursor-pointer flex items-center justify-between transition-colors ${
-                  selectedProductId === Number(p.id) ? 'bg-[#FFF9E6] border-l-4 border-[#2E7D32]' : ''
-                }`}
-              >
-                <div className="min-w-0 pr-2">
-                  <div className="font-bold text-xs text-gray-900 break-words">
-                    {p.name}
-                  </div>
-                  <div className="text-[10px] text-gray-400 font-medium">
-                    {p.category || 'General'} {p.hasVariants ? '• Multi-variant' : ''}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className="text-right">
-                    <span className="font-black text-xs text-gray-900">₹{p.price}</span>
-                    <span className="block text-[10px] text-emerald-700 font-bold">
-                      Stock: {p.stockQuantity ?? p.stock ?? 0}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteProduct(Number(p.id), p.name)
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
-                    title={`Delete "${p.name}"`}
+            <table className="w-full text-left">
+              <thead className="sticky top-0 bg-[#FAFAFA] text-[9px] font-black uppercase tracking-wider text-gray-500">
+                <tr>
+                  <th className="px-3.5 py-2">Product</th>
+                  <th className="px-2 py-2 text-right">Price</th>
+                  <th className="px-2 py-2 text-right">Stock</th>
+                  <th className="w-14 px-1 py-2"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredProducts.map((p) => (
+                  <tr
+                    key={p.id}
+                    onClick={() => startEditProduct(p)}
+                    className={`group cursor-pointer hover:bg-[#FBFAF6] transition-colors ${
+                      selectedProductId === Number(p.id) ? 'bg-[#FFF9E6] border-l-4 border-[#2E7D32]' : ''
+                    }`}
                   >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
-            ))
+                    <td className="max-w-[140px] whitespace-normal break-words px-3.5 py-2.5 align-top">
+                      <div className="font-bold text-xs text-gray-900 break-words">{p.name}</div>
+                      <div className="text-[10px] text-gray-400 font-medium">
+                        {p.category || 'General'} {p.hasVariants ? '• Multi-variant' : ''}
+                      </div>
+                    </td>
+                    <td className="px-2 py-2.5 text-right align-top font-black text-xs text-gray-900 whitespace-nowrap">₹{p.price}</td>
+                    <td className="px-2 py-2.5 text-right align-top text-[10px] text-emerald-700 font-bold whitespace-nowrap">
+                      {p.stockQuantity ?? p.stock ?? 0}
+                    </td>
+                    <td className="px-1 py-2.5 align-top">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            void startEditProduct(p)
+                          }}
+                          className="p-1 rounded-md border border-gray-200 text-gray-500 hover:text-[#2E7D32] hover:border-[#2E7D32] hover:bg-[#EAF6EC] transition-all cursor-pointer"
+                          title={`Edit "${p.name}"`}
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteProduct(Number(p.id), p.name)
+                          }}
+                          className="p-1 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
+                          title={`Delete "${p.name}"`}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       </div>
 
       {/* RIGHT COLUMN: Product Authoring Form Workspace */}
-      <div className="flex-1 flex flex-col bg-[#FBFAF6] border border-gray-200 rounded-2xl shadow-sm overflow-hidden h-full min-h-0">
+      <div className={`${mobileView === 'catalog' ? 'hidden lg:flex' : 'flex'} flex-1 flex-col bg-[#FBFAF6] border border-gray-200 rounded-2xl shadow-sm overflow-hidden h-full min-h-0`}>
         {/* Pinned Form Header */}
-        <div className="px-5 py-3.5 sm:px-6 sm:py-4 bg-white border-b border-gray-200 flex items-center justify-between shrink-0">
-          <div>
-            <h3 className="text-sm font-bold text-black flex items-center gap-2">
-              <Package size={16} className="text-[#2E7D32]" />
-              {selectedProductId ? 'Edit Product & Stock Details' : 'Add New Product to Catalog'}
-            </h3>
-            <p className="text-[11px] text-gray-500 font-semibold">
-              Receive stock, configure pricing &amp; categories (Barcode is optional)
-            </p>
-          </div>
-          {selectedProductId && (
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => handleDeleteProduct(selectedProductId, name)}
-                className="text-xs font-bold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer"
-                title="Delete this product"
-              >
-                <Trash2 size={13} /> Delete Product
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
-              >
-                + Create Another
-              </button>
+        <div className="px-3.5 py-3 sm:px-6 sm:py-4 bg-white border-b border-gray-200 flex items-center justify-between gap-2 shrink-0 flex-wrap">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={() => setMobileView('catalog')}
+              className="lg:hidden -ml-1 p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 shrink-0 cursor-pointer"
+              aria-label="Back to catalog"
+            >
+              <ArrowLeft size={16} />
+            </button>
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold text-black flex items-center gap-2 truncate">
+                <Package size={16} className="text-[#2E7D32] shrink-0" />
+                {selectedProductId ? 'Edit Product & Stock Details' : 'Add New Product to Catalog'}
+              </h3>
+              <p className="text-[11px] text-gray-500 font-semibold truncate">
+                Receive stock, configure pricing &amp; categories (Barcode is optional)
+              </p>
             </div>
-          )}
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => setMobileView('catalog')}
+              className="lg:hidden text-[10px] font-black text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full cursor-pointer"
+            >
+              Catalog ({products.length})
+            </button>
+            {selectedProductId && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteProduct(selectedProductId, name)}
+                  className="text-xs font-bold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer"
+                  title="Delete this product"
+                >
+                  <Trash2 size={13} /> Delete Product
+                </button>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
+                >
+                  + Create Another
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Scrollable Form Body with Pinned Bottom Action Bar */}
@@ -705,8 +782,8 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               </div>
             </div>
 
-            {/* Category, Barcode, and Low Stock Alert */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Category, Barcode, Low Stock Alert, and Expiry Date */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
                   Category
@@ -749,6 +826,18 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                   placeholder="5"
                   value={lowStockAlert}
                   onChange={(e) => setLowStockAlert(e.target.value)}
+                  className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
+                  Expiry Date <span className="text-gray-400 font-normal ml-1">(Optional)</span>
+                </label>
+                <input
+                  type="date"
+                  value={expiryDate}
+                  onChange={(e) => setExpiryDate(e.target.value)}
                   className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
                 />
               </div>
@@ -1033,6 +1122,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
             </button>
           </div>
         </form>
+      </div>
       </div>
     </div>
   )

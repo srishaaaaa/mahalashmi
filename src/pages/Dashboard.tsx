@@ -3,7 +3,7 @@ import {
   BarChart2, Trash2, Edit2, List, ShoppingCart, LayoutDashboard,
   Box, AlertCircle, Power, Download, TrendingUp, TrendingDown,
   Package, Search, RefreshCw, ShieldCheck, ShieldOff, Trophy,
-  MessageCircle, ChevronDown, Eye, FileText, Printer, X, Layers, Receipt, Settings,
+  MessageCircle, ChevronDown, Eye, FileText, Printer, X, Layers, Receipt, Settings, Bell,
 } from 'lucide-react'
 
 // Custom Malaysian Ringgit icon — replaces the generic dollar-sign icon
@@ -46,6 +46,7 @@ import { invoicePdfFile } from '../lib/invoicePdf'
 // toWhatsAppUrl removed - using direct link building in handlers
 import Pos from './Pos'
 import AdvanceOrders from './AdvanceOrders'
+import ExpiryAlerts from './ExpiryAlerts'
 import type { AdvanceOrder } from '../services/advanceOrderService'
 import { InventoryTable } from '../components/inventory/InventoryTable'
 import { ExpensesView } from '../components/expenses/ExpensesView'
@@ -53,6 +54,7 @@ import { expenseService, type ExpenseRecord } from '../services/expenseService'
 import { useNavigationStore } from '../store/navigationStore'
 import { useHardwareBarcodeScanner } from '../hooks/useHardwareBarcodeScanner'
 import { BarcodeRedirectDialog } from '../components/pos/BarcodeRedirectDialog'
+import ExpiryAlarmModal from '../components/dashboard/ExpiryAlarmModal'
 import { exportAnalyticsToCSV, exportAnalyticsToPDF } from '../services/analyticsExport'
 import StoreSettingsView from '../components/dashboard/StoreSettingsView'
 import LowStockAlarmModal from '../components/dashboard/LowStockAlarmModal'
@@ -85,7 +87,7 @@ type DashboardCoupon = {
   usage_count: number
   min_order_value: number
 }
-type TabKey = 'overview' | 'whatsapp' | 'pos_analytics' | 'billing' | 'advance_orders' | 'inventory' | 'expenses' | 'coupons' | 'users' | 'history' | 'settings'
+type TabKey = 'overview' | 'whatsapp' | 'pos_analytics' | 'billing' | 'advance_orders' | 'inventory' | 'expiry_alerts' | 'expenses' | 'coupons' | 'users' | 'history' | 'settings'
 type PosAnalyticsTab = 'revenue' | 'today' | 'products' | 'categories' | 'coupons'
 type ProfileUser = { id: string; email: string; name: string; mobile: string; role: string; created_at: string }
 
@@ -148,6 +150,7 @@ export default function Dashboard() {
   const { products, fetchProducts } = useProductStore()
   const logoUrl = useSettingsStore(s => s.settings?.logoUrl) || BRAND_LOGO
   const shopName = useSettingsStore(s => s.settings?.name) || BRAND_EN
+  const expiryAlertDays = useSettingsStore(s => s.settings?.expiryAlertDays) ?? 30
   const location = useLocation()
   const navigate = useNavigate()
   const role = useAdminAuthStore(state => state.role)
@@ -158,6 +161,7 @@ export default function Dashboard() {
     if (location.pathname === '/whatsapp-center') return 'whatsapp'
     if (location.pathname === '/pos-analytics' && role === 'admin') return 'pos_analytics'
     if (location.pathname === '/advance-orders') return 'advance_orders'
+    if (location.pathname === '/expiry-alerts') return 'expiry_alerts'
     if (location.pathname === '/expenses' || location.pathname === '/dashboard/expenses') return 'expenses'
     return 'billing'
   })
@@ -241,7 +245,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (role === 'staff') {
-      const staffAllowedTabs: TabKey[] = ['billing', 'inventory', 'advance_orders', 'history']
+      const staffAllowedTabs: TabKey[] = ['billing', 'inventory', 'advance_orders', 'expiry_alerts', 'history']
       if (!staffAllowedTabs.includes(tab)) {
         setTab('billing')
         navigate('/dashboard', { replace: true })
@@ -251,7 +255,7 @@ export default function Dashboard() {
 
   const handleTabClick = (tabKey: TabKey) => {
     if (role === 'staff') {
-      const staffAllowedTabs: TabKey[] = ['billing', 'inventory', 'advance_orders', 'history']
+      const staffAllowedTabs: TabKey[] = ['billing', 'inventory', 'advance_orders', 'expiry_alerts', 'history']
       if (!staffAllowedTabs.includes(tabKey)) return
     }
     setTab(tabKey)
@@ -262,6 +266,8 @@ export default function Dashboard() {
       navigate('/dashboard?tab=expenses', { replace: true })
     } else if (tabKey === 'advance_orders') {
       navigate('/dashboard?tab=advance_orders', { replace: true })
+    } else if (tabKey === 'expiry_alerts') {
+      navigate('/dashboard?tab=expiry_alerts', { replace: true })
     } else {
       navigate('/dashboard', { replace: true })
     }
@@ -1191,17 +1197,30 @@ export default function Dashboard() {
     </div>
   )
 
-  const navItems: Array<{ id: TabKey; icon: React.ReactNode; label: string }> = role === 'staff'
+  const expiryAlertCount = useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const msPerDay = 24 * 60 * 60 * 1000
+    return products.filter(p => {
+      if (p.isActive === false || !p.expiryDate) return false
+      if ((p.category || '').trim().toLowerCase() === 'unregistered') return false
+      const daysLeft = Math.round((new Date(`${p.expiryDate}T00:00:00`).getTime() - today.getTime()) / msPerDay)
+      return daysLeft <= expiryAlertDays
+    }).length
+  }, [products, expiryAlertDays])
+
+  const navItems: Array<{ id: TabKey; icon: React.ReactNode; label: string; badge?: number }> = role === 'staff'
     ? [
         { id: 'billing',        icon: <ShoppingCart size={18} />, label: 'Billing Panel' },
         { id: 'inventory',      icon: <Layers size={18} />,       label: 'Inventory' },
         { id: 'advance_orders', icon: <FileText size={18} />,     label: 'Advance Orders' },
+        { id: 'expiry_alerts',  icon: <Bell size={18} />,         label: 'Expiry Alerts', badge: expiryAlertCount },
         { id: 'history',        icon: <List size={18} />,         label: 'Order History' },
       ]
     : [
         { id: 'billing',        icon: <ShoppingCart size={18} />, label: 'Billing Panel' },
         { id: 'inventory',      icon: <Layers size={18} />,       label: 'Inventory & Barcodes' },
         { id: 'advance_orders', icon: <FileText size={18} />,     label: 'Advance Orders' },
+        { id: 'expiry_alerts',  icon: <Bell size={18} />,         label: 'Expiry Alerts', badge: expiryAlertCount },
         { id: 'expenses',       icon: <Receipt size={18} />,      label: 'Expenses' },
         { id: 'history',        icon: <List size={18} />,         label: 'Order History' },
         { id: 'pos_analytics',  icon: <BarChart2 size={18} />,    label: 'Analytics Dashboard' },
@@ -1212,6 +1231,7 @@ export default function Dashboard() {
   return (
     <div className="admin-shell h-screen max-h-screen min-h-screen bg-bgMain flex flex-col lg:flex-row overflow-hidden">
       <LowStockAlarmModal triggerKey={tab} />
+      <ExpiryAlarmModal triggerKey={tab} />
       {/* Sidebar */}
       <aside
         className={[
@@ -1288,11 +1308,21 @@ export default function Dashboard() {
                 tab === item.id ? 'bg-[#2E7D32] text-[#0A0A0A] font-black shadow-md' : 'text-white/70 hover:bg-white/10 hover:text-[#2E7D32]',
               ].join(' ')}
             >
-              <span className="shrink-0 flex items-center">
+              <span className="relative shrink-0 flex items-center">
                 {item.icon}
+                {Boolean(item.badge) && (
+                  <span className="absolute -top-1.5 -right-2 lg:hidden flex items-center justify-center min-w-[15px] h-[15px] px-0.5 rounded-full bg-red-600 text-white text-[9px] font-black leading-none">
+                    {item.badge}
+                  </span>
+                )}
               </span>
-              <span className={`hidden lg:block truncate text-left transition-all duration-200 ${sidebarCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'opacity-100 flex-1'}`}>
-                {item.label}
+              <span className={`hidden lg:flex items-center gap-1.5 truncate text-left transition-all duration-200 ${sidebarCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'opacity-100 flex-1'}`}>
+                <span className="truncate">{item.label}</span>
+                {Boolean(item.badge) && (
+                  <span className="shrink-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-black leading-none">
+                    {item.badge}
+                  </span>
+                )}
               </span>
             </button>
           ))}
@@ -2336,23 +2366,32 @@ export default function Dashboard() {
 
                   <div className="bg-white rounded-card border border-borderLight p-6 shadow-soft">
                     <h3 className="text-[16px] font-bold text-[#111111] mb-4">Top Products This Week</h3>
-                    <div className="space-y-3">
-                      {analytics.topProducts.slice(0, 5).map((p, i) => (
-                        <div key={`${p.name}-${i}`} className="flex items-center justify-between rounded-xl bg-[#F9FAFB] p-3">
-                          <div className="min-w-0">
-                            <p className="break-words text-[13px] font-bold text-[#111111]">{p.name}</p>
-                            <p className="text-[11px] text-[#6B7280]">{p.billCount} bills</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[13px] font-black text-[#111111]">{Math.round(p.qty)}</p>
-                            <p className="text-[11px] font-bold text-[#10B981]">{formatCurrency(p.revenue)}</p>
-                          </div>
-                        </div>
-                      ))}
-                      {analytics.topProducts.length === 0 && (
-                        <p className="text-[13px] text-[#6B7280]">No completed product sales yet.</p>
-                      )}
-                    </div>
+                    {analytics.topProducts.length === 0 ? (
+                      <p className="text-[13px] text-[#6B7280]">No completed product sales yet.</p>
+                    ) : (
+                      <div className="overflow-x-auto rounded-xl border border-[#F0EEE9]">
+                        <table className="w-full text-left text-sm">
+                          <thead className="bg-[#F9FAFB] text-[10px] font-black uppercase tracking-wider text-[#737B72]">
+                            <tr>
+                              <th className="px-3 py-2.5">Product</th>
+                              <th className="px-3 py-2.5 text-right">Bills</th>
+                              <th className="px-3 py-2.5 text-right">Qty</th>
+                              <th className="px-3 py-2.5 text-right">Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#F0EEE9]">
+                            {analytics.topProducts.slice(0, 5).map((p, i) => (
+                              <tr key={`${p.name}-${i}`}>
+                                <td className="max-w-[160px] whitespace-normal break-words px-3 py-2.5 text-[13px] font-bold text-[#111111]">{p.name}</td>
+                                <td className="px-3 py-2.5 text-right text-[12px] text-[#6B7280]">{p.billCount}</td>
+                                <td className="px-3 py-2.5 text-right text-[13px] font-black text-[#111111]">{Math.round(p.qty)}</td>
+                                <td className="px-3 py-2.5 text-right text-[12px] font-bold text-[#10B981]">{formatCurrency(p.revenue)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2787,6 +2826,8 @@ export default function Dashboard() {
             }}
           />
         )}
+
+        {tab === 'expiry_alerts' && <ExpiryAlerts />}
 
         {/* ── ORDER MANAGEMENT ── */}
         {tab === 'history' && (
@@ -3501,7 +3542,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="overflow-y-auto p-2 sm:p-5">
-                <div className="mx-auto max-w-3xl overflow-hidden rounded-xl bg-white shadow-sm">
+                <div className="mx-auto max-w-[830px] overflow-hidden">
                   <Invoice
                     invoiceNo={formatInvoiceNo(invoicePreviewOrder.invoice_no || invoicePreviewOrder.id)}
                     date={invoicePreviewOrder.created_at}
