@@ -121,18 +121,12 @@ const getOrderTotal = (order: { total: unknown; items: unknown; shipping?: unkno
   )
 }
 
-// Excel auto-detects long digit strings as numbers (scientific notation) and
-// dates as date-serials that render as #### in the default column width.
-// Wrapping the value as an Excel text-formula (="...") forces it to stay
-// plain left-aligned text in both Excel and Google Sheets.
-const excelSafeText = (value: string) => `="${String(value).replace(/"/g, '""')}"`
-
 const exportCSV = (orders: DashboardOrder[]) => {
   const header = ['Order Ref', 'Customer', 'Phone', 'Date', 'Total (INR)', 'Order Type', 'Status']
   const rows = orders.map(o => [
     o.order_type === 'online_request' ? o.id : o.invoice_no, o.customer_name,
-    excelSafeText(o.phone),
-    excelSafeText(new Date(o.created_at).toLocaleDateString('en-MY')),
+    o.phone,
+    new Date(o.created_at).toLocaleDateString('en-MY'),
     getOrderTotal(o).toFixed(2), o.order_type, o.status,
   ])
   const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
