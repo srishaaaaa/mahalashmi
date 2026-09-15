@@ -68,6 +68,8 @@ export interface Product {
   color?: string
   /** Optional expiry date (YYYY-MM-DD). Products without one are never flagged by the expiry alert. */
   expiryDate?: string | null
+  /** Optional manufacture date (YYYY-MM-DD), shown alongside the expiry date. */
+  mfgDate?: string | null
 }
 
 interface AuthUser {
@@ -262,6 +264,7 @@ const mapDbProduct = (input: unknown, categoriesById: Record<string, string> = {
     size: readString(p.size),
     color: readString(p.color),
     expiryDate: readString(p.expiry_date) || null,
+    mfgDate: readString(p.mfg_date) || null,
   }
 }
 

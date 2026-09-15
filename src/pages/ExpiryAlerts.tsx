@@ -19,7 +19,8 @@ export default function ExpiryAlerts() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('expired')
   const [bulkOpen, setBulkOpen] = useState(false)
   const [bulkSearch, setBulkSearch] = useState('')
-  const [pendingDates, setPendingDates] = useState<Record<string, string>>({})
+  const [pendingMfgDates, setPendingMfgDates] = useState<Record<string, string>>({})
+  const [pendingExpiryDates, setPendingExpiryDates] = useState<Record<string, string>>({})
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
   const [bulkError, setBulkError] = useState('')
 
@@ -29,7 +30,7 @@ export default function ExpiryAlerts() {
     return products
       .filter(p => p.isActive !== false)
       .filter(p => (p.category || '').trim().toLowerCase() !== 'unregistered')
-      .filter(p => !p.expiryDate)
+      .filter(p => !p.expiryDate || !p.mfgDate)
       .filter(p =>
         p.name.toLowerCase().includes(bulkSearch.toLowerCase()) ||
         (p.category || '').toLowerCase().includes(bulkSearch.toLowerCase())
@@ -37,30 +38,38 @@ export default function ExpiryAlerts() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [products, bulkSearch])
 
-  const saveExpiryDate = async (productId: string | number, date: string) => {
+  const pendingCount = new Set([...Object.keys(pendingMfgDates), ...Object.keys(pendingExpiryDates)]).size
+
+  const saveDates = async (productId: string | number, dates: { mfg?: string; expiry?: string }) => {
     const key = String(productId)
     setBulkError('')
     setSavingIds(prev => new Set(prev).add(key))
     try {
-      const { error } = await supabase.from('products').update({ expiry_date: date }).eq('id', productId)
+      const payload: Record<string, string> = {}
+      if (dates.mfg) payload.mfg_date = dates.mfg
+      if (dates.expiry) payload.expiry_date = dates.expiry
+      const { error } = await supabase.from('products').update(payload).eq('id', productId)
       if (error) throw error
-      setPendingDates(prev => { const next = { ...prev }; delete next[key]; return next })
+      setPendingMfgDates(prev => { const next = { ...prev }; delete next[key]; return next })
+      setPendingExpiryDates(prev => { const next = { ...prev }; delete next[key]; return next })
     } catch (err) {
-      setBulkError(err instanceof Error ? err.message : 'Failed to save expiry date')
+      setBulkError(err instanceof Error ? err.message : 'Failed to save dates')
     } finally {
       setSavingIds(prev => { const next = new Set(prev); next.delete(key); return next })
     }
   }
 
-  const saveOne = async (productId: string | number, date: string) => {
-    await saveExpiryDate(productId, date)
+  const saveOne = async (productId: string | number, dates: { mfg?: string; expiry?: string }) => {
+    await saveDates(productId, dates)
     await fetchProducts(true)
   }
 
   const saveAllPending = async () => {
-    const entries = Object.entries(pendingDates).filter(([, date]) => date)
-    if (entries.length === 0) return
-    await Promise.all(entries.map(([id, date]) => saveExpiryDate(id, date)))
+    const ids = new Set([...Object.keys(pendingMfgDates), ...Object.keys(pendingExpiryDates)])
+    if (ids.size === 0) return
+    await Promise.all(
+      Array.from(ids).map(id => saveDates(id, { mfg: pendingMfgDates[id], expiry: pendingExpiryDates[id] }))
+    )
     await fetchProducts(true)
   }
 
@@ -89,12 +98,13 @@ export default function ExpiryAlerts() {
     )
 
   const exportCSV = () => {
-    const header = ['Product', 'Category', 'Stock', 'Price (INR)', 'Expiry Date', 'Status']
+    const header = ['Product', 'Category', 'Stock', 'Price (INR)', 'Mfg Date', 'Expiry Date', 'Status']
     const rows = filtered.map(p => [
       p.name,
       p.category || 'General',
       String(p.stockQuantity ?? p.stock ?? 0),
       Number(p.price || 0).toFixed(2),
+      excelSafeText(p.mfgDate || ''),
       excelSafeText(p.expiryDate || ''),
       p.daysLeft < 0 ? `Expired ${Math.abs(p.daysLeft)} day(s) ago` : `Expires in ${p.daysLeft} day(s)`,
     ])
@@ -141,7 +151,7 @@ export default function ExpiryAlerts() {
               bulkOpen ? 'border-[#2E7D32] bg-[#2E7D32] text-white' : 'border-[#ECE9E2] bg-white text-[#273126]'
             }`}
           >
-            <CalendarPlus size={16} /> Set Expiry Dates
+            <CalendarPlus size={16} /> Set Mfg / Expiry Dates
             {untracked.length > 0 && !bulkOpen && (
               <span className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-black">
                 {untracked.length}
@@ -166,20 +176,20 @@ export default function ExpiryAlerts() {
         <div className="rounded-2xl border border-[#2E7D32]/30 bg-[#FBFAF6] p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
             <div>
-              <h3 className="text-sm font-black text-[#273126]">Set Expiry Dates for Existing Products</h3>
+              <h3 className="text-sm font-black text-[#273126]">Set Manufacture &amp; Expiry Dates for Existing Products</h3>
               <p className="text-xs text-[#6B7280] mt-0.5">
                 {untracked.length === 0
-                  ? 'Every active product already has an expiry date set.'
-                  : `${untracked.length} product${untracked.length === 1 ? '' : 's'} still need one.`}
+                  ? 'Every active product already has both dates set.'
+                  : `${untracked.length} product${untracked.length === 1 ? '' : 's'} still missing a date.`}
               </p>
             </div>
-            {Object.keys(pendingDates).length > 0 && (
+            {pendingCount > 0 && (
               <button
                 onClick={() => void saveAllPending()}
                 disabled={savingIds.size > 0}
                 className="flex items-center gap-2 rounded-xl bg-[#0A0A0A] px-4 py-2 text-sm font-black text-white hover:bg-[#2E7D32] disabled:opacity-50 cursor-pointer"
               >
-                <Save size={15} /> Save All ({Object.keys(pendingDates).length})
+                <Save size={15} /> Save All ({pendingCount})
               </button>
             )}
           </div>
@@ -205,23 +215,40 @@ export default function ExpiryAlerts() {
               untracked.map(p => {
                 const key = String(p.id)
                 const isSaving = savingIds.has(key)
+                const mfgVal = pendingMfgDates[key] ?? (p.mfgDate || '')
+                const expiryVal = pendingExpiryDates[key] ?? (p.expiryDate || '')
+                const hasPending = Boolean(pendingMfgDates[key] || pendingExpiryDates[key])
                 return (
                   <div key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-[#273126] truncate">{p.name}</p>
                       <p className="text-[10px] text-[#9CA3AF]">{p.category || 'General'}</p>
                     </div>
-                    <input
-                      type="date"
-                      value={pendingDates[key] || ''}
-                      onChange={e => setPendingDates(prev => ({ ...prev, [key]: e.target.value }))}
-                      className="h-9 rounded-lg border border-[#E5E7EB] bg-white px-2.5 text-xs font-bold text-[#273126] outline-none focus:border-[#2E7D32]"
-                    />
+                    <div>
+                      <label className="block text-[9px] font-bold text-[#9CA3AF] mb-0.5">Mfg</label>
+                      <input
+                        type="date"
+                        value={mfgVal}
+                        disabled={Boolean(p.mfgDate)}
+                        onChange={e => setPendingMfgDates(prev => ({ ...prev, [key]: e.target.value }))}
+                        className="h-9 rounded-lg border border-[#E5E7EB] bg-white px-2.5 text-xs font-bold text-[#273126] outline-none focus:border-[#2E7D32] disabled:bg-gray-100 disabled:text-gray-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold text-[#9CA3AF] mb-0.5">Expiry</label>
+                      <input
+                        type="date"
+                        value={expiryVal}
+                        disabled={Boolean(p.expiryDate)}
+                        onChange={e => setPendingExpiryDates(prev => ({ ...prev, [key]: e.target.value }))}
+                        className="h-9 rounded-lg border border-[#E5E7EB] bg-white px-2.5 text-xs font-bold text-[#273126] outline-none focus:border-[#2E7D32] disabled:bg-gray-100 disabled:text-gray-400"
+                      />
+                    </div>
                     <button
                       type="button"
-                      onClick={() => pendingDates[key] && void saveOne(p.id, pendingDates[key])}
-                      disabled={!pendingDates[key] || isSaving}
-                      className="flex items-center gap-1 rounded-lg bg-[#2E7D32] px-2.5 py-1.5 text-[11px] font-black text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      onClick={() => hasPending && void saveOne(p.id, { mfg: pendingMfgDates[key], expiry: pendingExpiryDates[key] })}
+                      disabled={!hasPending || isSaving}
+                      className="flex items-center gap-1 rounded-lg bg-[#2E7D32] px-2.5 py-1.5 text-[11px] font-black text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer self-end"
                     >
                       {isSaving ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />} Save
                     </button>
@@ -281,7 +308,7 @@ export default function ExpiryAlerts() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-[#F8F7F4] text-[10px] font-black uppercase tracking-wider text-[#737B72]">
               <tr>
-                {['#', 'Product', 'Category', 'Stock', 'Price', 'Expiry Date', 'Status'].map(h => (
+                {['#', 'Product', 'Category', 'Stock', 'Price', 'Mfg Date', 'Expiry Date', 'Status'].map(h => (
                   <th key={h} className="px-4 py-3.5 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -289,7 +316,7 @@ export default function ExpiryAlerts() {
             <tbody className="divide-y divide-[#F0EEE9]">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-[#6B7280]">
+                  <td colSpan={8} className="px-4 py-12 text-center text-[#6B7280]">
                     {tracked.length === 0 ? (
                       <>
                         No products have an expiry date set yet.{' '}
@@ -311,6 +338,9 @@ export default function ExpiryAlerts() {
                       <td className="px-4 py-3.5 align-middle text-[#6B7280] whitespace-nowrap">{p.category || 'General'}</td>
                       <td className="px-4 py-3.5 align-middle whitespace-nowrap">{p.stockQuantity ?? p.stock ?? 0}</td>
                       <td className="px-4 py-3.5 align-middle whitespace-nowrap">{formatCurrency(p.price || 0)}</td>
+                      <td className="px-4 py-3.5 align-middle text-[#6B7280] whitespace-nowrap">
+                        {p.mfgDate ? new Date(`${p.mfgDate}T00:00:00`).toLocaleDateString('en-IN') : '—'}
+                      </td>
                       <td className="px-4 py-3.5 align-middle whitespace-nowrap">{new Date(`${p.expiryDate}T00:00:00`).toLocaleDateString('en-IN')}</td>
                       <td className="px-4 py-3.5 align-middle whitespace-nowrap">
                         <span className={`inline-block rounded-full px-2.5 py-1 text-[10px] font-black ${
