@@ -12,6 +12,7 @@ const PRODUCT_COLUMNS = [
   'description', 'description_ta', 'benefits', 'benefits_ta',
   'image_url', 'image', 'has_variants', 'barcode', 'sku',
   'has_special_offer', 'special_offer_note', 'special_offer_cost',
+  'low_stock_alert', 'expiry_date', 'mfg_date',
 ].join(', ')
 
 export function fetchAllCategories() {
