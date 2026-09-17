@@ -488,17 +488,21 @@ export const InventoryTable: React.FC = () => {
                               <History size={14} />
                             </button>
 
-                            {/* Print Barcode */}
-                            {item.barcode && (
-                              <button
-                                type="button"
-                                onClick={() => setPrintModalItem(item)}
-                                className="p-1.5 rounded-lg bg-[#0A0A0A] text-[#2E7D32] border border-[#2E7D32] hover:bg-[#1A1A1A] transition-colors cursor-pointer"
-                                title="Print Barcode Labels"
-                              >
-                                <Printer size={14} />
-                              </button>
-                            )}
+                            {/* Print Barcode (reserves identical spacing when item has no barcode) */}
+                            <button
+                              type="button"
+                              disabled={!item.barcode}
+                              onClick={() => item.barcode && setPrintModalItem(item)}
+                              className={`p-1.5 rounded-lg border transition-colors ${
+                                item.barcode
+                                  ? 'bg-[#0A0A0A] text-[#2E7D32] border-[#2E7D32] hover:bg-[#1A1A1A] cursor-pointer'
+                                  : 'invisible pointer-events-none border-transparent'
+                              }`}
+                              title={item.barcode ? 'Print Barcode Labels' : undefined}
+                              aria-hidden={!item.barcode}
+                            >
+                              <Printer size={14} />
+                            </button>
 
                             {/* Delete Product / Variant (Admin Only) */}
                             {role === 'admin' && (

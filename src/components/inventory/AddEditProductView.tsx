@@ -17,6 +17,7 @@ import { fetchVariantsByProduct } from '../../services/variantService'
 import { inventoryService, type CategoryRecord } from '../../services/inventoryService'
 import { useSound } from '../../context/SoundContext'
 import { getErrorMessage } from '../../lib/errorMessage'
+import { normalizeBarcode } from '../../lib/barcode'
 
 export interface VariantInputRow {
   id: string
@@ -240,7 +241,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               low_stock_alert: alertThreshold,
               expiry_date: expiryDate || null,
               mfg_date: mfgDate || null,
-              barcode: barcode.trim() || null,
+              barcode: barcode.trim() ? normalizeBarcode(barcode) : null,
               description: description.trim() || '',
               has_variants: false,
               has_special_offer: hasSpecialOffer,
@@ -271,12 +272,12 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
           if (barcode.trim()) {
             await supabase.from('barcode_registry').upsert(
               {
-                barcode: barcode.trim(),
+                barcode_value: normalizeBarcode(barcode),
                 product_id: selectedProductId,
                 variant_id: null,
                 is_active: true,
               },
-              { onConflict: 'barcode' }
+              { onConflict: 'barcode_value' }
             )
           }
 
@@ -306,7 +307,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                   price: vPrice,
                   purchase_price: vCost,
                   stock: vStock,
-                  barcode: v.customBarcode?.trim() || null,
+                  barcode: v.customBarcode?.trim() ? normalizeBarcode(v.customBarcode) : null,
                   is_active: true,
                 })
                 .select()
@@ -345,7 +346,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                   price: vPrice,
                   purchase_price: vCost,
                   stock: vStock,
-                  barcode: v.customBarcode?.trim() || null,
+                  barcode: v.customBarcode?.trim() ? normalizeBarcode(v.customBarcode) : null,
                 })
                 .eq('id', v.id)
 
@@ -415,7 +416,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               low_stock_alert: alertThreshold,
               expiry_date: expiryDate || null,
               mfg_date: mfgDate || null,
-              barcode: barcode.trim() || null,
+              barcode: barcode.trim() ? normalizeBarcode(barcode) : null,
               description: description.trim() || '',
               has_variants: false,
               has_special_offer: hasSpecialOffer,
@@ -433,12 +434,12 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
           if (barcode.trim()) {
             await supabase.from('barcode_registry').upsert(
               {
-                barcode: barcode.trim(),
+                barcode_value: normalizeBarcode(barcode),
                 product_id: newProd.id,
                 variant_id: null,
                 is_active: true,
               },
-              { onConflict: 'barcode' }
+              { onConflict: 'barcode_value' }
             )
           }
 
@@ -515,7 +516,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                 price: vPrice,
                 purchase_price: vCost,
                 stock: vStock,
-                barcode: v.customBarcode?.trim() || null,
+                barcode: v.customBarcode?.trim() ? normalizeBarcode(v.customBarcode) : null,
                 is_active: true,
               })
               .select('id')
@@ -524,12 +525,12 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
             if (createdVar && v.customBarcode?.trim()) {
               await supabase.from('barcode_registry').upsert(
                 {
-                  barcode: v.customBarcode.trim(),
+                  barcode_value: normalizeBarcode(v.customBarcode),
                   product_id: newProd.id,
                   variant_id: createdVar.id,
                   is_active: true,
                 },
-                { onConflict: 'barcode' }
+                { onConflict: 'barcode_value' }
               )
             }
 

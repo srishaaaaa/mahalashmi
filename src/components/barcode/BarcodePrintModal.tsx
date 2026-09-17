@@ -361,7 +361,9 @@ export const BarcodePrintModal: React.FC<BarcodePrintModalProps> = ({
           if (iframe.parentNode) {
             iframe.parentNode.removeChild(iframe)
           }
-        } catch {}
+        } catch {
+          // iframe may already be detached
+        }
       }
 
       setTimeout(() => {

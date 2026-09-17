@@ -130,7 +130,9 @@ export async function fetchRemoteCustomSizes(): Promise<LabelSizeConfig[]> {
 
         try {
           localStorage.setItem(CUSTOM_SIZES_KEY, JSON.stringify(merged))
-        } catch {}
+        } catch {
+          // localStorage write may fail (quota exceeded / private mode)
+        }
         notifyCustomSizesChanged(merged)
         return merged
       }

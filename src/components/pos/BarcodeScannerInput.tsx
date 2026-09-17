@@ -186,7 +186,7 @@ export const BarcodeScannerInput: React.FC<BarcodeScannerInputProps> = ({
     } finally {
       setLoading(false)
     }
-  }, [onItemScanned])
+  }, [onItemScanned, onNotFound])
 
   // Non-Blocking HID Keystroke Interceptor
   useEffect(() => {
@@ -368,6 +368,7 @@ export const BarcodeScannerInput: React.FC<BarcodeScannerInputProps> = ({
             placeholder="Scan barcode with machine, camera, or type code..."
             value={manualCode}
             onChange={(e) => setManualCode(e.target.value)}
+            onClick={handleInputBarClick}
             disabled={disabled || loading}
             className="w-full pl-10 pr-24 py-3 rounded-2xl border-2 border-[#E8D399] bg-[#FBFAF6] font-bold text-sm text-black placeholder:text-gray-400 outline-none focus:border-[#0A0A0A] focus:bg-white shadow-xs transition-all"
           />

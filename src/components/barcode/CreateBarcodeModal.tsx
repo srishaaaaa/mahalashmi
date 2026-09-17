@@ -134,9 +134,6 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
   const currentSizeConfig: LabelSizeConfig =
     allSizes.find((s) => s.id === settings.selectedSizeId) || allSizes[0]
 
-  const isSmall = currentSizeConfig.heightMm <= 25
-  const isLarge = currentSizeConfig.heightMm >= 40
-
   const selectProductItem = useCallback(async (prod: ProductOption, targetVariantId?: string | null) => {
     setSelectedProduct(prod)
     setProductSearch(prod.name)
@@ -630,7 +627,9 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
         if (iframe.parentNode) {
           iframe.parentNode.removeChild(iframe)
         }
-      } catch {}
+      } catch {
+        // iframe may already be detached
+      }
     }
 
     setTimeout(() => {
