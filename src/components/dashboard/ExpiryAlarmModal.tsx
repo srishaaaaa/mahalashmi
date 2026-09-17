@@ -81,7 +81,7 @@ export default function ExpiryAlarmModal({ triggerKey }: { triggerKey?: string |
     }
     void check()
     return () => { cancelled = true }
-  }, [triggerKey, alertDays])
+  }, [triggerKey, alertDays, enqueueAlarm])
 
   const beep = () => {
     if (!soundEnabled) return

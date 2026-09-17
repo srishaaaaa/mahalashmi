@@ -70,7 +70,7 @@ export default function LowStockAlarmModal({ triggerKey }: { triggerKey?: string
     }
     void check()
     return () => { cancelled = true }
-  }, [triggerKey])
+  }, [triggerKey, enqueueAlarm])
 
   const beep = () => {
     if (!soundEnabled) return

@@ -1181,16 +1181,6 @@ export default function Dashboard() {
     return () => clearInterval(interval)
   }, [tab, posAnalyticsTab, loadData])
 
-  if (!isAdmin) return (
-    <div className="min-h-screen bg-bgMain flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-3xl shadow-xl text-center max-w-sm">
-        <AlertCircle className="mx-auto text-red-400 mb-4" size={48} />
-        <h2 className="text-2xl font-black mb-2">{l('Unauthorized', 'அன� மதி இல� லை')}</h2>
-        <Link to="/" className="px-6 py-3 bg-sageDark text-white rounded-xl font-bold inline-block mt-4">{l('Go Home', 'ம� கப� பிற� க� ')}</Link>
-      </div>
-    </div>
-  )
-
   const expiryAlertCount = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0)
     const msPerDay = 24 * 60 * 60 * 1000
@@ -1201,6 +1191,16 @@ export default function Dashboard() {
       return daysLeft <= expiryAlertDays
     }).length
   }, [products, expiryAlertDays])
+
+  if (!isAdmin) return (
+    <div className="min-h-screen bg-bgMain flex items-center justify-center p-4">
+      <div className="bg-white p-8 rounded-3xl shadow-xl text-center max-w-sm">
+        <AlertCircle className="mx-auto text-red-400 mb-4" size={48} />
+        <h2 className="text-2xl font-black mb-2">{l('Unauthorized', 'அன� மதி இல� லை')}</h2>
+        <Link to="/" className="px-6 py-3 bg-sageDark text-white rounded-xl font-bold inline-block mt-4">{l('Go Home', 'ம� கப� பிற� க� ')}</Link>
+      </div>
+    </div>
+  )
 
   const navItems: Array<{ id: TabKey; icon: React.ReactNode; label: string; badge?: number }> = role === 'staff'
     ? [

@@ -35,7 +35,6 @@ import { BarcodeScannerInput, type ScannedItemPayload } from '../components/pos/
 import { QuickAddScannedProductModal } from '../components/pos/QuickAddScannedProductModal'
 import { AddUnregisteredItemModal } from '../components/pos/AddUnregisteredItemModal'
 import { getOrCreateUnregisteredProduct } from '../services/productService'
-import { useSound } from '../context/SoundContext'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type PosItem = Product & {
@@ -127,7 +126,6 @@ export default function Pos(props: PosProps = {}) {
   const l = (en: string, ta: string) => lang === 'ta' ? ta : en
   const navigate = useNavigate()
   const { logout, role } = useAdminAuthStore()
-  const { play } = useSound()
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [billingAdjOpen, setBillingAdjOpen] = useState(false)
 
