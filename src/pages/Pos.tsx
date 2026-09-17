@@ -1046,7 +1046,7 @@ export default function Pos(props: PosProps = {}) {
       </div>
 
       {/* Main Content Split */}
-      <div className="flex flex-col lg:flex-row gap-4 sm:gap-5 md:gap-6 px-3 sm:px-4 md:px-6 pb-6 lg:h-[calc(100vh-120px)] lg:overflow-hidden">
+      <div className="flex flex-col lg:flex-row gap-4 sm:gap-5 md:gap-6 px-3 sm:px-4 md:px-6 pb-6 lg:h-[calc(100dvh-120px)] lg:overflow-hidden">
 
         {/* LEFT COLUMN (approx 68%) */}
         <div className="flex-[2.1] flex flex-col gap-4 sm:gap-6 lg:overflow-y-auto lg:pb-4 hide-scrollbar">
@@ -1393,7 +1393,7 @@ export default function Pos(props: PosProps = {}) {
         </div>
 
         {/* RIGHT COLUMN (approx 32%) */}
-        <div className="flex-[1] flex min-h-0 flex-col gap-6 sticky top-4 h-[calc(100vh-140px)] max-h-[calc(100vh-140px)]">
+        <div className="flex-[1] flex min-h-0 flex-col gap-6 sticky top-4 h-[calc(100dvh-140px)] max-h-[calc(100dvh-140px)]">
           <div className="flex min-h-0 h-full max-h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-[#FBFAF6] shadow-sm">
 
             {/* Header */}

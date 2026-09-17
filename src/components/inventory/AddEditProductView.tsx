@@ -576,7 +576,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
   )
 
   return (
-    <div className="h-[calc(100vh-210px)] min-h-[480px] flex flex-col gap-3 lg:gap-5 overflow-hidden">
+    <div className="h-[calc(100dvh-210px)] min-h-[480px] flex flex-col gap-3 lg:gap-5 overflow-hidden">
       {/* Mobile-only: switch between browsing the catalog and the add/edit form */}
       <div className="lg:hidden flex items-center gap-2 rounded-2xl border border-gray-200 bg-white p-1.5 shrink-0">
         <button

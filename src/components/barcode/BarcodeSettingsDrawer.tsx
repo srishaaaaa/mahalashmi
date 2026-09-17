@@ -1,13 +1,16 @@
-import React, { useState } from 'react'
-import { X, Plus, Info, Check } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { X, Plus, Info, Check, Trash2 } from 'lucide-react'
 import {
   type BarcodeSettings,
   type LabelSizeConfig,
   DEFAULT_LABEL_SIZES,
   getStoredCustomSizes,
+  fetchRemoteCustomSizes,
+  deleteStoredCustomSize,
+  subscribeCustomSizes,
   saveStoredBarcodeSettings,
 } from '../../lib/barcode'
-import { BRAND_MONOGRAM } from '../../lib/brand'
 import { CreateCustomSizeModal } from './CreateCustomSizeModal'
 
 interface BarcodeSettingsDrawerProps {
@@ -26,30 +29,43 @@ export const BarcodeSettingsDrawer: React.FC<BarcodeSettingsDrawerProps> = ({
   const [customSizes, setCustomSizes] = useState<LabelSizeConfig[]>(getStoredCustomSizes())
   const [showCustomModal, setShowCustomModal] = useState(false)
 
+  // Sync custom sizes from database and subscribe to updates
+  useEffect(() => {
+    fetchRemoteCustomSizes().then((sizes) => {
+      setCustomSizes(sizes)
+    })
+    const unsubscribe = subscribeCustomSizes((updated) => {
+      setCustomSizes(updated)
+    })
+    return unsubscribe
+  }, [])
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
+  // Prevent background scrolling when open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isOpen])
+
   if (!isOpen) return null
 
-  const allSizes = [...DEFAULT_LABEL_SIZES, ...customSizes]
-
-  // A "Label Printer" is a single continuous thermal roll — it only ever
-  // feeds one label across, never a side-by-side pair. Only "Regular
-  // Printer (A4 Sheet)" (Avery-style sticker sheets) can actually fit more
-  // than one label per row. Letting a label-printer user pick a 2-up size
-  // preset is exactly what produces the classic "every other label blank
-  // and misaligned" print: the browser lays out a 2-column grid, but the
-  // physical roll is only wide enough for one column, so column 2 prints
-  // into whatever is next along the roll instead of a real second label.
-  const sizesForCurrentPrinter = allSizes.filter((size) =>
-    settings.printerType === 'label' ? size.labelsPerRow === 1 : size.labelsPerRow > 1
-  )
-
   const handlePrinterChange = (type: 'label' | 'regular') => {
-    const validSizes = allSizes.filter((size) => (type === 'label' ? size.labelsPerRow === 1 : size.labelsPerRow > 1))
-    const stillValid = validSizes.some((size) => size.id === settings.selectedSizeId)
-    const updated: BarcodeSettings = {
-      ...settings,
-      printerType: type,
-      selectedSizeId: stillValid ? settings.selectedSizeId : (validSizes[0]?.id ?? settings.selectedSizeId),
-    }
+    const updated: BarcodeSettings = { ...settings, printerType: type }
     saveStoredBarcodeSettings(updated)
     onUpdateSettings(updated)
   }
@@ -68,12 +84,23 @@ export const BarcodeSettingsDrawer: React.FC<BarcodeSettingsDrawerProps> = ({
     onUpdateSettings(updated)
   }
 
+  const handleDeleteCustomSize = (sizeId: string) => {
+    deleteStoredCustomSize(sizeId)
+    if (settings.selectedSizeId === sizeId) {
+      handleSizeChange(DEFAULT_LABEL_SIZES[0].id)
+    }
+  }
+
+  const allSizes = [...DEFAULT_LABEL_SIZES, ...customSizes]
+
   return (
     <>
-      <div className="fixed inset-0 z-[110] flex justify-end bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
-        <div className="w-full max-w-sm bg-white h-full shadow-2xl flex flex-col border-l border-gray-200 animate-in slide-in-from-right duration-200">
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-[#0A0A0A] text-white">
+      {createPortal(
+        <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 w-screen h-screen h-[100dvh] z-[9999] flex justify-end bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="absolute inset-0" onClick={onClose} />
+          <div className="relative z-10 w-full max-w-sm bg-white h-screen h-[100dvh] shadow-2xl flex flex-col border-l border-gray-200 animate-in slide-in-from-right duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-[#0A0A0A] text-white shrink-0">
             <h3 className="text-sm font-black tracking-wide text-white">Barcode Settings</h3>
             <button
               type="button"
@@ -130,18 +157,13 @@ export const BarcodeSettingsDrawer: React.FC<BarcodeSettingsDrawerProps> = ({
                   Select any 1 option
                 </span>
               </div>
-              <p className="text-[10px] text-gray-500 mb-2">
-                {settings.printerType === 'label'
-                  ? 'Showing single-label sizes only — a thermal roll feeds one label at a time.'
-                  : 'Showing multi-label sizes only — these fit side-by-side on an A4 sticker sheet.'}
-              </p>
-              <div className="space-y-2.5 bg-[#FBFAF6] p-3 rounded-xl border border-gray-200">
-                {sizesForCurrentPrinter.map((size) => (
-                  <label
+              <div className="space-y-1.5 bg-[#FBFAF6] p-3 rounded-xl border border-gray-200">
+                {allSizes.map((size) => (
+                  <div
                     key={size.id}
-                    className="flex items-center justify-between gap-2 text-xs font-bold text-gray-700 cursor-pointer hover:text-black"
+                    className="flex items-center justify-between gap-2 text-xs font-bold text-gray-700 hover:text-black"
                   >
-                    <div className="flex items-center gap-2.5">
+                    <label className="flex items-center gap-2.5 cursor-pointer flex-1 py-1">
                       <input
                         type="radio"
                         name="labelSize"
@@ -150,13 +172,27 @@ export const BarcodeSettingsDrawer: React.FC<BarcodeSettingsDrawerProps> = ({
                         className="accent-[#0A0A0A] w-4 h-4 cursor-pointer"
                       />
                       <span>{size.name}</span>
-                    </div>
+                    </label>
                     {size.isCustom && (
-                      <span className="text-[9px] font-black uppercase tracking-wider bg-[#0A0A0A] text-[#2E7D32] px-1.5 py-0.5 rounded">
-                        Custom
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-[9px] font-black uppercase tracking-wider bg-[#0A0A0A] text-[#D4AF37] px-1.5 py-0.5 rounded">
+                          Custom
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handleDeleteCustomSize(size.id)
+                          }}
+                          title="Delete custom size"
+                          className="text-gray-400 hover:text-red-600 p-1 rounded transition-colors cursor-pointer"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     )}
-                  </label>
+                  </div>
                 ))}
 
                 <button
@@ -194,7 +230,7 @@ export const BarcodeSettingsDrawer: React.FC<BarcodeSettingsDrawerProps> = ({
                     onChange={() => handleFieldToggle('showCompanyName')}
                     className="accent-[#0A0A0A] w-4 h-4 rounded cursor-pointer"
                   />
-                  Company Name ({BRAND_MONOGRAM})
+                  Company Name (CLAD)
                 </label>
                 <label className="flex items-center gap-2.5 text-xs font-bold text-gray-700 cursor-pointer">
                   <input
@@ -223,18 +259,19 @@ export const BarcodeSettingsDrawer: React.FC<BarcodeSettingsDrawerProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-full py-2.5 rounded-xl bg-[#0A0A0A] text-[#2E7D32] border border-[#2E7D32] font-black text-xs uppercase tracking-wider hover:bg-[#1A1A1A] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+              className="w-full py-2.5 rounded-xl bg-[#0A0A0A] text-[#D4AF37] border border-[#D4AF37] font-black text-xs uppercase tracking-wider hover:bg-[#1A1A1A] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
             >
               <Check size={14} /> Done
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
+    )}
 
       {showCustomModal && (
         <CreateCustomSizeModal
           isOpen={showCustomModal}
-          printerType={settings.printerType}
           onClose={() => setShowCustomModal(false)}
           onCreated={(newSize) => {
             setCustomSizes(getStoredCustomSizes())

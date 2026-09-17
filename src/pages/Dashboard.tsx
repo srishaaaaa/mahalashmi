@@ -1223,7 +1223,7 @@ export default function Dashboard() {
       ]
 
   return (
-    <div className="admin-shell h-screen max-h-screen min-h-screen bg-bgMain flex flex-col lg:flex-row overflow-hidden">
+    <div className="admin-shell h-dvh max-h-dvh min-h-dvh bg-bgMain flex flex-col lg:flex-row overflow-hidden">
       <LowStockAlarmModal triggerKey={tab} />
       <ExpiryAlarmModal triggerKey={tab} />
       {/* Sidebar */}
