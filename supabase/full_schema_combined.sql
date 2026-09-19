@@ -1,15 +1,36 @@
 -- ============================================================================
--- Mahalashmi Stores - Full Combined Schema (auto-generated, regenerate after adding new migrations)
--- Concatenation of all files in supabase/migrations/, in filename order.
+-- Mahalashmi Stores - Consolidated Schema (clean, deduplicated snapshot)
+--
+-- This is NOT a concatenation of migration files. It is a hand-consolidated
+-- rewrite that reflects today's final database state: one CREATE TABLE per
+-- table with its final column set, one final version of every function
+-- (superseded CREATE OR REPLACE bodies from earlier migrations are dropped),
+-- and no historical one-off data fixes / rebrand UPDATE chains that only
+-- mattered when transitioning an existing database from one state to
+-- another. Individual migration files under supabase/migrations/ remain the
+-- source of history; this file is for provisioning a fresh project in one
+-- shot or for reading the schema as it stands today.
+--
+-- Regenerate by hand after adding a new migration: add the new/changed
+-- columns to the relevant CREATE TABLE, replace outdated function bodies
+-- with the new ones, and update seed data if it changed.
 -- ============================================================================
 
--- ---------------------------------------------------------------------------
--- Source: 20260716_0001_purple_boutique_schema.sql
--- ---------------------------------------------------------------------------
--- Mahalashmi Stores billing schema.
--- Safe to run against a fresh project or the existing Mahalashmi Stores project.
-
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- ----------------------------------------------------------------------------
+-- Sequences
+-- ----------------------------------------------------------------------------
+
+CREATE SEQUENCE IF NOT EXISTS public.customer_code_seq START WITH 1;
+CREATE SEQUENCE IF NOT EXISTS public.invoice_number_seq START WITH 10000001;
+CREATE SEQUENCE IF NOT EXISTS public.deposit_number_seq START WITH 1;
+CREATE SEQUENCE IF NOT EXISTS public.barcode_product_seq START WITH 10000001;
+CREATE SEQUENCE IF NOT EXISTS public.barcode_variant_seq START WITH 10000001;
+
+-- ----------------------------------------------------------------------------
+-- Tables
+-- ----------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -22,8 +43,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-CREATE SEQUENCE IF NOT EXISTS public.customer_code_seq START WITH 1;
 
 CREATE TABLE IF NOT EXISTS public.categories (
   id BIGSERIAL PRIMARY KEY,
@@ -75,6 +94,12 @@ CREATE TABLE IF NOT EXISTS public.products (
   has_variants BOOLEAN NOT NULL DEFAULT FALSE,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   sort_order INTEGER NOT NULL DEFAULT 0,
+  has_special_offer BOOLEAN NOT NULL DEFAULT FALSE,
+  special_offer_note TEXT NOT NULL DEFAULT '',
+  special_offer_cost NUMERIC NOT NULL DEFAULT 0,
+  expiry_date DATE,
+  mfg_date DATE,
+  location TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -149,6 +174,10 @@ CREATE TABLE IF NOT EXISTS public.orders (
   payment_method TEXT NOT NULL DEFAULT 'cash',
   payment_mode TEXT NOT NULL DEFAULT 'cash',
   split_details JSONB NOT NULL DEFAULT '{}'::JSONB,
+  remarks TEXT NOT NULL DEFAULT '',
+  reference_number TEXT NOT NULL DEFAULT '',
+  billing_date TIMESTAMPTZ,
+  invoice_pdf_url TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -162,17 +191,24 @@ CREATE TABLE IF NOT EXISTS public.order_items (
   name TEXT NOT NULL DEFAULT 'Product',
   product_tamil_name TEXT,
   tamil_name TEXT,
+  variant_name TEXT,
   quantity NUMERIC(12,3) NOT NULL DEFAULT 0,
   unit TEXT NOT NULL DEFAULT 'piece',
   unit_type TEXT NOT NULL DEFAULT 'unit',
   base_quantity NUMERIC(12,3) NOT NULL DEFAULT 1,
   base_price NUMERIC(12,2) NOT NULL DEFAULT 0,
+  unit_price NUMERIC(12,2) NOT NULL DEFAULT 0,
   line_total NUMERIC(12,2) NOT NULL DEFAULT 0,
   image_url TEXT,
   is_manual BOOLEAN NOT NULL DEFAULT FALSE,
   discount NUMERIC(12,2) NOT NULL DEFAULT 0,
   gst_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
   gst_rate NUMERIC(5,2) NOT NULL DEFAULT 0,
+  source TEXT NOT NULL DEFAULT 'catalogue',
+  note TEXT,
+  category TEXT,
+  special_offer_note TEXT,
+  special_offer_cost NUMERIC,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -183,10 +219,6 @@ CREATE TABLE IF NOT EXISTS public.invoice_counter (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO public.invoice_counter (id, counter, year)
-VALUES (1, 0, EXTRACT(YEAR FROM NOW())::INTEGER)
-ON CONFLICT (id) DO NOTHING;
-
 CREATE TABLE IF NOT EXISTS public.store_settings (
   id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
   name TEXT NOT NULL DEFAULT 'Mahalashmi Stores',
@@ -195,23 +227,180 @@ CREATE TABLE IF NOT EXISTS public.store_settings (
   email TEXT NOT NULL DEFAULT 'senthamil75714@gmail.com',
   address TEXT NOT NULL DEFAULT '5/85, Teacher''s Colony, Masinaickanpatty, Ayyothiyapattanam, Salem - 636103',
   gst_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  instagram_handle TEXT NOT NULL DEFAULT '',
+  low_stock_threshold NUMERIC(12,3) NOT NULL DEFAULT 5,
+  logo_url TEXT,
+  admin_id TEXT,
+  admin_password TEXT,
+  staff_id TEXT,
+  staff_password TEXT,
+  expiry_alert_days INTEGER NOT NULL DEFAULT 30,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- ON CONFLICT DO NOTHING (not DO UPDATE): this seeds the row only on first
--- creation. Re-running the combined schema after the store owner has since
--- customized their name/phone/email/address via the Settings screen must
--- never revert those edits back to this bootstrap default.
-INSERT INTO public.store_settings (id, name, owner_name, phone, email, address)
-VALUES (
-  1,
-  'Mahalashmi Stores',
-  'M. Senthamil',
-  '+91 98659 75714',
-  'senthamil75714@gmail.com',
-  '5/85, Teacher''s Colony, Masinaickanpatty, Ayyothiyapattanam, Salem - 636103'
-)
-ON CONFLICT (id) DO NOTHING;
+CREATE TABLE IF NOT EXISTS public.advance_orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  deposit_id TEXT NOT NULL UNIQUE,
+  customer_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  address TEXT NOT NULL DEFAULT '',
+  product_name TEXT NOT NULL,
+  products JSONB NOT NULL DEFAULT '[]'::JSONB,
+  category TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  total_amount NUMERIC(12,2) NOT NULL CHECK (total_amount > 0),
+  deposit_amount NUMERIC(12,2) NOT NULL CHECK (deposit_amount > 0),
+  remaining_balance NUMERIC(12,2) GENERATED ALWAYS AS (total_amount - deposit_amount) STORED,
+  expected_delivery_date DATE NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending_deposit' CHECK (status IN ('pending_deposit','ready_for_delivery','waiting_final_payment','completed','cancelled')),
+  remarks TEXT NOT NULL DEFAULT '',
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_by_name TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  completed_order_id UUID UNIQUE REFERENCES public.orders(id) ON DELETE SET NULL,
+  invoice_number TEXT UNIQUE,
+  final_payment_method TEXT,
+  CONSTRAINT advance_deposit_less_than_total CHECK (deposit_amount < total_amount)
+);
+
+CREATE TABLE IF NOT EXISTS public.advance_order_timeline (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  advance_order_id UUID NOT NULL REFERENCES public.advance_orders(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL,
+  label TEXT NOT NULL,
+  remarks TEXT NOT NULL DEFAULT '',
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.advance_order_payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  advance_order_id UUID NOT NULL REFERENCES public.advance_orders(id) ON DELETE CASCADE,
+  payment_type TEXT NOT NULL CHECK (payment_type IN ('deposit','remaining')),
+  amount NUMERIC(12,2) NOT NULL CHECK (amount >= 0),
+  payment_method TEXT NOT NULL CHECK (payment_method IN ('cash','upi','card')),
+  remarks TEXT NOT NULL DEFAULT '',
+  received_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (advance_order_id, payment_type)
+);
+
+CREATE TABLE IF NOT EXISTS public.store_reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id TEXT,
+  reviewer TEXT,
+  rating INTEGER CHECK (rating BETWEEN 1 AND 5),
+  comment TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.barcode_registry (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  barcode_value TEXT NOT NULL UNIQUE,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('product', 'variant')),
+  product_id BIGINT NOT NULL REFERENCES public.products(id) ON DELETE RESTRICT,
+  variant_id UUID REFERENCES public.product_variants(id) ON DELETE RESTRICT,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_by_name TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT chk_barcode_entity_target CHECK (
+    (entity_type = 'product' AND variant_id IS NULL) OR
+    (entity_type = 'variant' AND variant_id IS NOT NULL)
+  )
+);
+
+CREATE TABLE IF NOT EXISTS public.inventory_movements (
+  id BIGSERIAL PRIMARY KEY,
+  product_id BIGINT REFERENCES public.products(id) ON DELETE SET NULL,
+  variant_id UUID REFERENCES public.product_variants(id) ON DELETE SET NULL,
+  barcode_id UUID REFERENCES public.barcode_registry(id) ON DELETE SET NULL,
+  movement_type TEXT NOT NULL CHECK (
+    movement_type IN ('INITIAL_BARCODE_STOCK', 'RESTOCK', 'SALE', 'RETURN', 'DAMAGE', 'CORRECTION', 'VOID')
+  ),
+  quantity_delta NUMERIC NOT NULL,
+  quantity_before NUMERIC NOT NULL,
+  quantity_after NUMERIC NOT NULL,
+  unit_cost NUMERIC DEFAULT NULL,
+  reference_type TEXT DEFAULT NULL, -- 'order', 'adjustment', 'barcode_receipt'
+  reference_id TEXT DEFAULT NULL,   -- order_id or invoice_no
+  note TEXT DEFAULT '',
+  created_by_name TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.expense_categories (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT uq_expense_category_name UNIQUE (name)
+);
+
+-- Note: category_id has ON DELETE SET NULL to preserve historical expense records even if a category is removed
+CREATE TABLE IF NOT EXISTS public.expenses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  category_id BIGINT REFERENCES public.expense_categories(id) ON DELETE SET NULL,
+  category_name TEXT NOT NULL, -- denormalized snapshot to protect historical records
+  amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
+  description TEXT DEFAULT '',
+  payment_mode TEXT DEFAULT 'cash', -- 'cash', 'upi', 'card', 'bank_transfer'
+  recorded_by_name TEXT DEFAULT 'Staff',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.barcode_custom_sizes (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  labels_per_row INTEGER NOT NULL DEFAULT 1 CHECK (labels_per_row >= 1),
+  width_mm NUMERIC(8, 2) NOT NULL CHECK (width_mm > 0),
+  height_mm NUMERIC(8, 2) NOT NULL CHECK (height_mm > 0),
+  horizontal_gap_mm NUMERIC(8, 2) NOT NULL DEFAULT 0 CHECK (horizontal_gap_mm >= 0),
+  is_custom BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ----------------------------------------------------------------------------
+-- Indexes
+-- ----------------------------------------------------------------------------
+
+CREATE INDEX IF NOT EXISTS products_category_id_idx ON public.products(category_id);
+CREATE INDEX IF NOT EXISTS products_active_sort_idx ON public.products(is_active, sort_order);
+CREATE INDEX IF NOT EXISTS variants_product_id_idx ON public.product_variants(product_id);
+CREATE INDEX IF NOT EXISTS orders_created_at_idx ON public.orders(created_at DESC);
+CREATE INDEX IF NOT EXISTS orders_phone_idx ON public.orders(phone);
+CREATE INDEX IF NOT EXISTS order_items_order_id_idx ON public.order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_orders_invoice_no ON public.orders(invoice_no);
+CREATE INDEX IF NOT EXISTS idx_orders_billing_date ON public.orders(billing_date);
+
+CREATE INDEX IF NOT EXISTS advance_orders_created_idx ON public.advance_orders(created_at DESC);
+CREATE INDEX IF NOT EXISTS advance_orders_status_idx ON public.advance_orders(status);
+CREATE INDEX IF NOT EXISTS advance_orders_delivery_idx ON public.advance_orders(expected_delivery_date);
+CREATE INDEX IF NOT EXISTS advance_order_timeline_order_idx ON public.advance_order_timeline(advance_order_id, created_at);
+CREATE INDEX IF NOT EXISTS advance_order_payments_order_idx ON public.advance_order_payments(advance_order_id, received_at);
+CREATE INDEX IF NOT EXISTS idx_advance_orders_invoice_number ON public.advance_orders(invoice_number);
+
+CREATE INDEX IF NOT EXISTS idx_barcode_registry_val ON public.barcode_registry(barcode_value);
+CREATE INDEX IF NOT EXISTS idx_barcode_registry_prod ON public.barcode_registry(product_id);
+CREATE INDEX IF NOT EXISTS idx_barcode_registry_var ON public.barcode_registry(variant_id) WHERE variant_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_inv_movements_prod ON public.inventory_movements(product_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_inv_movements_var ON public.inventory_movements(variant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_inv_movements_type ON public.inventory_movements(movement_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_barcode_custom_sizes_created_at ON public.barcode_custom_sizes(created_at ASC);
+
+CREATE INDEX IF NOT EXISTS idx_expenses_date ON public.expenses(expense_date DESC);
+CREATE INDEX IF NOT EXISTS idx_expenses_category ON public.expenses(category_id);
+CREATE INDEX IF NOT EXISTS idx_expense_categories_active ON public.expense_categories(is_active);
+
+-- ----------------------------------------------------------------------------
+-- Functions & Triggers
+-- ----------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN
@@ -328,290 +517,8 @@ CREATE TRIGGER ensure_one_default_variant_trigger
 AFTER INSERT OR UPDATE OF is_default ON public.product_variants
 FOR EACH ROW EXECUTE FUNCTION public.ensure_one_default_variant();
 
-CREATE OR REPLACE FUNCTION public.get_next_invoice_no()
-RETURNS TEXT
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_year INTEGER := EXTRACT(YEAR FROM NOW())::INTEGER;
-  v_counter BIGINT;
-  v_existing_max BIGINT;
-BEGIN
-  SELECT COALESCE(MAX(SUBSTRING(invoice_no FROM '^PB-' || v_year || '-([0-9]+)$')::BIGINT), 0)
-  INTO v_existing_max
-  FROM public.orders
-  WHERE invoice_no ~ ('^PB-' || v_year || '-[0-9]+$');
-
-  INSERT INTO public.invoice_counter (id, counter, year)
-  VALUES (1, 1, v_year)
-  ON CONFLICT (id) DO UPDATE SET
-    counter = CASE
-      WHEN public.invoice_counter.year = v_year
-        THEN GREATEST(public.invoice_counter.counter, v_existing_max) + 1
-      ELSE 1
-    END,
-    year = v_year,
-    updated_at = NOW()
-  RETURNING counter INTO v_counter;
-
-  RETURN 'PB-' || v_year || '-' || LPAD(v_counter::TEXT, 6, '0');
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.create_order_with_stock(
-  p_customer_name TEXT,
-  p_phone TEXT,
-  p_address TEXT,
-  p_items JSONB,
-  p_shipping NUMERIC DEFAULT 0,
-  p_status TEXT DEFAULT 'pending',
-  p_order_mode TEXT DEFAULT 'offline',
-  p_order_type TEXT DEFAULT 'pos_sale',
-  p_delivery_charge NUMERIC DEFAULT 0,
-  p_discount_amount NUMERIC DEFAULT 0,
-  p_manual_discount_amount NUMERIC DEFAULT 0,
-  p_manual_discount_type TEXT DEFAULT 'flat',
-  p_manual_discount_value NUMERIC DEFAULT 0,
-  p_coupon_code TEXT DEFAULT NULL,
-  p_coupon_percentage NUMERIC DEFAULT 0,
-  p_total_gst NUMERIC DEFAULT 0,
-  p_gst_enabled BOOLEAN DEFAULT FALSE,
-  p_payment_method TEXT DEFAULT 'cash',
-  p_split_details JSONB DEFAULT '{}'::JSONB
-)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_invoice_no TEXT;
-  v_order_id UUID;
-  v_subtotal NUMERIC(12,2) := 0;
-  v_total NUMERIC(12,2);
-  v_item JSONB;
-  v_product_id BIGINT;
-  v_variant_id UUID;
-  v_attempt INTEGER;
-BEGIN
-  IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
-    RAISE EXCEPTION 'At least one order item is required';
-  END IF;
-
-  FOR v_item IN SELECT value FROM jsonb_array_elements(p_items) LOOP
-    v_subtotal := v_subtotal + COALESCE((v_item ->> 'line_total')::NUMERIC, 0);
-  END LOOP;
-
-  v_total := GREATEST(
-    0,
-    v_subtotal + COALESCE(p_total_gst, 0) + COALESCE(p_delivery_charge, 0) + COALESCE(p_shipping, 0)
-      - COALESCE(p_discount_amount, 0) - COALESCE(p_manual_discount_amount, 0)
-  );
-
-  FOR v_attempt IN 1..5 LOOP
-    v_invoice_no := public.get_next_invoice_no();
-    BEGIN
-      INSERT INTO public.orders (
-        invoice_no, user_id, customer_name, phone, address, items, subtotal, shipping, total,
-        status, order_mode, order_type, delivery_charge, discount_amount, manual_discount_amount,
-        manual_discount_type, manual_discount_value, coupon_code, coupon_percentage, total_gst,
-        gst_amount, gst_enabled, payment_method, payment_mode, split_details
-      ) VALUES (
-        v_invoice_no, auth.uid(), COALESCE(NULLIF(BTRIM(p_customer_name), ''), 'Customer'),
-        COALESCE(BTRIM(p_phone), ''), COALESCE(BTRIM(p_address), ''), p_items, v_subtotal,
-        COALESCE(p_shipping, 0), v_total, COALESCE(NULLIF(BTRIM(p_status), ''), 'pending'),
-        COALESCE(NULLIF(BTRIM(p_order_mode), ''), 'offline'), COALESCE(NULLIF(BTRIM(p_order_type), ''), 'pos_sale'),
-        COALESCE(p_delivery_charge, 0), COALESCE(p_discount_amount, 0), COALESCE(p_manual_discount_amount, 0),
-        COALESCE(NULLIF(BTRIM(p_manual_discount_type), ''), 'flat'), COALESCE(p_manual_discount_value, 0),
-        NULLIF(BTRIM(COALESCE(p_coupon_code, '')), ''), COALESCE(p_coupon_percentage, 0),
-        COALESCE(p_total_gst, 0), COALESCE(p_total_gst, 0), COALESCE(p_gst_enabled, FALSE),
-        COALESCE(NULLIF(BTRIM(p_payment_method), ''), 'cash'), COALESCE(NULLIF(BTRIM(p_payment_method), ''), 'cash'),
-        COALESCE(p_split_details, '{}'::JSONB)
-      ) RETURNING id INTO v_order_id;
-      EXIT;
-    EXCEPTION WHEN unique_violation THEN
-      IF v_attempt = 5 THEN RAISE; END IF;
-    END;
-  END LOOP;
-
-  FOR v_item IN SELECT value FROM jsonb_array_elements(p_items) LOOP
-    v_product_id := NULLIF(COALESCE(v_item ->> 'product_id', v_item ->> 'id'), '')::BIGINT;
-    v_variant_id := NULLIF(v_item ->> 'variant_id', '')::UUID;
-
-    INSERT INTO public.order_items (
-      order_id, product_id, variant_id, product_name, name, product_tamil_name, tamil_name,
-      quantity, unit, unit_type, base_quantity, base_price, line_total, image_url, is_manual,
-      discount, gst_amount, gst_rate
-    ) VALUES (
-      v_order_id, v_product_id, v_variant_id,
-      COALESCE(NULLIF(v_item ->> 'name', ''), 'Product'), COALESCE(NULLIF(v_item ->> 'name', ''), 'Product'),
-      NULLIF(v_item ->> 'tamil_name', ''), NULLIF(v_item ->> 'tamil_name', ''),
-      COALESCE((v_item ->> 'quantity')::NUMERIC, 0), COALESCE(NULLIF(v_item ->> 'unit', ''), 'piece'),
-      COALESCE(NULLIF(v_item ->> 'unit_type', ''), 'unit'), COALESCE((v_item ->> 'base_quantity')::NUMERIC, 1),
-      COALESCE((v_item ->> 'base_price')::NUMERIC, 0), COALESCE((v_item ->> 'line_total')::NUMERIC, 0),
-      NULLIF(v_item ->> 'image_url', ''), COALESCE(v_item ->> 'source' = 'manual', FALSE),
-      COALESCE((v_item ->> 'discount')::NUMERIC, 0), COALESCE((v_item ->> 'gst_amount')::NUMERIC, 0),
-      COALESCE((v_item ->> 'gst_rate')::NUMERIC, 0)
-    );
-
-    IF v_product_id IS NOT NULL THEN
-      UPDATE public.products
-      SET stock_quantity = GREATEST(stock_quantity - COALESCE((v_item ->> 'quantity')::NUMERIC, 0), 0),
-          stock = GREATEST(FLOOR(stock_quantity - COALESCE((v_item ->> 'quantity')::NUMERIC, 0)), 0)::INTEGER,
-          updated_at = NOW()
-      WHERE id = v_product_id;
-    END IF;
-
-    IF v_variant_id IS NOT NULL THEN
-      UPDATE public.product_variants
-      SET stock = GREATEST(stock - COALESCE((v_item ->> 'quantity')::NUMERIC, 0), 0), updated_at = NOW()
-      WHERE id = v_variant_id;
-    END IF;
-  END LOOP;
-
-  IF NULLIF(BTRIM(COALESCE(p_coupon_code, '')), '') IS NOT NULL THEN
-    UPDATE public.coupons
-    SET usage_count = usage_count + 1, updated_at = NOW()
-    WHERE UPPER(BTRIM(code)) = UPPER(BTRIM(p_coupon_code))
-      AND is_active
-      AND (usage_limit IS NULL OR usage_count < usage_limit);
-  END IF;
-
-  RETURN jsonb_build_object('orderId', v_order_id, 'invoiceNo', v_invoice_no, 'createdAt', NOW());
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.get_public_invoice_by_number(p_invoice_no TEXT)
-RETURNS SETOF public.orders
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-STABLE
-AS $$
-  SELECT * FROM public.orders WHERE invoice_no = NULLIF(BTRIM(p_invoice_no), '') LIMIT 1;
-$$;
-
-REVOKE ALL ON FUNCTION public.get_public_invoice_by_number(TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_public_invoice_by_number(TEXT) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.create_order_with_stock(
-  TEXT, TEXT, TEXT, JSONB, NUMERIC, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC,
-  TEXT, NUMERIC, TEXT, NUMERIC, NUMERIC, BOOLEAN, TEXT, JSONB
-) TO anon, authenticated;
-
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.product_variants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.store_settings ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS profiles_portal_manage ON public.profiles;
-CREATE POLICY profiles_portal_manage ON public.profiles FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
-DROP POLICY IF EXISTS categories_portal_manage ON public.categories;
-CREATE POLICY categories_portal_manage ON public.categories FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
-DROP POLICY IF EXISTS products_portal_manage ON public.products;
-CREATE POLICY products_portal_manage ON public.products FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
-DROP POLICY IF EXISTS product_variants_portal_manage ON public.product_variants;
-CREATE POLICY product_variants_portal_manage ON public.product_variants FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
-DROP POLICY IF EXISTS coupons_portal_manage ON public.coupons;
-CREATE POLICY coupons_portal_manage ON public.coupons FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
-DROP POLICY IF EXISTS orders_portal_manage ON public.orders;
-CREATE POLICY orders_portal_manage ON public.orders FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
-DROP POLICY IF EXISTS order_items_portal_manage ON public.order_items;
-CREATE POLICY order_items_portal_manage ON public.order_items FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
-DROP POLICY IF EXISTS store_settings_portal_manage ON public.store_settings;
-CREATE POLICY store_settings_portal_manage ON public.store_settings FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
-
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES ('invoices', 'invoices', TRUE, 10485760, ARRAY['application/pdf'])
-ON CONFLICT (id) DO UPDATE SET public = TRUE, file_size_limit = 10485760, allowed_mime_types = ARRAY['application/pdf'];
-
-DROP POLICY IF EXISTS invoices_public_read ON storage.objects;
-CREATE POLICY invoices_public_read ON storage.objects FOR SELECT TO public USING (bucket_id = 'invoices');
-DROP POLICY IF EXISTS invoices_portal_upload ON storage.objects;
-CREATE POLICY invoices_portal_upload ON storage.objects FOR INSERT TO anon, authenticated WITH CHECK (bucket_id = 'invoices');
-DROP POLICY IF EXISTS invoices_portal_update ON storage.objects;
-CREATE POLICY invoices_portal_update ON storage.objects FOR UPDATE TO anon, authenticated USING (bucket_id = 'invoices') WITH CHECK (bucket_id = 'invoices');
-
-CREATE INDEX IF NOT EXISTS products_category_id_idx ON public.products(category_id);
-CREATE INDEX IF NOT EXISTS products_active_sort_idx ON public.products(is_active, sort_order);
-CREATE INDEX IF NOT EXISTS variants_product_id_idx ON public.product_variants(product_id);
-CREATE INDEX IF NOT EXISTS orders_created_at_idx ON public.orders(created_at DESC);
-CREATE INDEX IF NOT EXISTS orders_phone_idx ON public.orders(phone);
-CREATE INDEX IF NOT EXISTS order_items_order_id_idx ON public.order_items(order_id);
-
-DO $$
-BEGIN
-  ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
-EXCEPTION WHEN duplicate_object THEN NULL;
-END;
-$$;
-
-DO $$
-BEGIN
-  ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
-EXCEPTION WHEN duplicate_object THEN NULL;
-END;
-$$;
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260716_0002_purple_boutique_catalog.sql
--- ---------------------------------------------------------------------------
--- Originally seeded a "Purple Boutique" demo catalog (Tailoring / Jewellery &
--- Accessories / Posstore categories with sample products like Saree Blouse,
--- Bridal Jewellery Rent, Perfume). None of that applies to Mahalashmi Stores
--- (a grocery store), so this migration is intentionally left as a no-op.
--- The demo catalog it originally inserted was removed from the live database
--- by migration 20260911_0019_remove_purple_boutique_catalog.sql.
--- Add Mahalashmi Stores' real categories/products through the app's product
--- management screen instead of seeding them here.
-SELECT 1;
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260716_0003_order_rpc_compatibility.sql
--- ---------------------------------------------------------------------------
--- Align the live legacy billing schema with the current Mahalashmi Stores RPC payload.
--- Idempotent: safe for both upgraded and freshly migrated projects.
-
-BEGIN;
-
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS gst_enabled BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS split_details JSONB NOT NULL DEFAULT '{}'::JSONB;
-
--- Keep one order-item shape that works with both the legacy and current schemas.
-ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS variant_name TEXT;
-ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS unit_price NUMERIC(12,2) NOT NULL DEFAULT 0;
-ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'catalogue';
-ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS note TEXT;
-
-CREATE SEQUENCE IF NOT EXISTS public.invoice_number_seq;
-
--- Prevent collisions when a sequence is introduced after invoices already exist.
-DO $$
-DECLARE
-  v_max_suffix BIGINT;
-  v_sequence_value BIGINT;
-BEGIN
-  SELECT COALESCE(MAX((regexp_match(invoice_no, '-([0-9]+)$'))[1]::BIGINT), 0)
-  INTO v_max_suffix
-  FROM public.orders
-  WHERE invoice_no ~ '-[0-9]+$';
-
-  SELECT last_value INTO v_sequence_value FROM public.invoice_number_seq;
-  PERFORM setval(
-    'public.invoice_number_seq',
-    GREATEST(v_max_suffix, v_sequence_value, 1),
-    TRUE
-  );
-END;
-$$;
-
+-- Final invoice-number generator: a plain 8-digit zero-padded sequence value
+-- (earlier PB-YYYY-###### / PB-YYYYMMDD-###### prefixed formats are superseded).
 CREATE OR REPLACE FUNCTION public.get_next_invoice_no()
 RETURNS TEXT
 LANGUAGE sql
@@ -619,8 +526,7 @@ SECURITY DEFINER
 SET search_path = public
 VOLATILE
 AS $$
-  SELECT 'PB-' || TO_CHAR(NOW(), 'YYYYMMDD') || '-' ||
-         LPAD(nextval('public.invoice_number_seq')::TEXT, 6, '0');
+  SELECT LPAD(nextval('public.invoice_number_seq')::TEXT, 8, '0');
 $$;
 
 CREATE OR REPLACE FUNCTION public.create_order_with_stock(
@@ -811,366 +717,6 @@ GRANT EXECUTE ON FUNCTION public.create_order_with_stock(
   TEXT, NUMERIC, TEXT, NUMERIC, NUMERIC, BOOLEAN, TEXT, JSONB
 ) TO anon, authenticated;
 
-NOTIFY pgrst, 'reload schema';
-
-COMMIT;
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260719_0004_advance_orders.sql
--- ---------------------------------------------------------------------------
-begin;
-
-create sequence if not exists public.deposit_number_seq start 1;
-
-alter table public.order_items add column if not exists category text;
-
-create table if not exists public.advance_orders (
-  id uuid primary key default gen_random_uuid(),
-  deposit_id text not null unique,
-  customer_name text not null,
-  phone text not null,
-  address text not null default '',
-  product_name text not null,
-  products jsonb not null default '[]'::jsonb,
-  category text not null default '',
-  description text not null default '',
-  total_amount numeric(12,2) not null check (total_amount > 0),
-  deposit_amount numeric(12,2) not null check (deposit_amount > 0),
-  remaining_balance numeric(12,2) generated always as (total_amount - deposit_amount) stored,
-  expected_delivery_date date not null,
-  status text not null default 'pending_deposit' check (status in ('pending_deposit','ready_for_delivery','waiting_final_payment','completed','cancelled')),
-  remarks text not null default '',
-  created_by uuid references auth.users(id) on delete set null,
-  created_by_name text not null default '',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  completed_at timestamptz,
-  completed_order_id uuid unique references public.orders(id),
-  invoice_number text unique,
-  final_payment_method text,
-  constraint advance_deposit_less_than_total check (deposit_amount < total_amount)
-);
-
-alter table public.advance_orders add column if not exists products jsonb not null default '[]'::jsonb;
-
-create table if not exists public.advance_order_timeline (
-  id bigint generated always as identity primary key,
-  advance_order_id uuid not null references public.advance_orders(id) on delete cascade,
-  event_type text not null,
-  label text not null,
-  remarks text not null default '',
-  created_by uuid references auth.users(id) on delete set null,
-  created_at timestamptz not null default now()
-);
-
-create table if not exists public.advance_order_payments (
-  id uuid primary key default gen_random_uuid(),
-  advance_order_id uuid not null references public.advance_orders(id) on delete cascade,
-  payment_type text not null check (payment_type in ('deposit','remaining')),
-  amount numeric(12,2) not null check (amount >= 0),
-  payment_method text not null check (payment_method in ('cash','upi','card')),
-  remarks text not null default '',
-  received_by uuid references auth.users(id) on delete set null,
-  received_at timestamptz not null default now(),
-  unique (advance_order_id, payment_type)
-);
-
-create index if not exists advance_orders_created_idx on public.advance_orders(created_at desc);
-create index if not exists advance_orders_status_idx on public.advance_orders(status);
-create index if not exists advance_orders_delivery_idx on public.advance_orders(expected_delivery_date);
-create index if not exists advance_order_timeline_order_idx on public.advance_order_timeline(advance_order_id, created_at);
-create index if not exists advance_order_payments_order_idx on public.advance_order_payments(advance_order_id, received_at);
-
-drop function if exists public.create_advance_order(text,text,text,text,text,text,numeric,numeric,date,text,text,text);
-create or replace function public.create_advance_order(
-  p_customer_name text, p_phone text, p_address text, p_product_name text,
-  p_category text, p_description text, p_total_amount numeric, p_deposit_amount numeric,
-  p_expected_delivery_date date, p_remarks text, p_payment_method text, p_created_by_name text,
-  p_products jsonb default '[]'::jsonb
-)
-returns public.advance_orders
-language plpgsql security definer set search_path = public
-as $$
-declare v_order public.advance_orders; v_now timestamptz := now(); v_deposit_id text;
-begin
-  if trim(coalesce(p_customer_name,'')) = '' then raise exception 'Customer name is required'; end if;
-  if trim(coalesce(p_phone,'')) = '' then raise exception 'Phone number is required'; end if;
-  if trim(coalesce(p_product_name,'')) = '' then raise exception 'Product name is required'; end if;
-  if coalesce(p_total_amount,0) <= 0 then raise exception 'Total amount must be greater than zero'; end if;
-  if coalesce(p_deposit_amount,0) <= 0 or p_deposit_amount >= p_total_amount then raise exception 'Deposit must be greater than zero and less than the total amount'; end if;
-  if lower(coalesce(p_payment_method,'')) not in ('cash','upi','card') then raise exception 'Select a valid deposit payment method'; end if;
-  v_deposit_id := 'DEP-' || to_char(v_now at time zone 'Asia/Kolkata','YYYYMMDD') || '-' || lpad(nextval('public.deposit_number_seq')::text,4,'0');
-  insert into public.advance_orders(deposit_id,customer_name,phone,address,product_name,products,category,description,total_amount,deposit_amount,expected_delivery_date,remarks,created_by,created_by_name,created_at,updated_at)
-  values(v_deposit_id,trim(p_customer_name),trim(p_phone),trim(coalesce(p_address,'')),trim(p_product_name),case when jsonb_typeof(coalesce(p_products,'[]'::jsonb))='array' then coalesce(p_products,'[]'::jsonb) else '[]'::jsonb end,trim(coalesce(p_category,'')),trim(coalesce(p_description,'')),round(p_total_amount,2),round(p_deposit_amount,2),p_expected_delivery_date,trim(coalesce(p_remarks,'')),auth.uid(),trim(coalesce(p_created_by_name,'')),v_now,v_now)
-  returning * into v_order;
-  insert into public.advance_order_payments(advance_order_id,payment_type,amount,payment_method,remarks,received_by,received_at)
-  values(v_order.id,'deposit',v_order.deposit_amount,lower(p_payment_method),coalesce(p_remarks,''),auth.uid(),v_now);
-  insert into public.advance_order_timeline(advance_order_id,event_type,label,created_by,created_at) values
-    (v_order.id,'created','Created',auth.uid(),v_now),
-    (v_order.id,'deposit_received','Deposit Received',auth.uid(),v_now);
-  return v_order;
-end;
-$$;
-
--- Dropped first because a later migration may have already changed this
--- function's return type (single row vs SETOF); CREATE OR REPLACE cannot
--- change a return type, so this keeps the whole migration set re-runnable.
-drop function if exists public.update_advance_order_status(uuid, text, text);
-
-create or replace function public.update_advance_order_status(p_order_id uuid, p_status text, p_remarks text default '')
-returns public.advance_orders
-language plpgsql security definer set search_path = public
-as $$
-declare v_order public.advance_orders; v_label text;
-begin
-  if p_status not in ('pending_deposit','ready_for_delivery','waiting_final_payment','cancelled') then raise exception 'Invalid status transition'; end if;
-  select * into v_order from public.advance_orders where id=p_order_id for update;
-  if not found then raise exception 'Advance order not found'; end if;
-  if v_order.status='completed' then raise exception 'A completed order cannot be changed'; end if;
-  v_label := case p_status when 'ready_for_delivery' then 'Tailoring Completed' when 'waiting_final_payment' then 'Customer Contacted' when 'cancelled' then 'Cancelled' else 'Pending Deposit' end;
-  update public.advance_orders set status=p_status,remarks=case when trim(coalesce(p_remarks,''))='' then remarks else p_remarks end,updated_at=now() where id=p_order_id returning * into v_order;
-  insert into public.advance_order_timeline(advance_order_id,event_type,label,remarks,created_by) values(p_order_id,p_status,v_label,coalesce(p_remarks,''),auth.uid());
-  return v_order;
-end;
-$$;
-
-create or replace function public.add_advance_order_event(p_order_id uuid, p_event_type text, p_label text, p_remarks text default '')
-returns void language plpgsql security definer set search_path = public
-as $$
-begin
-  if not exists(select 1 from public.advance_orders where id=p_order_id) then raise exception 'Advance order not found'; end if;
-  insert into public.advance_order_timeline(advance_order_id,event_type,label,remarks,created_by) values(p_order_id,p_event_type,p_label,coalesce(p_remarks,''),auth.uid());
-end;
-$$;
-
-create or replace function public.complete_advance_order(p_order_id uuid, p_payment_method text, p_remarks text default '')
-returns table(order_id uuid, invoice_no text, completed_at timestamptz)
-language plpgsql security definer set search_path = public
-as $$
-declare v_advance public.advance_orders; v_order_id uuid := gen_random_uuid(); v_invoice text; v_now timestamptz := now(); v_items jsonb; v_item jsonb;
-begin
-  if lower(coalesce(p_payment_method,'')) not in ('cash','upi','card') then raise exception 'Select a valid payment method'; end if;
-  select * into v_advance from public.advance_orders where id=p_order_id for update;
-  if not found then raise exception 'Advance order not found'; end if;
-  if v_advance.status='cancelled' then raise exception 'A cancelled order cannot be completed'; end if;
-  if v_advance.completed_order_id is not null or v_advance.invoice_number is not null then raise exception 'Invoice already generated for this order'; end if;
-  v_invoice := 'PB-' || to_char(v_now at time zone 'Asia/Kolkata','YYYYMMDD') || '-' || lpad(nextval('public.invoice_number_seq')::text,6,'0');
-  v_items := case when jsonb_typeof(v_advance.products)='array' and jsonb_array_length(v_advance.products)>0 then v_advance.products else jsonb_build_array(jsonb_build_object('name',v_advance.product_name,'category',v_advance.category,'description',v_advance.description,'quantity',1,'base_price',v_advance.total_amount,'line_total',v_advance.total_amount,'unit','piece','unit_type','unit','source','advance_order')) end;
-  insert into public.orders(id,invoice_no,customer_name,phone,address,user_id,items,subtotal,total,status,order_mode,order_type,shipping,delivery_charge,discount_amount,manual_discount_amount,payment_mode,payment_method,created_at,updated_at)
-  values(v_order_id,v_invoice,v_advance.customer_name,v_advance.phone,v_advance.address,auth.uid(),v_items,v_advance.total_amount,v_advance.total_amount,'completed','offline','advance_order',0,0,0,0,lower(p_payment_method),lower(p_payment_method),v_now,v_now);
-  for v_item in select value from jsonb_array_elements(v_items) loop
-    insert into public.order_items(order_id,product_name,category,quantity,unit,unit_price,line_total,is_manual,source,note)
-    values(v_order_id,coalesce(nullif(v_item->>'name',''),'Product'),coalesce(nullif(v_item->>'category',''),v_advance.category),greatest(coalesce(nullif(v_item->>'quantity','')::numeric,1),0),coalesce(nullif(v_item->>'unit',''),'piece'),greatest(coalesce(nullif(v_item->>'base_price','')::numeric,0),0),greatest(coalesce(nullif(v_item->>'line_total','')::numeric,0),0),false,'advance_order',coalesce(nullif(v_item->>'note',''),v_advance.description));
-  end loop;
-  insert into public.advance_order_payments(advance_order_id,payment_type,amount,payment_method,remarks,received_by,received_at)
-  values(p_order_id,'remaining',v_advance.remaining_balance,lower(p_payment_method),coalesce(p_remarks,''),auth.uid(),v_now);
-  update public.advance_orders set status='completed',completed_at=v_now,completed_order_id=v_order_id,invoice_number=v_invoice,final_payment_method=lower(p_payment_method),remarks=case when trim(coalesce(p_remarks,''))='' then remarks else p_remarks end,updated_at=v_now where id=p_order_id;
-  insert into public.advance_order_timeline(advance_order_id,event_type,label,remarks,created_by,created_at) values
-    (p_order_id,'remaining_payment_received','Remaining Payment Received',coalesce(p_remarks,''),auth.uid(),v_now),
-    (p_order_id,'invoice_generated','Invoice Generated',v_invoice,auth.uid(),v_now);
-  return query select v_order_id,v_invoice,v_now;
-end;
-$$;
-
-alter table public.advance_orders enable row level security;
-alter table public.advance_order_timeline enable row level security;
-alter table public.advance_order_payments enable row level security;
-
-drop policy if exists "Allow all for advance orders" on public.advance_orders;
-create policy "Allow all for advance orders" on public.advance_orders for all using (true) with check (true);
-
-drop policy if exists "Allow all for advance timeline" on public.advance_order_timeline;
-create policy "Allow all for advance timeline" on public.advance_order_timeline for all using (true) with check (true);
-
-drop policy if exists "Allow all for advance payments" on public.advance_order_payments;
-create policy "Allow all for advance payments" on public.advance_order_payments for all using (true) with check (true);
-
-grant usage, select on sequence public.deposit_number_seq to public, anon, authenticated;
-grant usage, select on sequence public.invoice_number_seq to public, anon, authenticated;
-
-grant select, insert, update, delete on public.advance_orders to public, anon, authenticated;
-grant select, insert, update, delete on public.advance_order_timeline to public, anon, authenticated;
-grant select, insert, update, delete on public.advance_order_payments to public, anon, authenticated;
-
-grant execute on function public.create_advance_order(text,text,text,text,text,text,numeric,numeric,date,text,text,text,jsonb) to public, anon, authenticated;
-grant execute on function public.update_advance_order_status(uuid,text,text) to public, anon, authenticated;
-grant execute on function public.add_advance_order_event(uuid,text,text,text) to public, anon, authenticated;
-grant execute on function public.complete_advance_order(uuid,text,text) to public, anon, authenticated;
-
-notify pgrst, 'reload schema';
-commit;
-
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260722_0005_eight_digit_invoice_numbers.sql
--- ---------------------------------------------------------------------------
--- Migration: 8-digit Invoice Number Generation
--- Ensures invoice numbers are strictly 8 digits in total (e.g., 10000001, 10000002...)
-
--- invoice_number_seq already exists by this point (created without a START
--- WITH value by an earlier migration), so "IF NOT EXISTS ... START WITH" is
--- a no-op here and never actually seeds the intended floor. Force it up to
--- at least 10000001 explicitly. GREATEST() means this only ever moves the
--- sequence forward, never backward, so it's safe to re-run against a live
--- database that has already issued invoice numbers above this floor.
-CREATE SEQUENCE IF NOT EXISTS public.invoice_number_seq START WITH 10000001;
-SELECT setval('public.invoice_number_seq', GREATEST((SELECT last_value FROM public.invoice_number_seq), 10000001), true);
-
-CREATE OR REPLACE FUNCTION public.get_next_invoice_no()
-RETURNS TEXT
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-VOLATILE
-AS $$
-  SELECT LPAD(nextval('public.invoice_number_seq')::TEXT, 8, '0');
-$$;
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260724_0006_fix_complete_advance_order.sql
--- ---------------------------------------------------------------------------
--- Migration: Fix complete_advance_order RPC
--- The previous version referenced columns (unit_price, source, note) that do
--- not exist in the order_items table. This patch corrects the insert to use
--- the actual column names: base_price, line_total, is_manual.
-
-CREATE OR REPLACE FUNCTION public.complete_advance_order(
-  p_order_id uuid,
-  p_payment_method text,
-  p_remarks text DEFAULT ''
-)
-RETURNS TABLE(order_id uuid, invoice_no text, completed_at timestamptz)
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_advance        public.advance_orders;
-  v_order_id       uuid := gen_random_uuid();
-  v_invoice        text;
-  v_now            timestamptz := now();
-  v_items          jsonb;
-  v_item           jsonb;
-BEGIN
-  -- Validate payment method
-  IF lower(coalesce(p_payment_method, '')) NOT IN ('cash', 'upi', 'card') THEN
-    RAISE EXCEPTION 'Select a valid payment method';
-  END IF;
-
-  -- Lock and fetch the advance order
-  SELECT * INTO v_advance FROM public.advance_orders WHERE id = p_order_id FOR UPDATE;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Advance order not found';
-  END IF;
-  IF v_advance.status = 'cancelled' THEN
-    RAISE EXCEPTION 'A cancelled order cannot be completed';
-  END IF;
-  IF v_advance.completed_order_id IS NOT NULL OR v_advance.invoice_number IS NOT NULL THEN
-    RAISE EXCEPTION 'Invoice already generated for this order';
-  END IF;
-
-  -- Generate invoice number using the existing 8-digit sequence
-  v_invoice := LPAD(nextval('public.invoice_number_seq')::TEXT, 8, '0');
-
-  -- Build items JSONB — prefer products array, fall back to single product
-  v_items := CASE
-    WHEN jsonb_typeof(v_advance.products) = 'array' AND jsonb_array_length(v_advance.products) > 0
-      THEN v_advance.products
-    ELSE jsonb_build_array(
-      jsonb_build_object(
-        'name',        v_advance.product_name,
-        'category',    v_advance.category,
-        'description', v_advance.description,
-        'quantity',    1,
-        'base_price',  v_advance.total_amount,
-        'line_total',  v_advance.total_amount,
-        'unit',        'piece',
-        'unit_type',   'unit',
-        'source',      'advance_order'
-      )
-    )
-  END;
-
-  -- Create the final sale order
-  INSERT INTO public.orders (
-    id, invoice_no, customer_name, phone, address, user_id,
-    items, subtotal, total, status, order_mode, order_type,
-    shipping, delivery_charge, discount_amount, manual_discount_amount,
-    payment_mode, payment_method, created_at, updated_at
-  ) VALUES (
-    v_order_id, v_invoice,
-    v_advance.customer_name, v_advance.phone, v_advance.address, auth.uid(),
-    v_items, v_advance.total_amount, v_advance.total_amount,
-    'completed', 'offline', 'advance_order',
-    0, 0, 0, 0,
-    lower(p_payment_method), lower(p_payment_method),
-    v_now, v_now
-  );
-
-  -- Insert order_items using the CORRECT column names from the schema
-  FOR v_item IN SELECT value FROM jsonb_array_elements(v_items) LOOP
-    INSERT INTO public.order_items (
-      order_id, product_name, name, quantity, unit, unit_type,
-      base_price, line_total, is_manual
-    ) VALUES (
-      v_order_id,
-      coalesce(nullif(trim(v_item->>'name'), ''), 'Product'),
-      coalesce(nullif(trim(v_item->>'name'), ''), 'Product'),
-      greatest(coalesce((v_item->>'quantity')::numeric, 1), 0),
-      coalesce(nullif(v_item->>'unit', ''), 'piece'),
-      coalesce(nullif(v_item->>'unit_type', ''), 'unit'),
-      greatest(coalesce((v_item->>'base_price')::numeric, 0), 0),
-      greatest(coalesce((v_item->>'line_total')::numeric, 0), 0),
-      false
-    );
-  END LOOP;
-
-  -- Record the final payment received
-  INSERT INTO public.advance_order_payments (
-    advance_order_id, payment_type, amount, payment_method, remarks, received_by, received_at
-  ) VALUES (
-    p_order_id, 'remaining', v_advance.remaining_balance,
-    lower(p_payment_method), coalesce(p_remarks, ''), auth.uid(), v_now
-  );
-
-  -- Mark advance order as completed
-  UPDATE public.advance_orders SET
-    status               = 'completed',
-    completed_at         = v_now,
-    completed_order_id   = v_order_id,
-    invoice_number       = v_invoice,
-    final_payment_method = lower(p_payment_method),
-    remarks              = CASE WHEN trim(coalesce(p_remarks, '')) = '' THEN remarks ELSE p_remarks END,
-    updated_at           = v_now
-  WHERE id = p_order_id;
-
-  -- Timeline events
-  INSERT INTO public.advance_order_timeline (
-    advance_order_id, event_type, label, remarks, created_by, created_at
-  ) VALUES
-    (p_order_id, 'remaining_payment_received', 'Remaining Payment Received', coalesce(p_remarks, ''), auth.uid(), v_now),
-    (p_order_id, 'invoice_generated',          'Invoice Generated',          v_invoice,               auth.uid(), v_now);
-
-  RETURN QUERY SELECT v_order_id, v_invoice, v_now;
-END;
-$$;
-
--- Re-grant execute permission
-GRANT EXECUTE ON FUNCTION public.complete_advance_order(uuid, text, text)
-  TO public, anon, authenticated;
-
-NOTIFY pgrst, 'reload schema';
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260724_0008_fix_public_invoice_rpc.sql
--- ---------------------------------------------------------------------------
--- Migration: Fix missing get_public_invoice_by_number RPC
--- Re-creates the function and forces a schema cache reload to resolve 404 errors on the /invoice page
-
 CREATE OR REPLACE FUNCTION public.get_public_invoice_by_number(p_invoice_no TEXT)
 RETURNS SETOF public.orders
 LANGUAGE sql
@@ -1184,234 +730,40 @@ $$;
 REVOKE ALL ON FUNCTION public.get_public_invoice_by_number(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_public_invoice_by_number(TEXT) TO anon, authenticated;
 
--- Force PostgREST to reload the schema cache
-NOTIFY pgrst, 'reload schema';
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260724_0009_create_invoices_bucket.sql
--- ---------------------------------------------------------------------------
--- Migration: Create invoices storage bucket
--- Creates the 'invoices' bucket and sets up public read access and upload policies
-
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES ('invoices', 'invoices', TRUE, 10485760, ARRAY['application/pdf'])
-ON CONFLICT (id) DO UPDATE SET public = TRUE, file_size_limit = 10485760, allowed_mime_types = ARRAY['application/pdf'];
-
-DROP POLICY IF EXISTS invoices_public_read ON storage.objects;
-CREATE POLICY invoices_public_read ON storage.objects FOR SELECT TO public USING (bucket_id = 'invoices');
-
-DROP POLICY IF EXISTS invoices_portal_upload ON storage.objects;
-CREATE POLICY invoices_portal_upload ON storage.objects FOR INSERT TO anon, authenticated WITH CHECK (bucket_id = 'invoices');
-
-DROP POLICY IF EXISTS invoices_portal_update ON storage.objects;
-CREATE POLICY invoices_portal_update ON storage.objects FOR UPDATE TO anon, authenticated USING (bucket_id = 'invoices') WITH CHECK (bucket_id = 'invoices');
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260726_0007_update_complete_advance_order_discount.sql
--- ---------------------------------------------------------------------------
--- Migration: Update complete_advance_order to handle final amount, discounts, and coupons
--- This creates a new version of the RPC (v2) which is called from the frontend.
-
-CREATE OR REPLACE FUNCTION public.complete_advance_order_v2(
-  p_order_id uuid,
-  p_payment_method text,
-  p_final_amount numeric,
-  p_coupon_code text DEFAULT NULL,
-  p_coupon_percentage numeric DEFAULT 0,
-  p_manual_discount numeric DEFAULT 0,
-  p_remarks text DEFAULT ''
+CREATE OR REPLACE FUNCTION public.create_advance_order(
+  p_customer_name TEXT, p_phone TEXT, p_address TEXT, p_product_name TEXT,
+  p_category TEXT, p_description TEXT, p_total_amount NUMERIC, p_deposit_amount NUMERIC,
+  p_expected_delivery_date DATE, p_remarks TEXT, p_payment_method TEXT, p_created_by_name TEXT,
+  p_products JSONB DEFAULT '[]'::JSONB
 )
-RETURNS TABLE(order_id uuid, invoice_no text, completed_at timestamptz)
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
+RETURNS public.advance_orders
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
-DECLARE
-  v_advance        public.advance_orders;
-  v_order_id       uuid := gen_random_uuid();
-  v_invoice        text;
-  v_now            timestamptz := now();
-  v_items          jsonb;
-  v_item           jsonb;
-  v_total_discount numeric := 0;
+DECLARE v_order public.advance_orders; v_now TIMESTAMPTZ := now(); v_deposit_id TEXT;
 BEGIN
-  -- Validate payment method
-  IF lower(coalesce(p_payment_method, '')) NOT IN ('cash', 'upi', 'card') THEN
-    RAISE EXCEPTION 'Select a valid payment method';
-  END IF;
-
-  -- Lock and fetch the advance order
-  SELECT * INTO v_advance FROM public.advance_orders WHERE id = p_order_id FOR UPDATE;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Advance order not found';
-  END IF;
-  IF v_advance.status = 'cancelled' THEN
-    RAISE EXCEPTION 'A cancelled order cannot be completed';
-  END IF;
-  IF v_advance.completed_order_id IS NOT NULL OR v_advance.invoice_number IS NOT NULL THEN
-    RAISE EXCEPTION 'Invoice already generated for this order';
-  END IF;
-
-  -- Calculate the total discount from manual discount and coupon
-  v_total_discount := p_manual_discount + (v_advance.remaining_balance - p_manual_discount - p_final_amount);
-  IF v_total_discount < 0 THEN
-    v_total_discount := 0;
-  END IF;
-
-  -- Generate invoice number using the existing 8-digit sequence
-  v_invoice := LPAD(nextval('public.invoice_number_seq')::TEXT, 8, '0');
-
-  -- Build items JSONB - prefer products array, fall back to single product
-  v_items := CASE
-    WHEN jsonb_typeof(v_advance.products) = 'array' AND jsonb_array_length(v_advance.products) > 0
-      THEN v_advance.products
-    ELSE jsonb_build_array(
-      jsonb_build_object(
-        'name',        v_advance.product_name,
-        'category',    v_advance.category,
-        'description', v_advance.description,
-        'quantity',    1,
-        'base_price',  v_advance.total_amount,
-        'line_total',  v_advance.total_amount,
-        'unit',        'piece',
-        'unit_type',   'unit',
-        'source',      'advance_order'
-      )
-    )
-  END;
-
-  -- Create the final sale order, storing the discount information
-  INSERT INTO public.orders (
-    id, invoice_no, customer_name, phone, address, user_id,
-    items, subtotal, total, status, order_mode, order_type,
-    shipping, delivery_charge, discount_amount, manual_discount_amount,
-    coupon_code, coupon_percentage, manual_discount_type, manual_discount_value,
-    payment_mode, payment_method, created_at, updated_at
-  ) VALUES (
-    v_order_id, v_invoice,
-    v_advance.customer_name, v_advance.phone, v_advance.address, auth.uid(),
-    v_items, v_advance.total_amount, greatest(0, v_advance.total_amount - v_total_discount),
-    'completed', 'offline', 'advance_order',
-    0, 0, v_total_discount, p_manual_discount,
-    p_coupon_code, p_coupon_percentage, 'flat', p_manual_discount,
-    lower(p_payment_method), lower(p_payment_method),
-    v_now, v_now
-  );
-
-  -- Insert order_items using the CORRECT column names from the schema
-  FOR v_item IN SELECT value FROM jsonb_array_elements(v_items) LOOP
-    INSERT INTO public.order_items (
-      order_id, product_name, name, quantity, unit, unit_type,
-      base_price, line_total, is_manual
-    ) VALUES (
-      v_order_id,
-      coalesce(nullif(trim(v_item->>'name'), ''), 'Product'),
-      coalesce(nullif(trim(v_item->>'name'), ''), 'Product'),
-      greatest(coalesce((v_item->>'quantity')::numeric, 1), 0),
-      coalesce(nullif(v_item->>'unit', ''), 'piece'),
-      coalesce(nullif(v_item->>'unit_type', ''), 'unit'),
-      greatest(coalesce((v_item->>'base_price')::numeric, 0), 0),
-      greatest(coalesce((v_item->>'line_total')::numeric, 0), 0),
-      false
-    );
-  END LOOP;
-
-  -- Record the final payment received
-  INSERT INTO public.advance_order_payments (
-    advance_order_id, payment_type, amount, payment_method, remarks, received_by, received_at
-  ) VALUES (
-    p_order_id, 'remaining', p_final_amount,
-    lower(p_payment_method), coalesce(p_remarks, ''), auth.uid(), v_now
-  );
-
-  -- Mark advance order as completed. Note that remaining_balance is GENERATED ALWAYS AS (total_amount - deposit_amount)
-  -- so we do not update remaining_balance directly, but the UI considers it "paid".
-  UPDATE public.advance_orders SET
-    status               = 'completed',
-    completed_at         = v_now,
-    completed_order_id   = v_order_id,
-    invoice_number       = v_invoice,
-    final_payment_method = lower(p_payment_method),
-    remarks              = CASE WHEN trim(coalesce(p_remarks, '')) = '' THEN remarks ELSE p_remarks END,
-    updated_at           = v_now
-  WHERE id = p_order_id;
-
-  -- Timeline events
-  INSERT INTO public.advance_order_timeline (
-    advance_order_id, event_type, label, remarks, created_by, created_at
-  ) VALUES
-    (p_order_id, 'remaining_payment_received', 'Remaining Payment Received', coalesce(p_remarks, ''), auth.uid(), v_now),
-    (p_order_id, 'invoice_generated',          'Invoice Generated',          v_invoice,               auth.uid(), v_now);
-
-  RETURN QUERY SELECT v_order_id, v_invoice, v_now;
+  IF trim(coalesce(p_customer_name,'')) = '' THEN RAISE EXCEPTION 'Customer name is required'; END IF;
+  IF trim(coalesce(p_phone,'')) = '' THEN RAISE EXCEPTION 'Phone number is required'; END IF;
+  IF trim(coalesce(p_product_name,'')) = '' THEN RAISE EXCEPTION 'Product name is required'; END IF;
+  IF coalesce(p_total_amount,0) <= 0 THEN RAISE EXCEPTION 'Total amount must be greater than zero'; END IF;
+  IF coalesce(p_deposit_amount,0) <= 0 OR p_deposit_amount >= p_total_amount THEN RAISE EXCEPTION 'Deposit must be greater than zero and less than the total amount'; END IF;
+  IF lower(coalesce(p_payment_method,'')) NOT IN ('cash','upi','card') THEN RAISE EXCEPTION 'Select a valid deposit payment method'; END IF;
+  v_deposit_id := 'DEP-' || to_char(v_now AT TIME ZONE 'Asia/Kolkata','YYYYMMDD') || '-' || lpad(nextval('public.deposit_number_seq')::TEXT,4,'0');
+  INSERT INTO public.advance_orders(deposit_id,customer_name,phone,address,product_name,products,category,description,total_amount,deposit_amount,expected_delivery_date,remarks,created_by,created_by_name,created_at,updated_at)
+  VALUES(v_deposit_id,trim(p_customer_name),trim(p_phone),trim(coalesce(p_address,'')),trim(p_product_name),CASE WHEN jsonb_typeof(coalesce(p_products,'[]'::jsonb))='array' THEN coalesce(p_products,'[]'::jsonb) ELSE '[]'::jsonb END,trim(coalesce(p_category,'')),trim(coalesce(p_description,'')),round(p_total_amount,2),round(p_deposit_amount,2),p_expected_delivery_date,trim(coalesce(p_remarks,'')),auth.uid(),trim(coalesce(p_created_by_name,'')),v_now,v_now)
+  RETURNING * INTO v_order;
+  INSERT INTO public.advance_order_payments(advance_order_id,payment_type,amount,payment_method,remarks,received_by,received_at)
+  VALUES(v_order.id,'deposit',v_order.deposit_amount,lower(p_payment_method),coalesce(p_remarks,''),auth.uid(),v_now);
+  INSERT INTO public.advance_order_timeline(advance_order_id,event_type,label,created_by,created_at) VALUES
+    (v_order.id,'created','Created',auth.uid(),v_now),
+    (v_order.id,'deposit_received','Deposit Received',auth.uid(),v_now);
+  RETURN v_order;
 END;
 $$;
 
--- Grant execute permission
-GRANT EXECUTE ON FUNCTION public.complete_advance_order_v2(uuid, text, numeric, text, numeric, numeric, text)
-  TO public, anon, authenticated;
-
-NOTIFY pgrst, 'reload schema';
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260728_0010_final_audit_fixes.sql
--- ---------------------------------------------------------------------------
--- ============================================================
--- Migration 0010: Final audit fixes
--- Date: 2026-07-28
--- Purpose: Fix all remaining production issues found in audit
--- ============================================================
-
--- 1. Create store_reviews table (used by Home.tsx but never created in any migration)
-CREATE TABLE IF NOT EXISTS public.store_reviews (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  store_id    text,
-  reviewer    text,
-  rating      integer CHECK (rating BETWEEN 1 AND 5),
-  comment     text,
-  created_at  timestamptz NOT NULL DEFAULT now()
-);
-ALTER TABLE public.store_reviews ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Anyone can insert reviews" ON public.store_reviews;
-CREATE POLICY "Anyone can insert reviews" ON public.store_reviews FOR INSERT WITH CHECK (true);
-DROP POLICY IF EXISTS "Anyone can read reviews" ON public.store_reviews;
-CREATE POLICY "Anyone can read reviews"  ON public.store_reviews FOR SELECT USING (true);
-
--- 2. Make completed_order_id FK in advance_orders ON DELETE SET NULL
---    so that deleting an order from the orders table does not require
---    manually clearing advance_orders.completed_order_id first.
---    (Our frontend now also clears it first, but this is the proper DB-level safety net)
-ALTER TABLE public.advance_orders
-  DROP CONSTRAINT IF EXISTS advance_orders_completed_order_id_fkey;
-
-ALTER TABLE public.advance_orders
-  ADD CONSTRAINT advance_orders_completed_order_id_fkey
-  FOREIGN KEY (completed_order_id)
-  REFERENCES public.orders(id)
-  ON DELETE SET NULL;
-
--- 3. Ensure invoice_no column in advance_orders stores the INV-prefixed number
---    (already works via complete_advance_order_v2, but add index for faster lookup)
-CREATE INDEX IF NOT EXISTS idx_advance_orders_invoice_number ON public.advance_orders(invoice_number);
-CREATE INDEX IF NOT EXISTS idx_advance_orders_status ON public.advance_orders(status);
-CREATE INDEX IF NOT EXISTS idx_advance_orders_created_at ON public.advance_orders(created_at DESC);
-
--- 4. Ensure orders table has index on invoice_no for fast public invoice lookups
-CREATE INDEX IF NOT EXISTS idx_orders_invoice_no ON public.orders(invoice_no);
-CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders(created_at DESC);
-
--- 5. Ensure update_advance_order_status RPC is up to date and handles all statuses
--- Return type changed from a single row (public.advance_orders) to SETOF public.advance_orders,
--- which Postgres does not allow via CREATE OR REPLACE, so the old signature must be dropped first.
-DROP FUNCTION IF EXISTS public.update_advance_order_status(uuid, text, text);
-
 CREATE OR REPLACE FUNCTION public.update_advance_order_status(
-  p_order_id uuid,
-  p_status   text,
-  p_remarks  text DEFAULT ''
+  p_order_id UUID,
+  p_status   TEXT,
+  p_remarks  TEXT DEFAULT ''
 )
 RETURNS SETOF public.advance_orders
 LANGUAGE plpgsql
@@ -1455,12 +807,11 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.update_advance_order_status(uuid, text, text) TO authenticated, anon, public;
 
--- 6. Ensure add_advance_order_event RPC is robust
 CREATE OR REPLACE FUNCTION public.add_advance_order_event(
-  p_order_id   uuid,
-  p_event_type text,
-  p_label      text,
-  p_remarks    text DEFAULT ''
+  p_order_id   UUID,
+  p_event_type TEXT,
+  p_label      TEXT,
+  p_remarks    TEXT DEFAULT ''
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -1475,120 +826,250 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.add_advance_order_event(uuid, text, text, text) TO authenticated, anon, public;
 
--- 7. Ensure profiles RLS allows staff to update their own profile (avatar etc)
-DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-CREATE POLICY "Users can update own profile"
-  ON public.profiles FOR UPDATE
-  USING (auth.uid() = id);
+CREATE OR REPLACE FUNCTION public.complete_advance_order(
+  p_order_id UUID,
+  p_payment_method TEXT,
+  p_remarks TEXT DEFAULT ''
+)
+RETURNS TABLE(order_id UUID, invoice_no TEXT, completed_at TIMESTAMPTZ)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_advance        public.advance_orders;
+  v_order_id       UUID := gen_random_uuid();
+  v_invoice        TEXT;
+  v_now            TIMESTAMPTZ := now();
+  v_items          JSONB;
+  v_item           JSONB;
+BEGIN
+  IF lower(coalesce(p_payment_method, '')) NOT IN ('cash', 'upi', 'card') THEN
+    RAISE EXCEPTION 'Select a valid payment method';
+  END IF;
 
--- 8. Reload PostgREST schema cache
-NOTIFY pgrst, 'reload schema';
+  SELECT * INTO v_advance FROM public.advance_orders WHERE id = p_order_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Advance order not found';
+  END IF;
+  IF v_advance.status = 'cancelled' THEN
+    RAISE EXCEPTION 'A cancelled order cannot be completed';
+  END IF;
+  IF v_advance.completed_order_id IS NOT NULL OR v_advance.invoice_number IS NOT NULL THEN
+    RAISE EXCEPTION 'Invoice already generated for this order';
+  END IF;
 
+  v_invoice := LPAD(nextval('public.invoice_number_seq')::TEXT, 8, '0');
 
--- ---------------------------------------------------------------------------
--- Source: 20260808_0011_billing_date_and_order_fields.sql
--- ---------------------------------------------------------------------------
--- ============================================================
--- Migration 0011: Add billing_date and ensure order metadata columns exist
--- Date: 2026-08-08
--- Purpose:
---   1. Add optional billing_date column to orders table so admins
---      can backdate or set a custom billing date/time per sale.
---   2. Ensure remarks and reference_number columns exist (they were
---      added via the dashboard and used in existing client code).
--- ============================================================
+  v_items := CASE
+    WHEN jsonb_typeof(v_advance.products) = 'array' AND jsonb_array_length(v_advance.products) > 0
+      THEN v_advance.products
+    ELSE jsonb_build_array(
+      jsonb_build_object(
+        'name',        v_advance.product_name,
+        'category',    v_advance.category,
+        'description', v_advance.description,
+        'quantity',    1,
+        'base_price',  v_advance.total_amount,
+        'line_total',  v_advance.total_amount,
+        'unit',        'piece',
+        'unit_type',   'unit',
+        'source',      'advance_order'
+      )
+    )
+  END;
 
-BEGIN;
+  INSERT INTO public.orders (
+    id, invoice_no, customer_name, phone, address, user_id,
+    items, subtotal, total, status, order_mode, order_type,
+    shipping, delivery_charge, discount_amount, manual_discount_amount,
+    payment_mode, payment_method, created_at, updated_at
+  ) VALUES (
+    v_order_id, v_invoice,
+    v_advance.customer_name, v_advance.phone, v_advance.address, auth.uid(),
+    v_items, v_advance.total_amount, v_advance.total_amount,
+    'completed', 'offline', 'advance_order',
+    0, 0, 0, 0,
+    lower(p_payment_method), lower(p_payment_method),
+    v_now, v_now
+  );
 
--- Ensure remarks column exists (used by Pos.tsx update call)
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS remarks TEXT NOT NULL DEFAULT '';
+  FOR v_item IN SELECT value FROM jsonb_array_elements(v_items) LOOP
+    INSERT INTO public.order_items (
+      order_id, product_name, name, quantity, unit, unit_type,
+      base_price, line_total, is_manual
+    ) VALUES (
+      v_order_id,
+      coalesce(nullif(trim(v_item->>'name'), ''), 'Product'),
+      coalesce(nullif(trim(v_item->>'name'), ''), 'Product'),
+      greatest(coalesce((v_item->>'quantity')::numeric, 1), 0),
+      coalesce(nullif(v_item->>'unit', ''), 'piece'),
+      coalesce(nullif(v_item->>'unit_type', ''), 'unit'),
+      greatest(coalesce((v_item->>'base_price')::numeric, 0), 0),
+      greatest(coalesce((v_item->>'line_total')::numeric, 0), 0),
+      false
+    );
+  END LOOP;
 
--- Ensure reference_number column exists (used by Pos.tsx update call)
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS reference_number TEXT NOT NULL DEFAULT '';
+  INSERT INTO public.advance_order_payments (
+    advance_order_id, payment_type, amount, payment_method, remarks, received_by, received_at
+  ) VALUES (
+    p_order_id, 'remaining', v_advance.remaining_balance,
+    lower(p_payment_method), coalesce(p_remarks, ''), auth.uid(), v_now
+  );
 
--- Add optional billing_date column.
--- When NULL the UI falls back to created_at for display.
--- When set, it represents the admin-chosen billing date/time.
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS billing_date TIMESTAMPTZ;
+  UPDATE public.advance_orders SET
+    status               = 'completed',
+    completed_at         = v_now,
+    completed_order_id   = v_order_id,
+    invoice_number       = v_invoice,
+    final_payment_method = lower(p_payment_method),
+    remarks              = CASE WHEN trim(coalesce(p_remarks, '')) = '' THEN remarks ELSE p_remarks END,
+    updated_at           = v_now
+  WHERE id = p_order_id;
 
--- Index for fast lookup by billing_date in analytics
-CREATE INDEX IF NOT EXISTS idx_orders_billing_date ON public.orders(billing_date);
+  INSERT INTO public.advance_order_timeline (
+    advance_order_id, event_type, label, remarks, created_by, created_at
+  ) VALUES
+    (p_order_id, 'remaining_payment_received', 'Remaining Payment Received', coalesce(p_remarks, ''), auth.uid(), v_now),
+    (p_order_id, 'invoice_generated',          'Invoice Generated',          v_invoice,               auth.uid(), v_now);
 
--- Reload PostgREST schema cache so the new column is immediately accessible
-NOTIFY pgrst, 'reload schema';
+  RETURN QUERY SELECT v_order_id, v_invoice, v_now;
+END;
+$$;
 
-COMMIT;
+GRANT EXECUTE ON FUNCTION public.complete_advance_order(uuid, text, text) TO public, anon, authenticated;
 
+-- v2: called by the current frontend. Handles a manually-adjusted final
+-- amount plus coupon/manual discounts on top of the deposit-based total.
+CREATE OR REPLACE FUNCTION public.complete_advance_order_v2(
+  p_order_id UUID,
+  p_payment_method TEXT,
+  p_final_amount NUMERIC,
+  p_coupon_code TEXT DEFAULT NULL,
+  p_coupon_percentage NUMERIC DEFAULT 0,
+  p_manual_discount NUMERIC DEFAULT 0,
+  p_remarks TEXT DEFAULT ''
+)
+RETURNS TABLE(order_id UUID, invoice_no TEXT, completed_at TIMESTAMPTZ)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_advance        public.advance_orders;
+  v_order_id       UUID := gen_random_uuid();
+  v_invoice        TEXT;
+  v_now            TIMESTAMPTZ := now();
+  v_items          JSONB;
+  v_item           JSONB;
+  v_total_discount NUMERIC := 0;
+BEGIN
+  IF lower(coalesce(p_payment_method, '')) NOT IN ('cash', 'upi', 'card') THEN
+    RAISE EXCEPTION 'Select a valid payment method';
+  END IF;
 
--- ---------------------------------------------------------------------------
--- Source: 20260901_0012_inventory_barcode_addon.sql
--- ---------------------------------------------------------------------------
--- ====================================================================
--- Migration 0012: Barcode Management & Inventory Movement Ledger Addon
--- ====================================================================
+  SELECT * INTO v_advance FROM public.advance_orders WHERE id = p_order_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Advance order not found';
+  END IF;
+  IF v_advance.status = 'cancelled' THEN
+    RAISE EXCEPTION 'A cancelled order cannot be completed';
+  END IF;
+  IF v_advance.completed_order_id IS NOT NULL OR v_advance.invoice_number IS NOT NULL THEN
+    RAISE EXCEPTION 'Invoice already generated for this order';
+  END IF;
 
-BEGIN;
+  v_total_discount := p_manual_discount + (v_advance.remaining_balance - p_manual_discount - p_final_amount);
+  IF v_total_discount < 0 THEN
+    v_total_discount := 0;
+  END IF;
 
--- 1. Sequences for Barcode Generation
-CREATE SEQUENCE IF NOT EXISTS public.barcode_product_seq START WITH 10000001;
-CREATE SEQUENCE IF NOT EXISTS public.barcode_variant_seq START WITH 10000001;
+  v_invoice := LPAD(nextval('public.invoice_number_seq')::TEXT, 8, '0');
 
--- 2. Canonical Barcode Registry
-CREATE TABLE IF NOT EXISTS public.barcode_registry (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  barcode_value TEXT NOT NULL UNIQUE,
-  entity_type TEXT NOT NULL CHECK (entity_type IN ('product', 'variant')),
-  product_id BIGINT NOT NULL REFERENCES public.products(id) ON DELETE RESTRICT,
-  variant_id UUID REFERENCES public.product_variants(id) ON DELETE RESTRICT,
-  is_active BOOLEAN NOT NULL DEFAULT TRUE,
-  created_by_name TEXT NOT NULL DEFAULT '',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT chk_barcode_entity_target CHECK (
-    (entity_type = 'product' AND variant_id IS NULL) OR
-    (entity_type = 'variant' AND variant_id IS NOT NULL)
-  )
-);
+  v_items := CASE
+    WHEN jsonb_typeof(v_advance.products) = 'array' AND jsonb_array_length(v_advance.products) > 0
+      THEN v_advance.products
+    ELSE jsonb_build_array(
+      jsonb_build_object(
+        'name',        v_advance.product_name,
+        'category',    v_advance.category,
+        'description', v_advance.description,
+        'quantity',    1,
+        'base_price',  v_advance.total_amount,
+        'line_total',  v_advance.total_amount,
+        'unit',        'piece',
+        'unit_type',   'unit',
+        'source',      'advance_order'
+      )
+    )
+  END;
 
--- 3. Inventory Movement Ledger
-CREATE TABLE IF NOT EXISTS public.inventory_movements (
-  id BIGSERIAL PRIMARY KEY,
-  product_id BIGINT REFERENCES public.products(id) ON DELETE SET NULL,
-  variant_id UUID REFERENCES public.product_variants(id) ON DELETE SET NULL,
-  barcode_id UUID REFERENCES public.barcode_registry(id) ON DELETE SET NULL,
-  movement_type TEXT NOT NULL CHECK (
-    movement_type IN ('INITIAL_BARCODE_STOCK', 'RESTOCK', 'SALE', 'RETURN', 'DAMAGE', 'CORRECTION', 'VOID')
-  ),
-  quantity_delta NUMERIC NOT NULL,
-  quantity_before NUMERIC NOT NULL,
-  quantity_after NUMERIC NOT NULL,
-  unit_cost NUMERIC DEFAULT NULL,
-  reference_type TEXT DEFAULT NULL, -- 'order', 'adjustment', 'barcode_receipt'
-  reference_id TEXT DEFAULT NULL,   -- order_id or invoice_no
-  note TEXT DEFAULT '',
-  created_by_name TEXT NOT NULL DEFAULT '',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+  INSERT INTO public.orders (
+    id, invoice_no, customer_name, phone, address, user_id,
+    items, subtotal, total, status, order_mode, order_type,
+    shipping, delivery_charge, discount_amount, manual_discount_amount,
+    coupon_code, coupon_percentage, manual_discount_type, manual_discount_value,
+    payment_mode, payment_method, created_at, updated_at
+  ) VALUES (
+    v_order_id, v_invoice,
+    v_advance.customer_name, v_advance.phone, v_advance.address, auth.uid(),
+    v_items, v_advance.total_amount, greatest(0, v_advance.total_amount - v_total_discount),
+    'completed', 'offline', 'advance_order',
+    0, 0, v_total_discount, p_manual_discount,
+    p_coupon_code, p_coupon_percentage, 'flat', p_manual_discount,
+    lower(p_payment_method), lower(p_payment_method),
+    v_now, v_now
+  );
 
--- 4. Indexes for Rapid POS Lookup & Audit Reports
-CREATE INDEX IF NOT EXISTS idx_barcode_registry_val ON public.barcode_registry(barcode_value);
-CREATE INDEX IF NOT EXISTS idx_barcode_registry_prod ON public.barcode_registry(product_id);
-CREATE INDEX IF NOT EXISTS idx_barcode_registry_var ON public.barcode_registry(variant_id) WHERE variant_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_inv_movements_prod ON public.inventory_movements(product_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_inv_movements_var ON public.inventory_movements(variant_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_inv_movements_type ON public.inventory_movements(movement_type, created_at DESC);
+  FOR v_item IN SELECT value FROM jsonb_array_elements(v_items) LOOP
+    INSERT INTO public.order_items (
+      order_id, product_name, name, quantity, unit, unit_type,
+      base_price, line_total, is_manual
+    ) VALUES (
+      v_order_id,
+      coalesce(nullif(trim(v_item->>'name'), ''), 'Product'),
+      coalesce(nullif(trim(v_item->>'name'), ''), 'Product'),
+      greatest(coalesce((v_item->>'quantity')::numeric, 1), 0),
+      coalesce(nullif(v_item->>'unit', ''), 'piece'),
+      coalesce(nullif(v_item->>'unit_type', ''), 'unit'),
+      greatest(coalesce((v_item->>'base_price')::numeric, 0), 0),
+      greatest(coalesce((v_item->>'line_total')::numeric, 0), 0),
+      false
+    );
+  END LOOP;
 
--- 5. Enable RLS and Policies
-ALTER TABLE public.barcode_registry ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.inventory_movements ENABLE ROW LEVEL SECURITY;
+  INSERT INTO public.advance_order_payments (
+    advance_order_id, payment_type, amount, payment_method, remarks, received_by, received_at
+  ) VALUES (
+    p_order_id, 'remaining', p_final_amount,
+    lower(p_payment_method), coalesce(p_remarks, ''), auth.uid(), v_now
+  );
 
-DROP POLICY IF EXISTS barcode_registry_all ON public.barcode_registry;
-CREATE POLICY barcode_registry_all ON public.barcode_registry FOR ALL USING (TRUE) WITH CHECK (TRUE);
+  -- remaining_balance is GENERATED ALWAYS AS (total_amount - deposit_amount),
+  -- so it is not updated directly, but the UI considers the order paid.
+  UPDATE public.advance_orders SET
+    status               = 'completed',
+    completed_at         = v_now,
+    completed_order_id   = v_order_id,
+    invoice_number       = v_invoice,
+    final_payment_method = lower(p_payment_method),
+    remarks              = CASE WHEN trim(coalesce(p_remarks, '')) = '' THEN remarks ELSE p_remarks END,
+    updated_at           = v_now
+  WHERE id = p_order_id;
 
-DROP POLICY IF EXISTS inventory_movements_all ON public.inventory_movements;
-CREATE POLICY inventory_movements_all ON public.inventory_movements FOR ALL USING (TRUE) WITH CHECK (TRUE);
+  INSERT INTO public.advance_order_timeline (
+    advance_order_id, event_type, label, remarks, created_by, created_at
+  ) VALUES
+    (p_order_id, 'remaining_payment_received', 'Remaining Payment Received', coalesce(p_remarks, ''), auth.uid(), v_now),
+    (p_order_id, 'invoice_generated',          'Invoice Generated',          v_invoice,               auth.uid(), v_now);
 
--- 6. Helper Function: Generate Unique Barcode String
+  RETURN QUERY SELECT v_order_id, v_invoice, v_now;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.complete_advance_order_v2(uuid, text, numeric, text, numeric, numeric, text) TO public, anon, authenticated;
+
 CREATE OR REPLACE FUNCTION public.generate_barcode_value(p_entity_type TEXT)
 RETURNS TEXT
 LANGUAGE plpgsql
@@ -1602,7 +1083,10 @@ BEGIN
 END;
 $$;
 
--- 7. Transactional RPC: Create Barcode & Receive Stock (With Barcode Reuse on Restock)
+-- Final version: accepts 0-quantity barcode generation (no stock increment),
+-- normalizes barcodes to uppercase, and lets a caller-supplied custom
+-- barcode override an existing active registry entry instead of being
+-- silently ignored.
 CREATE OR REPLACE FUNCTION public.create_barcode_and_receive_stock(
   p_product_id BIGINT,
   p_variant_id UUID DEFAULT NULL,
@@ -1628,8 +1112,8 @@ DECLARE
   v_prod_name TEXT;
   v_var_name TEXT := '';
 BEGIN
-  IF p_quantity_received <= 0 THEN
-    RAISE EXCEPTION 'Quantity received must be greater than zero';
+  IF p_quantity_received < 0 THEN
+    RAISE EXCEPTION 'Quantity received cannot be negative';
   END IF;
 
   -- 1. Check Parent Product Exists
@@ -1670,14 +1154,26 @@ BEGIN
     LIMIT 1;
   END IF;
 
-  -- 4. Reuse Existing or Create New Barcode
+  -- 4. Handle Custom Barcode Override
+  IF p_custom_barcode IS NOT NULL AND BTRIM(p_custom_barcode) <> '' THEN
+    IF v_barcode_id IS NOT NULL AND v_barcode_value <> UPPER(BTRIM(p_custom_barcode)) THEN
+      -- The user provided a NEW custom barcode that overrides the existing active one
+      UPDATE public.barcode_registry
+      SET is_active = FALSE, updated_at = NOW()
+      WHERE id = v_barcode_id;
+
+      v_barcode_id := NULL; -- Force creation of a new registry entry
+    END IF;
+  END IF;
+
+  -- 5. Reuse Existing or Create New Barcode
   IF v_barcode_id IS NOT NULL THEN
     v_is_new_barcode := FALSE;
     v_movement_type := CASE WHEN v_qty_before = 0 THEN 'INITIAL_BARCODE_STOCK' ELSE 'RESTOCK' END;
   ELSE
     v_is_new_barcode := TRUE;
     v_movement_type := 'INITIAL_BARCODE_STOCK';
-    v_barcode_value := COALESCE(NULLIF(BTRIM(p_custom_barcode), ''), public.generate_barcode_value(v_entity_type));
+    v_barcode_value := UPPER(COALESCE(NULLIF(BTRIM(p_custom_barcode), ''), public.generate_barcode_value(v_entity_type)));
 
     INSERT INTO public.barcode_registry (
       barcode_value, entity_type, product_id, variant_id, is_active, created_by_name
@@ -1688,7 +1184,7 @@ BEGIN
     RETURNING id INTO v_barcode_id;
   END IF;
 
-  -- 5. Synchronize compatibility column on target table
+  -- 6. Synchronize compatibility column on target table
   IF v_entity_type = 'variant' THEN
     UPDATE public.product_variants
     SET barcode = v_barcode_value, updated_at = NOW()
@@ -1699,48 +1195,52 @@ BEGIN
     WHERE id = p_product_id;
   END IF;
 
-  -- 6. Apply Stock Increment & Parent Aggregate Sync
-  v_qty_after := v_qty_before + p_quantity_received;
+  -- 7. Apply Stock Increment & Parent Aggregate Sync (ONLY if quantity received > 0)
+  IF p_quantity_received > 0 THEN
+    v_qty_after := v_qty_before + p_quantity_received;
 
-  IF v_entity_type = 'variant' THEN
-    UPDATE public.product_variants
-    SET stock = v_qty_after, updated_at = NOW()
-    WHERE id = p_variant_id;
+    IF v_entity_type = 'variant' THEN
+      UPDATE public.product_variants
+      SET stock = v_qty_after, updated_at = NOW()
+      WHERE id = p_variant_id;
 
-    -- Refresh parent aggregate stock cache
-    UPDATE public.products
-    SET stock_quantity = (
-          SELECT COALESCE(SUM(stock), 0)
-          FROM public.product_variants
-          WHERE product_id = p_product_id AND is_active = TRUE
-        ),
-        stock = FLOOR((
-          SELECT COALESCE(SUM(stock), 0)
-          FROM public.product_variants
-          WHERE product_id = p_product_id AND is_active = TRUE
-        ))::INTEGER,
-        updated_at = NOW()
-    WHERE id = p_product_id;
+      -- Refresh parent aggregate stock cache
+      UPDATE public.products
+      SET stock_quantity = (
+            SELECT COALESCE(SUM(stock), 0)
+            FROM public.product_variants
+            WHERE product_id = p_product_id AND is_active = TRUE
+          ),
+          stock = FLOOR((
+            SELECT COALESCE(SUM(stock), 0)
+            FROM public.product_variants
+            WHERE product_id = p_product_id AND is_active = TRUE
+          ))::INTEGER,
+          updated_at = NOW()
+      WHERE id = p_product_id;
+    ELSE
+      UPDATE public.products
+      SET stock_quantity = v_qty_after,
+          stock = FLOOR(v_qty_after)::INTEGER,
+          updated_at = NOW()
+      WHERE id = p_product_id;
+    END IF;
+
+    -- 8. Record Immutable Inventory Movement
+    INSERT INTO public.inventory_movements (
+      product_id, variant_id, barcode_id, movement_type,
+      quantity_delta, quantity_before, quantity_after,
+      unit_cost, reference_type, reference_id, note, created_by_name
+    )
+    VALUES (
+      p_product_id, p_variant_id, v_barcode_id, v_movement_type,
+      p_quantity_received, v_qty_before, v_qty_after,
+      p_unit_cost, 'barcode_receipt', v_barcode_value,
+      COALESCE(p_note, ''), COALESCE(p_created_by_name, '')
+    );
   ELSE
-    UPDATE public.products
-    SET stock_quantity = v_qty_after,
-        stock = FLOOR(v_qty_after)::INTEGER,
-        updated_at = NOW()
-    WHERE id = p_product_id;
+    v_qty_after := v_qty_before;
   END IF;
-
-  -- 7. Record Immutable Inventory Movement
-  INSERT INTO public.inventory_movements (
-    product_id, variant_id, barcode_id, movement_type,
-    quantity_delta, quantity_before, quantity_after,
-    unit_cost, reference_type, reference_id, note, created_by_name
-  )
-  VALUES (
-    p_product_id, p_variant_id, v_barcode_id, v_movement_type,
-    p_quantity_received, v_qty_before, v_qty_after,
-    p_unit_cost, 'barcode_receipt', v_barcode_value,
-    COALESCE(p_note, ''), COALESCE(p_created_by_name, '')
-  );
 
   RETURN jsonb_build_object(
     'success', TRUE,
@@ -1759,7 +1259,6 @@ BEGIN
 END;
 $$;
 
--- 8. Transactional RPC: Adjust Stock (Restock, Damage, Correction, Return)
 CREATE OR REPLACE FUNCTION public.adjust_inventory_stock(
   p_product_id BIGINT,
   p_variant_id UUID DEFAULT NULL,
@@ -1790,7 +1289,7 @@ BEGIN
 
     SELECT stock INTO v_qty_before FROM public.product_variants WHERE id = p_variant_id FOR UPDATE;
     SELECT id INTO v_barcode_id FROM public.barcode_registry WHERE variant_id = p_variant_id AND is_active = TRUE LIMIT 1;
-    
+
     v_delta := p_new_quantity - v_qty_before;
 
     UPDATE public.product_variants
@@ -1838,1053 +1337,10 @@ BEGIN
 END;
 $$;
 
--- 9. Transactional RPC: Complete POS Sale with Inventory Pre-Validation & Movement Ledger
-CREATE OR REPLACE FUNCTION public.complete_pos_sale_with_inventory(
-  p_customer_name TEXT,
-  p_phone TEXT,
-  p_address TEXT,
-  p_items JSONB,
-  p_shipping NUMERIC DEFAULT 0,
-  p_status TEXT DEFAULT 'completed',
-  p_order_mode TEXT DEFAULT 'offline',
-  p_order_type TEXT DEFAULT 'pos_sale',
-  p_delivery_charge NUMERIC DEFAULT 0,
-  p_discount_amount NUMERIC DEFAULT 0,
-  p_manual_discount_amount NUMERIC DEFAULT 0,
-  p_manual_discount_type TEXT DEFAULT 'flat',
-  p_manual_discount_value NUMERIC DEFAULT 0,
-  p_coupon_code TEXT DEFAULT NULL,
-  p_coupon_percentage NUMERIC DEFAULT 0,
-  p_payment_method TEXT DEFAULT 'cash',
-  p_split_details JSONB DEFAULT '{}'::JSONB,
-  p_total_gst NUMERIC DEFAULT 0,
-  p_gst_enabled BOOLEAN DEFAULT FALSE,
-  p_remarks TEXT DEFAULT NULL,
-  p_reference_number TEXT DEFAULT NULL,
-  p_billing_date TIMESTAMPTZ DEFAULT NULL
-)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_user_id UUID := auth.uid();
-  v_invoice_no TEXT;
-  v_order_id UUID;
-  v_subtotal NUMERIC := 0;
-  v_total NUMERIC := 0;
-  v_item JSONB;
-  v_product_id BIGINT;
-  v_variant_id UUID;
-  v_quantity NUMERIC;
-  v_unit_price NUMERIC;
-  v_line_total NUMERIC;
-  v_product_name TEXT;
-  v_name_ta TEXT;
-  v_unit TEXT;
-  v_unit_type TEXT;
-  v_base_quantity NUMERIC;
-  v_is_manual BOOLEAN;
-  v_discount NUMERIC;
-  v_gst_amount NUMERIC;
-  v_gst_rate NUMERIC;
-  v_image_url TEXT;
-  v_variant_name TEXT;
-  v_source TEXT;
-  v_note TEXT;
-  v_category TEXT;
-  v_current_stock NUMERIC;
-  v_barcode_id UUID;
-  v_created_at TIMESTAMPTZ := COALESCE(p_billing_date, NOW());
-BEGIN
-  IF p_items IS NULL OR jsonb_array_length(p_items) = 0 THEN
-    RAISE EXCEPTION 'Order items cannot be empty';
-  END IF;
-
-  -- 1. Atomic Pre-Validation of Available Stock for All Items
-  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
-  LOOP
-    v_product_id := NULLIF(v_item ->> 'product_id', '')::BIGINT;
-    v_variant_id := NULLIF(v_item ->> 'variant_id', '')::UUID;
-    v_quantity := COALESCE((v_item ->> 'quantity')::NUMERIC, 0);
-    v_is_manual := COALESCE((v_item ->> 'is_manual')::BOOLEAN, FALSE);
-    v_product_name := COALESCE(v_item ->> 'product_name', v_item ->> 'name', 'Product');
-
-    IF NOT v_is_manual AND v_quantity > 0 THEN
-      IF v_variant_id IS NOT NULL THEN
-        SELECT stock INTO v_current_stock FROM public.product_variants WHERE id = v_variant_id FOR UPDATE;
-        IF v_current_stock IS NULL OR v_current_stock < v_quantity THEN
-          RAISE EXCEPTION 'Insufficient stock for % (Available: %, Requested: %)', v_product_name, COALESCE(v_current_stock, 0), v_quantity;
-        END IF;
-      ELSIF v_product_id IS NOT NULL THEN
-        SELECT stock_quantity INTO v_current_stock FROM public.products WHERE id = v_product_id FOR UPDATE;
-        IF v_current_stock IS NULL OR v_current_stock < v_quantity THEN
-          RAISE EXCEPTION 'Insufficient stock for % (Available: %, Requested: %)', v_product_name, COALESCE(v_current_stock, 0), v_quantity;
-        END IF;
-      END IF;
-    END IF;
-  END LOOP;
-
-  -- 2. Calculate Subtotal & Generate Invoice Number
-  v_invoice_no := public.get_next_invoice_no();
-
-  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
-  LOOP
-    v_quantity := COALESCE((v_item ->> 'quantity')::NUMERIC, 0);
-    v_unit_price := COALESCE(
-      (v_item ->> 'unit_price')::NUMERIC,
-      (v_item ->> 'base_price')::NUMERIC,
-      (v_item ->> 'price')::NUMERIC,
-      0
-    );
-    v_line_total := COALESCE((v_item ->> 'line_total')::NUMERIC, ROUND(v_quantity * v_unit_price, 2));
-    v_subtotal := v_subtotal + v_line_total;
-  END LOOP;
-
-  v_total := GREATEST(0, ROUND(v_subtotal + COALESCE(p_shipping, 0) + COALESCE(p_delivery_charge, 0) - COALESCE(p_discount_amount, 0), 2));
-
-  -- 3. Insert Order Record
-  INSERT INTO public.orders (
-    invoice_no, user_id, customer_name, phone, address, items,
-    subtotal, shipping, total, status, order_mode, order_type,
-    delivery_charge, discount_amount, manual_discount_amount,
-    manual_discount_type, manual_discount_value, coupon_code,
-    coupon_percentage, total_gst, gst_amount, gst_enabled,
-    payment_method, payment_mode, split_details, remarks,
-    reference_number, billing_date, created_at, updated_at
-  )
-  VALUES (
-    v_invoice_no, v_user_id, COALESCE(NULLIF(BTRIM(p_customer_name), ''), 'Customer'),
-    COALESCE(p_phone, ''), COALESCE(p_address, ''), p_items,
-    v_subtotal, COALESCE(p_shipping, 0), v_total, COALESCE(p_status, 'completed'),
-    COALESCE(p_order_mode, 'offline'), COALESCE(p_order_type, 'pos_sale'),
-    COALESCE(p_delivery_charge, 0), COALESCE(p_discount_amount, 0),
-    COALESCE(p_manual_discount_amount, 0), COALESCE(p_manual_discount_type, 'flat'),
-    COALESCE(p_manual_discount_value, 0), p_coupon_code,
-    COALESCE(p_coupon_percentage, 0), COALESCE(p_total_gst, 0),
-    COALESCE(p_total_gst, 0), COALESCE(p_gst_enabled, FALSE),
-    COALESCE(p_payment_method, 'cash'), COALESCE(p_payment_method, 'cash'),
-    COALESCE(p_split_details, '{}'::JSONB), p_remarks,
-    p_reference_number, p_billing_date, v_created_at, NOW()
-  )
-  RETURNING id INTO v_order_id;
-
-  -- 4. Insert Order Items, Deduct Stock & Record SALE Movements
-  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
-  LOOP
-    v_product_id := NULLIF(v_item ->> 'product_id', '')::BIGINT;
-    v_variant_id := NULLIF(v_item ->> 'variant_id', '')::UUID;
-    v_quantity := COALESCE((v_item ->> 'quantity')::NUMERIC, 0);
-    v_unit_price := COALESCE((v_item ->> 'unit_price')::NUMERIC, (v_item ->> 'base_price')::NUMERIC, 0);
-    v_line_total := COALESCE((v_item ->> 'line_total')::NUMERIC, ROUND(v_quantity * v_unit_price, 2));
-    v_product_name := COALESCE(v_item ->> 'product_name', v_item ->> 'name', 'Product');
-    v_name_ta := COALESCE(v_item ->> 'product_tamil_name', v_item ->> 'tamil_name', '');
-    v_unit := COALESCE(v_item ->> 'unit', 'piece');
-    v_unit_type := COALESCE(v_item ->> 'unit_type', 'unit');
-    v_base_quantity := COALESCE((v_item ->> 'base_quantity')::NUMERIC, 1);
-    v_is_manual := COALESCE((v_item ->> 'is_manual')::BOOLEAN, FALSE);
-    v_discount := COALESCE((v_item ->> 'discount')::NUMERIC, 0);
-    v_gst_amount := COALESCE((v_item ->> 'gst_amount')::NUMERIC, 0);
-    v_gst_rate := COALESCE((v_item ->> 'gst_rate')::NUMERIC, 0);
-    v_image_url := v_item ->> 'image_url';
-    v_variant_name := v_item ->> 'variant_name';
-    v_source := COALESCE(v_item ->> 'source', 'catalogue');
-    v_note := v_item ->> 'note';
-    v_category := v_item ->> 'category';
-
-    INSERT INTO public.order_items (
-      order_id, product_id, variant_id, product_name, name,
-      product_tamil_name, tamil_name, quantity, unit, unit_type,
-      base_quantity, base_price, unit_price, line_total, image_url,
-      is_manual, discount, gst_amount, gst_rate, variant_name,
-      source, note, category, created_at
-    )
-    VALUES (
-      v_order_id, v_product_id, v_variant_id, v_product_name, v_product_name,
-      v_name_ta, v_name_ta, v_quantity, v_unit, v_unit_type,
-      v_base_quantity, v_unit_price, v_unit_price, v_line_total, v_image_url,
-      v_is_manual, v_discount, v_gst_amount, v_gst_rate, v_variant_name,
-      v_source, v_note, v_category, v_created_at
-    );
-
-    -- Deduct Stock and Insert SALE Movement
-    IF NOT v_is_manual AND v_quantity > 0 THEN
-      IF v_variant_id IS NOT NULL THEN
-        SELECT stock INTO v_current_stock FROM public.product_variants WHERE id = v_variant_id;
-        SELECT id INTO v_barcode_id FROM public.barcode_registry WHERE variant_id = v_variant_id AND is_active = TRUE LIMIT 1;
-
-        UPDATE public.product_variants
-        SET stock = GREATEST(0, stock - v_quantity), updated_at = NOW()
-        WHERE id = v_variant_id;
-
-        -- Parent aggregate update
-        UPDATE public.products
-        SET stock_quantity = (SELECT COALESCE(SUM(stock), 0) FROM public.product_variants WHERE product_id = v_product_id AND is_active = TRUE),
-            stock = FLOOR((SELECT COALESCE(SUM(stock), 0) FROM public.product_variants WHERE product_id = v_product_id AND is_active = TRUE))::INTEGER,
-            updated_at = NOW()
-        WHERE id = v_product_id;
-
-        INSERT INTO public.inventory_movements (
-          product_id, variant_id, barcode_id, movement_type,
-          quantity_delta, quantity_before, quantity_after,
-          reference_type, reference_id, note
-        )
-        VALUES (
-          v_product_id, v_variant_id, v_barcode_id, 'SALE',
-          -v_quantity, v_current_stock, GREATEST(0, v_current_stock - v_quantity),
-          'order', v_invoice_no, 'POS Sale checkout'
-        );
-
-      ELSIF v_product_id IS NOT NULL THEN
-        SELECT stock_quantity INTO v_current_stock FROM public.products WHERE id = v_product_id;
-        SELECT id INTO v_barcode_id FROM public.barcode_registry WHERE product_id = v_product_id AND variant_id IS NULL AND is_active = TRUE LIMIT 1;
-
-        UPDATE public.products
-        SET stock_quantity = GREATEST(0, stock_quantity - v_quantity),
-            stock = GREATEST(0, stock - FLOOR(v_quantity)::INTEGER),
-            updated_at = NOW()
-        WHERE id = v_product_id;
-
-        INSERT INTO public.inventory_movements (
-          product_id, variant_id, barcode_id, movement_type,
-          quantity_delta, quantity_before, quantity_after,
-          reference_type, reference_id, note
-        )
-        VALUES (
-          v_product_id, NULL, v_barcode_id, 'SALE',
-          -v_quantity, v_current_stock, GREATEST(0, v_current_stock - v_quantity),
-          'order', v_invoice_no, 'POS Sale checkout'
-        );
-      END IF;
-    END IF;
-  END LOOP;
-
-  -- 5. Increment Coupon Usage Count
-  IF p_coupon_code IS NOT NULL AND BTRIM(p_coupon_code) <> '' THEN
-    UPDATE public.coupons
-    SET usage_count = usage_count + 1, updated_at = NOW()
-    WHERE UPPER(BTRIM(code)) = UPPER(BTRIM(p_coupon_code));
-  END IF;
-
-  RETURN jsonb_build_object(
-    'order_id', v_order_id,
-    'invoice_no', v_invoice_no,
-    'total', v_total
-  );
-END;
-$$;
-
--- 10. Update Store Settings Default to CLAD
--- Guarded to only fire once, transitioning from the exact 0001 bootstrap
--- values: re-running the combined schema after the owner has customized
--- their store settings (or after this step already ran) must not touch
--- the row again.
-UPDATE public.store_settings
-SET name = 'CLAD',
-    owner_name = 'Rubi krishna',
-    phone = '+91 7010312145',
-    email = 'cladclothing26@gmail.com',
-    address = 'Manapparai, Trichy, Tamil Nadu - 621 306',
-    updated_at = NOW()
-WHERE id = 1 AND name = 'Mahalashmi Stores' AND owner_name = 'M. Senthamil';
-
-COMMIT;
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260903_0013_expense_tracker_addon.sql
--- ---------------------------------------------------------------------------
--- ====================================================================
--- Migration 0013: Expense Tracker & Category Management Addon
--- ====================================================================
-
-BEGIN;
-
--- 1. Expense Categories Table
-CREATE TABLE IF NOT EXISTS public.expense_categories (
-  id BIGSERIAL PRIMARY KEY,
-  name TEXT NOT NULL,
-  is_active BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT uq_expense_category_name UNIQUE (name)
-);
-
--- 2. Seed Default Expense Categories
-INSERT INTO public.expense_categories (name, is_active) VALUES
-  ('Maintenance', TRUE),
-  ('Marketing', TRUE),
-  ('Other', TRUE),
-  ('Rent', TRUE),
-  ('Salaries', TRUE),
-  ('Supplies', TRUE)
-ON CONFLICT (name) DO NOTHING;
-
--- 3. Store Expenses Table
--- Note: category_id has ON DELETE SET NULL to preserve historical expense records even if a category is removed
-CREATE TABLE IF NOT EXISTS public.expenses (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
-  category_id BIGINT REFERENCES public.expense_categories(id) ON DELETE SET NULL,
-  category_name TEXT NOT NULL, -- denormalized snapshot to protect historical records
-  amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
-  description TEXT DEFAULT '',
-  payment_mode TEXT DEFAULT 'cash', -- 'cash', 'upi', 'card', 'bank_transfer'
-  recorded_by_name TEXT DEFAULT 'Staff',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- 4. Fast Query Indexes
-CREATE INDEX IF NOT EXISTS idx_expenses_date ON public.expenses(expense_date DESC);
-CREATE INDEX IF NOT EXISTS idx_expenses_category ON public.expenses(category_id);
-CREATE INDEX IF NOT EXISTS idx_expense_categories_active ON public.expense_categories(is_active);
-
--- 5. Enable Row Level Security (RLS)
-ALTER TABLE public.expense_categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS expense_categories_all ON public.expense_categories;
-CREATE POLICY expense_categories_all ON public.expense_categories FOR ALL USING (TRUE) WITH CHECK (TRUE);
-
-DROP POLICY IF EXISTS expenses_all ON public.expenses;
-CREATE POLICY expenses_all ON public.expenses FOR ALL USING (TRUE) WITH CHECK (TRUE);
-
--- 6. RPC: Summary Metric Calculation (Calculates Today, Week, Month, Year, All-Time)
-CREATE OR REPLACE FUNCTION public.get_expense_summary_metrics(
-  p_current_date DATE DEFAULT CURRENT_DATE
-)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_today NUMERIC(12,2) := 0;
-  v_this_week NUMERIC(12,2) := 0;
-  v_this_month NUMERIC(12,2) := 0;
-  v_this_year NUMERIC(12,2) := 0;
-  v_total_all_time NUMERIC(12,2) := 0;
-  v_week_start DATE := date_trunc('week', p_current_date)::DATE;
-  v_month_start DATE := date_trunc('month', p_current_date)::DATE;
-  v_year_start DATE := date_trunc('year', p_current_date)::DATE;
-BEGIN
-  SELECT 
-    COALESCE(SUM(CASE WHEN expense_date = p_current_date THEN amount ELSE 0 END), 0),
-    COALESCE(SUM(CASE WHEN expense_date >= v_week_start AND expense_date <= p_current_date THEN amount ELSE 0 END), 0),
-    COALESCE(SUM(CASE WHEN expense_date >= v_month_start AND expense_date <= p_current_date THEN amount ELSE 0 END), 0),
-    COALESCE(SUM(CASE WHEN expense_date >= v_year_start AND expense_date <= p_current_date THEN amount ELSE 0 END), 0),
-    COALESCE(SUM(amount), 0)
-  INTO
-    v_today, v_this_week, v_this_month, v_this_year, v_total_all_time
-  FROM public.expenses;
-
-  RETURN jsonb_build_object(
-    'today', v_today,
-    'this_week', v_this_week,
-    'this_month', v_this_month,
-    'this_year', v_this_year,
-    'total_all_time', v_total_all_time
-  );
-END;
-$$;
-
-COMMIT;
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260904_0015_unregistered_category.sql
--- ---------------------------------------------------------------------------
--- ============================================================================
--- Migration: 20260904_0015_unregistered_category.sql
--- Description: Seed system category 'Unregistered' for ad-hoc POS non-inventory billing
--- ============================================================================
-
-DO $$
-BEGIN
-  -- Insert into categories if not present
-  IF NOT EXISTS (
-    SELECT 1 FROM public.categories 
-    WHERE LOWER(name_en) = 'unregistered'
-  ) THEN
-    INSERT INTO public.categories (name_en, name_ta, is_active, sort_order)
-    VALUES ('Unregistered', 'பதிவுசெய்யப்படாதது', TRUE, 999);
-  END IF;
-END $$;
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260909_0016_mahalashmi_stores_rebrand.sql
--- ---------------------------------------------------------------------------
--- ============================================================================
--- Migration: 20260909_0016_mahalashmi_stores_rebrand.sql
--- Description: Update store_settings default row from legacy brand data to
---              New Mahalashmi Stores details.
---              Guarded to only fire once, transitioning from the exact CLAD
---              values set by migration 0012: re-running the combined schema
---              after the owner has customized their store settings (or after
---              this step already ran) must not touch the row again.
--- ============================================================================
-
-UPDATE public.store_settings
-SET name = 'New Mahalashmi Stores',
-    owner_name = 'M. Senthamil',
-    phone = '+91 98659 75714',
-    email = 'senthamil75714@gmail.com',
-    address = '5/85, Teacher''s Colony, Masinaickanpatty, Ayyothiyapattanam, Salem - 636103',
-    updated_at = NOW()
-WHERE id = 1 AND name = 'CLAD' AND owner_name = 'Rubi krishna';
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260911_0017_orders_invoice_pdf_url.sql
--- ---------------------------------------------------------------------------
--- ============================================================================
--- Migration: 20260911_0017_orders_invoice_pdf_url.sql
--- Description: Add the missing invoice_pdf_url column on public.orders.
---              Migration 0009 created the 'invoices' storage bucket for
---              generated PDFs, but never added the column the app uses
---              (Dashboard.tsx, Pos.tsx) to persist/read each order's PDF URL.
--- ============================================================================
-
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS invoice_pdf_url TEXT;
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260911_0018_drop_new_prefix_from_name.sql
--- ---------------------------------------------------------------------------
--- ============================================================================
--- Migration: 20260911_0018_drop_new_prefix_from_name.sql
--- Description: Store name changed from "New Mahalashmi Stores" to
---              "Mahalashmi Stores" (the "New" prefix was dropped).
---              Guarded to only fire once, transitioning from the exact name
---              set by migration 0016: re-running the combined schema after
---              the owner has since renamed their store via Settings (or
---              after this step already ran) must not touch the row again.
--- ============================================================================
-
-UPDATE public.store_settings
-SET name = 'Mahalashmi Stores',
-    updated_at = NOW()
-WHERE id = 1 AND name = 'New Mahalashmi Stores';
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260911_0019_remove_purple_boutique_catalog.sql
--- ---------------------------------------------------------------------------
--- ============================================================================
--- Migration: 20260911_0019_remove_purple_boutique_catalog.sql
--- Description: Remove the "Purple Boutique" demo catalog inserted by migration
---              0002 (Tailoring / Jewellery & Accessories / Posstore categories
---              and their sample products: Saree Blouse, Bridal Jewellery Rent,
---              Perfume, etc.). None of it applies to Mahalashmi Stores, a
---              grocery store. Real products should be added through the app's
---              product management screen.
--- ============================================================================
-
-DELETE FROM public.products
-WHERE category IN ('Tailoring', 'Jewellery & Accessories', 'Posstore');
-
-DELETE FROM public.categories
-WHERE name_en IN ('Tailoring', 'Jewellery & Accessories', 'Posstore');
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260911_0020_clear_all_categories_and_products.sql
--- ---------------------------------------------------------------------------
--- ============================================================================
--- Migration: 20260911_0020_clear_all_categories_and_products.sql
--- Description: Originally did a one-time full clean slate (removed every
---              category and product, including the system "Unregistered"
---              category left by migration 0019) at the user's explicit
---              request. That already happened on the live database.
---              NEUTRALIZED to a no-op: this migration is unconditional
---              ("DELETE FROM products; DELETE FROM categories;" with no
---              WHERE clause), so re-running the combined schema file after
---              this point would silently wipe the real catalog every time —
---              which is exactly what happened and is why this was disabled.
---              Do not re-enable; clear the catalog through the app's UI if
---              ever needed again, not via a re-runnable migration.
--- ============================================================================
-SELECT 1;
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260911_0021_store_settings_extended.sql
--- ---------------------------------------------------------------------------
--- ============================================================================
--- Migration: 20260911_0021_store_settings_extended.sql
--- Description: Extend store_settings with fields needed for the new Store
---              Settings screen: Instagram handle, low-stock threshold, a
---              dynamic logo URL (overrides the static bundled logo across
---              the app and generated invoices/receipts), and DB-stored
---              admin/staff credentials (so "Change Password" can actually
---              persist — the previous login only checked fixed .env values).
---              Also creates a public 'branding' storage bucket for the logo
---              upload, mirroring the existing 'invoices' bucket pattern.
--- ============================================================================
-
-ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS instagram_handle TEXT NOT NULL DEFAULT '';
-ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS low_stock_threshold NUMERIC(12,3) NOT NULL DEFAULT 5;
-ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS logo_url TEXT;
-ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS admin_id TEXT;
-ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS admin_password TEXT;
-ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS staff_id TEXT;
-ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS staff_password TEXT;
-
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES ('branding', 'branding', TRUE, 5242880, ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'])
-ON CONFLICT (id) DO UPDATE SET public = TRUE, file_size_limit = 5242880, allowed_mime_types = ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
-
-DROP POLICY IF EXISTS branding_public_read ON storage.objects;
-CREATE POLICY branding_public_read ON storage.objects FOR SELECT TO public USING (bucket_id = 'branding');
-
-DROP POLICY IF EXISTS branding_portal_upload ON storage.objects;
-CREATE POLICY branding_portal_upload ON storage.objects FOR INSERT TO anon, authenticated WITH CHECK (bucket_id = 'branding');
-
-DROP POLICY IF EXISTS branding_portal_update ON storage.objects;
-CREATE POLICY branding_portal_update ON storage.objects FOR UPDATE TO anon, authenticated USING (bucket_id = 'branding') WITH CHECK (bucket_id = 'branding');
-
-NOTIFY pgrst, 'reload schema';
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260911_0022_special_offers.sql
--- ---------------------------------------------------------------------------
--- ============================================================================
--- Migration: 20260911_0022_special_offers.sql
--- Description: Track special offers / free gifts on products, and let the
---              POS record what was actually given per line item at billing
---              time (so it shows up in Order History afterward).
--- ============================================================================
-
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS has_special_offer BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS special_offer_note TEXT NOT NULL DEFAULT '';
-
-ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS special_offer_note TEXT;
-
--- Re-create complete_pos_sale_with_inventory (the RPC the POS actually calls)
--- so it persists p_items[].special_offer_note into order_items.special_offer_note.
--- Signature and return type are unchanged, so a plain CREATE OR REPLACE is safe.
-CREATE OR REPLACE FUNCTION public.complete_pos_sale_with_inventory(
-  p_customer_name TEXT,
-  p_phone TEXT,
-  p_address TEXT,
-  p_items JSONB,
-  p_shipping NUMERIC DEFAULT 0,
-  p_status TEXT DEFAULT 'completed',
-  p_order_mode TEXT DEFAULT 'offline',
-  p_order_type TEXT DEFAULT 'pos_sale',
-  p_delivery_charge NUMERIC DEFAULT 0,
-  p_discount_amount NUMERIC DEFAULT 0,
-  p_manual_discount_amount NUMERIC DEFAULT 0,
-  p_manual_discount_type TEXT DEFAULT 'flat',
-  p_manual_discount_value NUMERIC DEFAULT 0,
-  p_coupon_code TEXT DEFAULT NULL,
-  p_coupon_percentage NUMERIC DEFAULT 0,
-  p_payment_method TEXT DEFAULT 'cash',
-  p_split_details JSONB DEFAULT '{}'::JSONB,
-  p_total_gst NUMERIC DEFAULT 0,
-  p_gst_enabled BOOLEAN DEFAULT FALSE,
-  p_remarks TEXT DEFAULT NULL,
-  p_reference_number TEXT DEFAULT NULL,
-  p_billing_date TIMESTAMPTZ DEFAULT NULL
-)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_user_id UUID := auth.uid();
-  v_invoice_no TEXT;
-  v_order_id UUID;
-  v_subtotal NUMERIC := 0;
-  v_total NUMERIC := 0;
-  v_item JSONB;
-  v_product_id BIGINT;
-  v_variant_id UUID;
-  v_quantity NUMERIC;
-  v_unit_price NUMERIC;
-  v_line_total NUMERIC;
-  v_product_name TEXT;
-  v_name_ta TEXT;
-  v_unit TEXT;
-  v_unit_type TEXT;
-  v_base_quantity NUMERIC;
-  v_is_manual BOOLEAN;
-  v_discount NUMERIC;
-  v_gst_amount NUMERIC;
-  v_gst_rate NUMERIC;
-  v_image_url TEXT;
-  v_variant_name TEXT;
-  v_source TEXT;
-  v_note TEXT;
-  v_special_offer_note TEXT;
-  v_category TEXT;
-  v_current_stock NUMERIC;
-  v_barcode_id UUID;
-  v_created_at TIMESTAMPTZ := COALESCE(p_billing_date, NOW());
-BEGIN
-  IF p_items IS NULL OR jsonb_array_length(p_items) = 0 THEN
-    RAISE EXCEPTION 'Order items cannot be empty';
-  END IF;
-
-  -- 1. Atomic Pre-Validation of Available Stock for All Items
-  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
-  LOOP
-    v_product_id := NULLIF(v_item ->> 'product_id', '')::BIGINT;
-    v_variant_id := NULLIF(v_item ->> 'variant_id', '')::UUID;
-    v_quantity := COALESCE((v_item ->> 'quantity')::NUMERIC, 0);
-    v_is_manual := COALESCE((v_item ->> 'is_manual')::BOOLEAN, FALSE);
-    v_product_name := COALESCE(v_item ->> 'product_name', v_item ->> 'name', 'Product');
-
-    IF NOT v_is_manual AND v_quantity > 0 THEN
-      IF v_variant_id IS NOT NULL THEN
-        SELECT stock INTO v_current_stock FROM public.product_variants WHERE id = v_variant_id FOR UPDATE;
-        IF v_current_stock IS NULL OR v_current_stock < v_quantity THEN
-          RAISE EXCEPTION 'Insufficient stock for % (Available: %, Requested: %)', v_product_name, COALESCE(v_current_stock, 0), v_quantity;
-        END IF;
-      ELSIF v_product_id IS NOT NULL THEN
-        SELECT stock_quantity INTO v_current_stock FROM public.products WHERE id = v_product_id FOR UPDATE;
-        IF v_current_stock IS NULL OR v_current_stock < v_quantity THEN
-          RAISE EXCEPTION 'Insufficient stock for % (Available: %, Requested: %)', v_product_name, COALESCE(v_current_stock, 0), v_quantity;
-        END IF;
-      END IF;
-    END IF;
-  END LOOP;
-
-  -- 2. Calculate Subtotal & Generate Invoice Number
-  v_invoice_no := public.get_next_invoice_no();
-
-  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
-  LOOP
-    v_quantity := COALESCE((v_item ->> 'quantity')::NUMERIC, 0);
-    v_unit_price := COALESCE(
-      (v_item ->> 'unit_price')::NUMERIC,
-      (v_item ->> 'base_price')::NUMERIC,
-      (v_item ->> 'price')::NUMERIC,
-      0
-    );
-    v_line_total := COALESCE((v_item ->> 'line_total')::NUMERIC, ROUND(v_quantity * v_unit_price, 2));
-    v_subtotal := v_subtotal + v_line_total;
-  END LOOP;
-
-  v_total := GREATEST(0, ROUND(v_subtotal + COALESCE(p_shipping, 0) + COALESCE(p_delivery_charge, 0) - COALESCE(p_discount_amount, 0), 2));
-
-  -- 3. Insert Order Record
-  INSERT INTO public.orders (
-    invoice_no, user_id, customer_name, phone, address, items,
-    subtotal, shipping, total, status, order_mode, order_type,
-    delivery_charge, discount_amount, manual_discount_amount,
-    manual_discount_type, manual_discount_value, coupon_code,
-    coupon_percentage, total_gst, gst_amount, gst_enabled,
-    payment_method, payment_mode, split_details, remarks,
-    reference_number, billing_date, created_at, updated_at
-  )
-  VALUES (
-    v_invoice_no, v_user_id, COALESCE(NULLIF(BTRIM(p_customer_name), ''), 'Customer'),
-    COALESCE(p_phone, ''), COALESCE(p_address, ''), p_items,
-    v_subtotal, COALESCE(p_shipping, 0), v_total, COALESCE(p_status, 'completed'),
-    COALESCE(p_order_mode, 'offline'), COALESCE(p_order_type, 'pos_sale'),
-    COALESCE(p_delivery_charge, 0), COALESCE(p_discount_amount, 0),
-    COALESCE(p_manual_discount_amount, 0), COALESCE(p_manual_discount_type, 'flat'),
-    COALESCE(p_manual_discount_value, 0), p_coupon_code,
-    COALESCE(p_coupon_percentage, 0), COALESCE(p_total_gst, 0),
-    COALESCE(p_total_gst, 0), COALESCE(p_gst_enabled, FALSE),
-    COALESCE(p_payment_method, 'cash'), COALESCE(p_payment_method, 'cash'),
-    COALESCE(p_split_details, '{}'::JSONB), p_remarks,
-    p_reference_number, p_billing_date, v_created_at, NOW()
-  )
-  RETURNING id INTO v_order_id;
-
-  -- 4. Insert Order Items, Deduct Stock & Record SALE Movements
-  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
-  LOOP
-    v_product_id := NULLIF(v_item ->> 'product_id', '')::BIGINT;
-    v_variant_id := NULLIF(v_item ->> 'variant_id', '')::UUID;
-    v_quantity := COALESCE((v_item ->> 'quantity')::NUMERIC, 0);
-    v_unit_price := COALESCE((v_item ->> 'unit_price')::NUMERIC, (v_item ->> 'base_price')::NUMERIC, 0);
-    v_line_total := COALESCE((v_item ->> 'line_total')::NUMERIC, ROUND(v_quantity * v_unit_price, 2));
-    v_product_name := COALESCE(v_item ->> 'product_name', v_item ->> 'name', 'Product');
-    v_name_ta := COALESCE(v_item ->> 'product_tamil_name', v_item ->> 'tamil_name', '');
-    v_unit := COALESCE(v_item ->> 'unit', 'piece');
-    v_unit_type := COALESCE(v_item ->> 'unit_type', 'unit');
-    v_base_quantity := COALESCE((v_item ->> 'base_quantity')::NUMERIC, 1);
-    v_is_manual := COALESCE((v_item ->> 'is_manual')::BOOLEAN, FALSE);
-    v_discount := COALESCE((v_item ->> 'discount')::NUMERIC, 0);
-    v_gst_amount := COALESCE((v_item ->> 'gst_amount')::NUMERIC, 0);
-    v_gst_rate := COALESCE((v_item ->> 'gst_rate')::NUMERIC, 0);
-    v_image_url := v_item ->> 'image_url';
-    v_variant_name := v_item ->> 'variant_name';
-    v_source := COALESCE(v_item ->> 'source', 'catalogue');
-    v_note := v_item ->> 'note';
-    v_special_offer_note := NULLIF(BTRIM(COALESCE(v_item ->> 'special_offer_note', '')), '');
-    v_category := v_item ->> 'category';
-
-    INSERT INTO public.order_items (
-      order_id, product_id, variant_id, product_name, name,
-      product_tamil_name, tamil_name, quantity, unit, unit_type,
-      base_quantity, base_price, unit_price, line_total, image_url,
-      is_manual, discount, gst_amount, gst_rate, variant_name,
-      source, note, special_offer_note, category, created_at
-    )
-    VALUES (
-      v_order_id, v_product_id, v_variant_id, v_product_name, v_product_name,
-      v_name_ta, v_name_ta, v_quantity, v_unit, v_unit_type,
-      v_base_quantity, v_unit_price, v_unit_price, v_line_total, v_image_url,
-      v_is_manual, v_discount, v_gst_amount, v_gst_rate, v_variant_name,
-      v_source, v_note, v_special_offer_note, v_category, v_created_at
-    );
-
-    -- Deduct Stock and Insert SALE Movement
-    IF NOT v_is_manual AND v_quantity > 0 THEN
-      IF v_variant_id IS NOT NULL THEN
-        SELECT stock INTO v_current_stock FROM public.product_variants WHERE id = v_variant_id;
-        SELECT id INTO v_barcode_id FROM public.barcode_registry WHERE variant_id = v_variant_id AND is_active = TRUE LIMIT 1;
-
-        UPDATE public.product_variants
-        SET stock = GREATEST(0, stock - v_quantity), updated_at = NOW()
-        WHERE id = v_variant_id;
-
-        -- Parent aggregate update
-        UPDATE public.products
-        SET stock_quantity = (SELECT COALESCE(SUM(stock), 0) FROM public.product_variants WHERE product_id = v_product_id AND is_active = TRUE),
-            stock = FLOOR((SELECT COALESCE(SUM(stock), 0) FROM public.product_variants WHERE product_id = v_product_id AND is_active = TRUE))::INTEGER,
-            updated_at = NOW()
-        WHERE id = v_product_id;
-
-        INSERT INTO public.inventory_movements (
-          product_id, variant_id, barcode_id, movement_type,
-          quantity_delta, quantity_before, quantity_after,
-          reference_type, reference_id, note
-        )
-        VALUES (
-          v_product_id, v_variant_id, v_barcode_id, 'SALE',
-          -v_quantity, v_current_stock, GREATEST(0, v_current_stock - v_quantity),
-          'order', v_invoice_no, 'POS Sale checkout'
-        );
-
-      ELSIF v_product_id IS NOT NULL THEN
-        SELECT stock_quantity INTO v_current_stock FROM public.products WHERE id = v_product_id;
-        SELECT id INTO v_barcode_id FROM public.barcode_registry WHERE product_id = v_product_id AND variant_id IS NULL AND is_active = TRUE LIMIT 1;
-
-        UPDATE public.products
-        SET stock_quantity = GREATEST(0, stock_quantity - v_quantity),
-            stock = GREATEST(0, stock - FLOOR(v_quantity)::INTEGER),
-            updated_at = NOW()
-        WHERE id = v_product_id;
-
-        INSERT INTO public.inventory_movements (
-          product_id, variant_id, barcode_id, movement_type,
-          quantity_delta, quantity_before, quantity_after,
-          reference_type, reference_id, note
-        )
-        VALUES (
-          v_product_id, NULL, v_barcode_id, 'SALE',
-          -v_quantity, v_current_stock, GREATEST(0, v_current_stock - v_quantity),
-          'order', v_invoice_no, 'POS Sale checkout'
-        );
-      END IF;
-    END IF;
-  END LOOP;
-
-  -- 5. Increment Coupon Usage Count
-  IF p_coupon_code IS NOT NULL AND BTRIM(p_coupon_code) <> '' THEN
-    UPDATE public.coupons
-    SET usage_count = usage_count + 1, updated_at = NOW()
-    WHERE UPPER(BTRIM(code)) = UPPER(BTRIM(p_coupon_code));
-  END IF;
-
-  RETURN jsonb_build_object(
-    'order_id', v_order_id,
-    'invoice_no', v_invoice_no,
-    'total', v_total
-  );
-END;
-$$;
-
-NOTIFY pgrst, 'reload schema';
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260912_0023_fix_null_remarks_constraint.sql
--- ---------------------------------------------------------------------------
--- ============================================================================
--- Migration: 20260912_0023_fix_null_remarks_constraint.sql
--- Description: complete_pos_sale_with_inventory() inserted p_remarks and
---              p_reference_number directly into orders.remarks / .reference_number.
---              Both columns are NOT NULL DEFAULT ''. The POS client never sends
---              these two params on checkout (it only sets them via a follow-up
---              UPDATE after the order exists), so p_remarks/p_reference_number
---              are always NULL, and the INSERT fails with:
---                null value in column "remarks" of relation "orders"
---                violates not-null constraint
---              This blocked every checkout. Fix: COALESCE both to '' on insert.
---              Signature and return type are unchanged, so a plain
---              CREATE OR REPLACE is safe.
--- ============================================================================
-
-CREATE OR REPLACE FUNCTION public.complete_pos_sale_with_inventory(
-  p_customer_name TEXT,
-  p_phone TEXT,
-  p_address TEXT,
-  p_items JSONB,
-  p_shipping NUMERIC DEFAULT 0,
-  p_status TEXT DEFAULT 'completed',
-  p_order_mode TEXT DEFAULT 'offline',
-  p_order_type TEXT DEFAULT 'pos_sale',
-  p_delivery_charge NUMERIC DEFAULT 0,
-  p_discount_amount NUMERIC DEFAULT 0,
-  p_manual_discount_amount NUMERIC DEFAULT 0,
-  p_manual_discount_type TEXT DEFAULT 'flat',
-  p_manual_discount_value NUMERIC DEFAULT 0,
-  p_coupon_code TEXT DEFAULT NULL,
-  p_coupon_percentage NUMERIC DEFAULT 0,
-  p_payment_method TEXT DEFAULT 'cash',
-  p_split_details JSONB DEFAULT '{}'::JSONB,
-  p_total_gst NUMERIC DEFAULT 0,
-  p_gst_enabled BOOLEAN DEFAULT FALSE,
-  p_remarks TEXT DEFAULT NULL,
-  p_reference_number TEXT DEFAULT NULL,
-  p_billing_date TIMESTAMPTZ DEFAULT NULL
-)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_user_id UUID := auth.uid();
-  v_invoice_no TEXT;
-  v_order_id UUID;
-  v_subtotal NUMERIC := 0;
-  v_total NUMERIC := 0;
-  v_item JSONB;
-  v_product_id BIGINT;
-  v_variant_id UUID;
-  v_quantity NUMERIC;
-  v_unit_price NUMERIC;
-  v_line_total NUMERIC;
-  v_product_name TEXT;
-  v_name_ta TEXT;
-  v_unit TEXT;
-  v_unit_type TEXT;
-  v_base_quantity NUMERIC;
-  v_is_manual BOOLEAN;
-  v_discount NUMERIC;
-  v_gst_amount NUMERIC;
-  v_gst_rate NUMERIC;
-  v_image_url TEXT;
-  v_variant_name TEXT;
-  v_source TEXT;
-  v_note TEXT;
-  v_special_offer_note TEXT;
-  v_category TEXT;
-  v_current_stock NUMERIC;
-  v_barcode_id UUID;
-  v_created_at TIMESTAMPTZ := COALESCE(p_billing_date, NOW());
-BEGIN
-  IF p_items IS NULL OR jsonb_array_length(p_items) = 0 THEN
-    RAISE EXCEPTION 'Order items cannot be empty';
-  END IF;
-
-  -- 1. Atomic Pre-Validation of Available Stock for All Items
-  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
-  LOOP
-    v_product_id := NULLIF(v_item ->> 'product_id', '')::BIGINT;
-    v_variant_id := NULLIF(v_item ->> 'variant_id', '')::UUID;
-    v_quantity := COALESCE((v_item ->> 'quantity')::NUMERIC, 0);
-    v_is_manual := COALESCE((v_item ->> 'is_manual')::BOOLEAN, FALSE);
-    v_product_name := COALESCE(v_item ->> 'product_name', v_item ->> 'name', 'Product');
-
-    IF NOT v_is_manual AND v_quantity > 0 THEN
-      IF v_variant_id IS NOT NULL THEN
-        SELECT stock INTO v_current_stock FROM public.product_variants WHERE id = v_variant_id FOR UPDATE;
-        IF v_current_stock IS NULL OR v_current_stock < v_quantity THEN
-          RAISE EXCEPTION 'Insufficient stock for % (Available: %, Requested: %)', v_product_name, COALESCE(v_current_stock, 0), v_quantity;
-        END IF;
-      ELSIF v_product_id IS NOT NULL THEN
-        SELECT stock_quantity INTO v_current_stock FROM public.products WHERE id = v_product_id FOR UPDATE;
-        IF v_current_stock IS NULL OR v_current_stock < v_quantity THEN
-          RAISE EXCEPTION 'Insufficient stock for % (Available: %, Requested: %)', v_product_name, COALESCE(v_current_stock, 0), v_quantity;
-        END IF;
-      END IF;
-    END IF;
-  END LOOP;
-
-  -- 2. Calculate Subtotal & Generate Invoice Number
-  v_invoice_no := public.get_next_invoice_no();
-
-  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
-  LOOP
-    v_quantity := COALESCE((v_item ->> 'quantity')::NUMERIC, 0);
-    v_unit_price := COALESCE(
-      (v_item ->> 'unit_price')::NUMERIC,
-      (v_item ->> 'base_price')::NUMERIC,
-      (v_item ->> 'price')::NUMERIC,
-      0
-    );
-    v_line_total := COALESCE((v_item ->> 'line_total')::NUMERIC, ROUND(v_quantity * v_unit_price, 2));
-    v_subtotal := v_subtotal + v_line_total;
-  END LOOP;
-
-  v_total := GREATEST(0, ROUND(v_subtotal + COALESCE(p_shipping, 0) + COALESCE(p_delivery_charge, 0) - COALESCE(p_discount_amount, 0), 2));
-
-  -- 3. Insert Order Record
-  INSERT INTO public.orders (
-    invoice_no, user_id, customer_name, phone, address, items,
-    subtotal, shipping, total, status, order_mode, order_type,
-    delivery_charge, discount_amount, manual_discount_amount,
-    manual_discount_type, manual_discount_value, coupon_code,
-    coupon_percentage, total_gst, gst_amount, gst_enabled,
-    payment_method, payment_mode, split_details, remarks,
-    reference_number, billing_date, created_at, updated_at
-  )
-  VALUES (
-    v_invoice_no, v_user_id, COALESCE(NULLIF(BTRIM(p_customer_name), ''), 'Customer'),
-    COALESCE(p_phone, ''), COALESCE(p_address, ''), p_items,
-    v_subtotal, COALESCE(p_shipping, 0), v_total, COALESCE(p_status, 'completed'),
-    COALESCE(p_order_mode, 'offline'), COALESCE(p_order_type, 'pos_sale'),
-    COALESCE(p_delivery_charge, 0), COALESCE(p_discount_amount, 0),
-    COALESCE(p_manual_discount_amount, 0), COALESCE(p_manual_discount_type, 'flat'),
-    COALESCE(p_manual_discount_value, 0), p_coupon_code,
-    COALESCE(p_coupon_percentage, 0), COALESCE(p_total_gst, 0),
-    COALESCE(p_total_gst, 0), COALESCE(p_gst_enabled, FALSE),
-    COALESCE(p_payment_method, 'cash'), COALESCE(p_payment_method, 'cash'),
-    COALESCE(p_split_details, '{}'::JSONB), COALESCE(p_remarks, ''),
-    COALESCE(p_reference_number, ''), p_billing_date, v_created_at, NOW()
-  )
-  RETURNING id INTO v_order_id;
-
-  -- 4. Insert Order Items, Deduct Stock & Record SALE Movements
-  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
-  LOOP
-    v_product_id := NULLIF(v_item ->> 'product_id', '')::BIGINT;
-    v_variant_id := NULLIF(v_item ->> 'variant_id', '')::UUID;
-    v_quantity := COALESCE((v_item ->> 'quantity')::NUMERIC, 0);
-    v_unit_price := COALESCE((v_item ->> 'unit_price')::NUMERIC, (v_item ->> 'base_price')::NUMERIC, 0);
-    v_line_total := COALESCE((v_item ->> 'line_total')::NUMERIC, ROUND(v_quantity * v_unit_price, 2));
-    v_product_name := COALESCE(v_item ->> 'product_name', v_item ->> 'name', 'Product');
-    v_name_ta := COALESCE(v_item ->> 'product_tamil_name', v_item ->> 'tamil_name', '');
-    v_unit := COALESCE(v_item ->> 'unit', 'piece');
-    v_unit_type := COALESCE(v_item ->> 'unit_type', 'unit');
-    v_base_quantity := COALESCE((v_item ->> 'base_quantity')::NUMERIC, 1);
-    v_is_manual := COALESCE((v_item ->> 'is_manual')::BOOLEAN, FALSE);
-    v_discount := COALESCE((v_item ->> 'discount')::NUMERIC, 0);
-    v_gst_amount := COALESCE((v_item ->> 'gst_amount')::NUMERIC, 0);
-    v_gst_rate := COALESCE((v_item ->> 'gst_rate')::NUMERIC, 0);
-    v_image_url := v_item ->> 'image_url';
-    v_variant_name := v_item ->> 'variant_name';
-    v_source := COALESCE(v_item ->> 'source', 'catalogue');
-    v_note := v_item ->> 'note';
-    v_special_offer_note := NULLIF(BTRIM(COALESCE(v_item ->> 'special_offer_note', '')), '');
-    v_category := v_item ->> 'category';
-
-    INSERT INTO public.order_items (
-      order_id, product_id, variant_id, product_name, name,
-      product_tamil_name, tamil_name, quantity, unit, unit_type,
-      base_quantity, base_price, unit_price, line_total, image_url,
-      is_manual, discount, gst_amount, gst_rate, variant_name,
-      source, note, special_offer_note, category, created_at
-    )
-    VALUES (
-      v_order_id, v_product_id, v_variant_id, v_product_name, v_product_name,
-      v_name_ta, v_name_ta, v_quantity, v_unit, v_unit_type,
-      v_base_quantity, v_unit_price, v_unit_price, v_line_total, v_image_url,
-      v_is_manual, v_discount, v_gst_amount, v_gst_rate, v_variant_name,
-      v_source, v_note, v_special_offer_note, v_category, v_created_at
-    );
-
-    -- Deduct Stock and Insert SALE Movement
-    IF NOT v_is_manual AND v_quantity > 0 THEN
-      IF v_variant_id IS NOT NULL THEN
-        SELECT stock INTO v_current_stock FROM public.product_variants WHERE id = v_variant_id;
-        SELECT id INTO v_barcode_id FROM public.barcode_registry WHERE variant_id = v_variant_id AND is_active = TRUE LIMIT 1;
-
-        UPDATE public.product_variants
-        SET stock = GREATEST(0, stock - v_quantity), updated_at = NOW()
-        WHERE id = v_variant_id;
-
-        -- Parent aggregate update
-        UPDATE public.products
-        SET stock_quantity = (SELECT COALESCE(SUM(stock), 0) FROM public.product_variants WHERE product_id = v_product_id AND is_active = TRUE),
-            stock = FLOOR((SELECT COALESCE(SUM(stock), 0) FROM public.product_variants WHERE product_id = v_product_id AND is_active = TRUE))::INTEGER,
-            updated_at = NOW()
-        WHERE id = v_product_id;
-
-        INSERT INTO public.inventory_movements (
-          product_id, variant_id, barcode_id, movement_type,
-          quantity_delta, quantity_before, quantity_after,
-          reference_type, reference_id, note
-        )
-        VALUES (
-          v_product_id, v_variant_id, v_barcode_id, 'SALE',
-          -v_quantity, v_current_stock, GREATEST(0, v_current_stock - v_quantity),
-          'order', v_invoice_no, 'POS Sale checkout'
-        );
-
-      ELSIF v_product_id IS NOT NULL THEN
-        SELECT stock_quantity INTO v_current_stock FROM public.products WHERE id = v_product_id;
-        SELECT id INTO v_barcode_id FROM public.barcode_registry WHERE product_id = v_product_id AND variant_id IS NULL AND is_active = TRUE LIMIT 1;
-
-        UPDATE public.products
-        SET stock_quantity = GREATEST(0, stock_quantity - v_quantity),
-            stock = GREATEST(0, stock - FLOOR(v_quantity)::INTEGER),
-            updated_at = NOW()
-        WHERE id = v_product_id;
-
-        INSERT INTO public.inventory_movements (
-          product_id, variant_id, barcode_id, movement_type,
-          quantity_delta, quantity_before, quantity_after,
-          reference_type, reference_id, note
-        )
-        VALUES (
-          v_product_id, NULL, v_barcode_id, 'SALE',
-          -v_quantity, v_current_stock, GREATEST(0, v_current_stock - v_quantity),
-          'order', v_invoice_no, 'POS Sale checkout'
-        );
-      END IF;
-    END IF;
-  END LOOP;
-
-  -- 5. Increment Coupon Usage Count
-  IF p_coupon_code IS NOT NULL AND BTRIM(p_coupon_code) <> '' THEN
-    UPDATE public.coupons
-    SET usage_count = usage_count + 1, updated_at = NOW()
-    WHERE UPPER(BTRIM(code)) = UPPER(BTRIM(p_coupon_code));
-  END IF;
-
-  RETURN jsonb_build_object(
-    'order_id', v_order_id,
-    'invoice_no', v_invoice_no,
-    'total', v_total
-  );
-END;
-$$;
-
-NOTIFY pgrst, 'reload schema';
-
-
--- ---------------------------------------------------------------------------
--- Source: 20260912_0024_special_offer_cost.sql
--- ---------------------------------------------------------------------------
--- ============================================================================
--- Migration: 20260912_0024_special_offer_cost.sql
--- Description: Track the store's cost of each free gift / special offer given
---              away at billing time, separate from the note text describing it.
---              Adds products.special_offer_cost (the product-level default cost
---              staff can edit per line at billing) and order_items.special_offer_cost
---              (what was actually recorded for that sale), and persists
---              p_items[].special_offer_cost into order_items via
---              complete_pos_sale_with_inventory(). Signature and return type
---              are unchanged, so a plain CREATE OR REPLACE is safe.
--- ============================================================================
-
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS special_offer_cost NUMERIC NOT NULL DEFAULT 0;
-ALTER TABLE public.order_items ADD COLUMN IF NOT EXISTS special_offer_cost NUMERIC;
-
+-- Final version: persists special_offer_note and special_offer_cost per
+-- line item, and COALESCEs remarks/reference_number to '' since the POS
+-- client never sends them at checkout time (only via a follow-up UPDATE),
+-- and both columns are NOT NULL.
 CREATE OR REPLACE FUNCTION public.complete_pos_sale_with_inventory(
   p_customer_name TEXT,
   p_phone TEXT,
@@ -3125,430 +1581,205 @@ BEGIN
 END;
 $$;
 
-NOTIFY pgrst, 'reload schema';
+CREATE OR REPLACE FUNCTION public.get_expense_summary_metrics(
+  p_current_date DATE DEFAULT CURRENT_DATE
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_today NUMERIC(12,2) := 0;
+  v_this_week NUMERIC(12,2) := 0;
+  v_this_month NUMERIC(12,2) := 0;
+  v_this_year NUMERIC(12,2) := 0;
+  v_total_all_time NUMERIC(12,2) := 0;
+  v_week_start DATE := date_trunc('week', p_current_date)::DATE;
+  v_month_start DATE := date_trunc('month', p_current_date)::DATE;
+  v_year_start DATE := date_trunc('year', p_current_date)::DATE;
+BEGIN
+  SELECT
+    COALESCE(SUM(CASE WHEN expense_date = p_current_date THEN amount ELSE 0 END), 0),
+    COALESCE(SUM(CASE WHEN expense_date >= v_week_start AND expense_date <= p_current_date THEN amount ELSE 0 END), 0),
+    COALESCE(SUM(CASE WHEN expense_date >= v_month_start AND expense_date <= p_current_date THEN amount ELSE 0 END), 0),
+    COALESCE(SUM(CASE WHEN expense_date >= v_year_start AND expense_date <= p_current_date THEN amount ELSE 0 END), 0),
+    COALESCE(SUM(amount), 0)
+  INTO
+    v_today, v_this_week, v_this_month, v_this_year, v_total_all_time
+  FROM public.expenses;
 
+  RETURN jsonb_build_object(
+    'today', v_today,
+    'this_week', v_this_week,
+    'this_month', v_this_month,
+    'this_year', v_this_year,
+    'total_all_time', v_total_all_time
+  );
+END;
+$$;
 
+-- ----------------------------------------------------------------------------
+-- Row Level Security & Policies
+-- ----------------------------------------------------------------------------
 
--- ---------------------------------------------------------------------------
--- Source: 20260915_0025_expiry_alerts.sql
--- ---------------------------------------------------------------------------
--- ============================================================================
--- Migration: 20260915_0025_expiry_alerts.sql
--- Description: Adds per-product expiry date tracking and a store-wide,
---              customizable "expiring soon" alert window (in days), mirroring
---              the existing low_stock_alert / low_stock_threshold pattern.
--- ============================================================================
-
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS expiry_date DATE;
-ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS expiry_alert_days INTEGER NOT NULL DEFAULT 30;
-
-NOTIFY pgrst, 'reload schema';
-
--- ---------------------------------------------------------------------------
--- Source: 20260915_0026_manufacture_date.sql
--- ---------------------------------------------------------------------------
--- ============================================================================
--- Migration: 20260915_0026_manufacture_date.sql
--- Description: Adds per-product manufacture date, displayed alongside the
---              expiry date on the Expiry Alerts screen and in the product
---              editor (mirrors the expiry_date column added in 0025).
--- ============================================================================
-
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS mfg_date DATE;
-
-NOTIFY pgrst, 'reload schema';
-
--- ---------------------------------------------------------------------------
--- Source: 20260918_0027_barcode_custom_sizes.sql
--- ---------------------------------------------------------------------------
--- ====================================================================
--- Migration 0018: Barcode Custom Label Sizes Persistence Table
--- ====================================================================
-
-BEGIN;
-
-CREATE TABLE IF NOT EXISTS public.barcode_custom_sizes (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  labels_per_row INTEGER NOT NULL DEFAULT 1 CHECK (labels_per_row >= 1),
-  width_mm NUMERIC(8, 2) NOT NULL CHECK (width_mm > 0),
-  height_mm NUMERIC(8, 2) NOT NULL CHECK (height_mm > 0),
-  horizontal_gap_mm NUMERIC(8, 2) NOT NULL DEFAULT 0 CHECK (horizontal_gap_mm >= 0),
-  is_custom BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- Enable Row Level Security (RLS)
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.product_variants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.store_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.advance_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.advance_order_timeline ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.advance_order_payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.store_reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.barcode_registry ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_movements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.expense_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.barcode_custom_sizes ENABLE ROW LEVEL SECURITY;
 
--- Allow read/write access for POS operations
+DROP POLICY IF EXISTS profiles_portal_manage ON public.profiles;
+CREATE POLICY profiles_portal_manage ON public.profiles FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS categories_portal_manage ON public.categories;
+CREATE POLICY categories_portal_manage ON public.categories FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS products_portal_manage ON public.products;
+CREATE POLICY products_portal_manage ON public.products FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS product_variants_portal_manage ON public.product_variants;
+CREATE POLICY product_variants_portal_manage ON public.product_variants FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS coupons_portal_manage ON public.coupons;
+CREATE POLICY coupons_portal_manage ON public.coupons FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS orders_portal_manage ON public.orders;
+CREATE POLICY orders_portal_manage ON public.orders FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS order_items_portal_manage ON public.order_items;
+CREATE POLICY order_items_portal_manage ON public.order_items FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS store_settings_portal_manage ON public.store_settings;
+CREATE POLICY store_settings_portal_manage ON public.store_settings FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS "Allow all for advance orders" ON public.advance_orders;
+CREATE POLICY "Allow all for advance orders" ON public.advance_orders FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all for advance timeline" ON public.advance_order_timeline;
+CREATE POLICY "Allow all for advance timeline" ON public.advance_order_timeline FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all for advance payments" ON public.advance_order_payments;
+CREATE POLICY "Allow all for advance payments" ON public.advance_order_payments FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Anyone can insert reviews" ON public.store_reviews;
+CREATE POLICY "Anyone can insert reviews" ON public.store_reviews FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can read reviews" ON public.store_reviews;
+CREATE POLICY "Anyone can read reviews" ON public.store_reviews FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS barcode_registry_all ON public.barcode_registry;
+CREATE POLICY barcode_registry_all ON public.barcode_registry FOR ALL USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS inventory_movements_all ON public.inventory_movements;
+CREATE POLICY inventory_movements_all ON public.inventory_movements FOR ALL USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS expense_categories_all ON public.expense_categories;
+CREATE POLICY expense_categories_all ON public.expense_categories FOR ALL USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS expenses_all ON public.expenses;
+CREATE POLICY expenses_all ON public.expenses FOR ALL USING (TRUE) WITH CHECK (TRUE);
+
 DROP POLICY IF EXISTS barcode_custom_sizes_all ON public.barcode_custom_sizes;
-CREATE POLICY barcode_custom_sizes_all ON public.barcode_custom_sizes
-  FOR ALL USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY barcode_custom_sizes_all ON public.barcode_custom_sizes FOR ALL USING (TRUE) WITH CHECK (TRUE);
 
--- Fast lookup index
-CREATE INDEX IF NOT EXISTS idx_barcode_custom_sizes_created_at
-  ON public.barcode_custom_sizes(created_at ASC);
+-- ----------------------------------------------------------------------------
+-- Storage buckets & policies
+-- ----------------------------------------------------------------------------
 
-COMMIT;
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('invoices', 'invoices', TRUE, 10485760, ARRAY['application/pdf'])
+ON CONFLICT (id) DO UPDATE SET public = TRUE, file_size_limit = 10485760, allowed_mime_types = ARRAY['application/pdf'];
 
--- ---------------------------------------------------------------------------
--- Source: 20260918_0028_decouple_barcode_from_stock.sql
--- ---------------------------------------------------------------------------
--- Migration: 20260915_0019_decouple_barcode_from_stock.sql
--- Description: Allow create_barcode_and_receive_stock to accept 0 quantity (barcode generation without stock increment)
---              and normalize barcodes to uppercase.
+DROP POLICY IF EXISTS invoices_public_read ON storage.objects;
+CREATE POLICY invoices_public_read ON storage.objects FOR SELECT TO public USING (bucket_id = 'invoices');
+DROP POLICY IF EXISTS invoices_portal_upload ON storage.objects;
+CREATE POLICY invoices_portal_upload ON storage.objects FOR INSERT TO anon, authenticated WITH CHECK (bucket_id = 'invoices');
+DROP POLICY IF EXISTS invoices_portal_update ON storage.objects;
+CREATE POLICY invoices_portal_update ON storage.objects FOR UPDATE TO anon, authenticated USING (bucket_id = 'invoices') WITH CHECK (bucket_id = 'invoices');
 
-CREATE OR REPLACE FUNCTION public.create_barcode_and_receive_stock(
-  p_product_id BIGINT,
-  p_variant_id UUID DEFAULT NULL,
-  p_quantity_received NUMERIC DEFAULT 0,
-  p_unit_cost NUMERIC DEFAULT NULL,
-  p_created_by_name TEXT DEFAULT '',
-  p_custom_barcode TEXT DEFAULT NULL,
-  p_note TEXT DEFAULT ''
-)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_entity_type TEXT;
-  v_barcode_id UUID;
-  v_barcode_value TEXT;
-  v_is_new_barcode BOOLEAN := FALSE;
-  v_movement_type TEXT;
-  v_qty_before NUMERIC := 0;
-  v_qty_after NUMERIC := 0;
-  v_prod_name TEXT;
-  v_var_name TEXT := '';
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('branding', 'branding', TRUE, 5242880, ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'])
+ON CONFLICT (id) DO UPDATE SET public = TRUE, file_size_limit = 5242880, allowed_mime_types = ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+
+DROP POLICY IF EXISTS branding_public_read ON storage.objects;
+CREATE POLICY branding_public_read ON storage.objects FOR SELECT TO public USING (bucket_id = 'branding');
+DROP POLICY IF EXISTS branding_portal_upload ON storage.objects;
+CREATE POLICY branding_portal_upload ON storage.objects FOR INSERT TO anon, authenticated WITH CHECK (bucket_id = 'branding');
+DROP POLICY IF EXISTS branding_portal_update ON storage.objects;
+CREATE POLICY branding_portal_update ON storage.objects FOR UPDATE TO anon, authenticated USING (bucket_id = 'branding') WITH CHECK (bucket_id = 'branding');
+
+-- ----------------------------------------------------------------------------
+-- Realtime
+-- ----------------------------------------------------------------------------
+
+DO $$
 BEGIN
-  IF p_quantity_received < 0 THEN
-    RAISE EXCEPTION 'Quantity received cannot be negative';
-  END IF;
-
-  -- 1. Check Parent Product Exists
-  SELECT name INTO v_prod_name FROM public.products WHERE id = p_product_id;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Product with ID % not found', p_product_id;
-  END IF;
-
-  -- 2. Verify Variant Belongs to Product if Variant is Provided
-  IF p_variant_id IS NOT NULL THEN
-    v_entity_type := 'variant';
-    SELECT variant_name, stock INTO v_var_name, v_qty_before
-    FROM public.product_variants
-    WHERE id = p_variant_id AND product_id = p_product_id;
-
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'Variant % does not belong to Product %', p_variant_id, p_product_id;
-    END IF;
-  ELSE
-    v_entity_type := 'product';
-    SELECT stock_quantity INTO v_qty_before
-    FROM public.products
-    WHERE id = p_product_id;
-  END IF;
-
-  -- 3. Check for Existing Active Barcode in barcode_registry (SKU Identity)
-  IF v_entity_type = 'variant' THEN
-    SELECT id, barcode_value INTO v_barcode_id, v_barcode_value
-    FROM public.barcode_registry
-    WHERE variant_id = p_variant_id AND is_active = TRUE
-    ORDER BY created_at DESC
-    LIMIT 1;
-  ELSE
-    SELECT id, barcode_value INTO v_barcode_id, v_barcode_value
-    FROM public.barcode_registry
-    WHERE product_id = p_product_id AND variant_id IS NULL AND is_active = TRUE
-    ORDER BY created_at DESC
-    LIMIT 1;
-  END IF;
-
-  -- 4. Reuse Existing or Create New Barcode
-  IF v_barcode_id IS NOT NULL THEN
-    v_is_new_barcode := FALSE;
-    v_movement_type := CASE WHEN v_qty_before = 0 THEN 'INITIAL_BARCODE_STOCK' ELSE 'RESTOCK' END;
-  ELSE
-    v_is_new_barcode := TRUE;
-    v_movement_type := 'INITIAL_BARCODE_STOCK';
-    v_barcode_value := UPPER(COALESCE(NULLIF(BTRIM(p_custom_barcode), ''), public.generate_barcode_value(v_entity_type)));
-
-    INSERT INTO public.barcode_registry (
-      barcode_value, entity_type, product_id, variant_id, is_active, created_by_name
-    )
-    VALUES (
-      v_barcode_value, v_entity_type, p_product_id, p_variant_id, TRUE, COALESCE(p_created_by_name, '')
-    )
-    RETURNING id INTO v_barcode_id;
-  END IF;
-
-  -- 5. Synchronize compatibility column on target table
-  IF v_entity_type = 'variant' THEN
-    UPDATE public.product_variants
-    SET barcode = v_barcode_value, updated_at = NOW()
-    WHERE id = p_variant_id;
-  ELSE
-    UPDATE public.products
-    SET barcode = v_barcode_value, updated_at = NOW()
-    WHERE id = p_product_id;
-  END IF;
-
-  -- 6. Apply Stock Increment & Parent Aggregate Sync (ONLY if quantity received > 0)
-  IF p_quantity_received > 0 THEN
-    v_qty_after := v_qty_before + p_quantity_received;
-
-    IF v_entity_type = 'variant' THEN
-      UPDATE public.product_variants
-      SET stock = v_qty_after, updated_at = NOW()
-      WHERE id = p_variant_id;
-
-      -- Refresh parent aggregate stock cache
-      UPDATE public.products
-      SET stock_quantity = (
-            SELECT COALESCE(SUM(stock), 0)
-            FROM public.product_variants
-            WHERE product_id = p_product_id AND is_active = TRUE
-          ),
-          stock = FLOOR((
-            SELECT COALESCE(SUM(stock), 0)
-            FROM public.product_variants
-            WHERE product_id = p_product_id AND is_active = TRUE
-          ))::INTEGER,
-          updated_at = NOW()
-      WHERE id = p_product_id;
-    ELSE
-      UPDATE public.products
-      SET stock_quantity = v_qty_after,
-          stock = FLOOR(v_qty_after)::INTEGER,
-          updated_at = NOW()
-      WHERE id = p_product_id;
-    END IF;
-
-    -- 7. Record Immutable Inventory Movement
-    INSERT INTO public.inventory_movements (
-      product_id, variant_id, barcode_id, movement_type,
-      quantity_delta, quantity_before, quantity_after,
-      unit_cost, reference_type, reference_id, note, created_by_name
-    )
-    VALUES (
-      p_product_id, p_variant_id, v_barcode_id, v_movement_type,
-      p_quantity_received, v_qty_before, v_qty_after,
-      p_unit_cost, 'barcode_receipt', v_barcode_value,
-      COALESCE(p_note, ''), COALESCE(p_created_by_name, '')
-    );
-  ELSE
-    v_qty_after := v_qty_before;
-  END IF;
-
-  RETURN jsonb_build_object(
-    'success', TRUE,
-    'barcode_id', v_barcode_id,
-    'barcode_value', v_barcode_value,
-    'is_new_barcode', v_is_new_barcode,
-    'movement_type', v_movement_type,
-    'quantity_before', v_qty_before,
-    'quantity_received', p_quantity_received,
-    'quantity_after', v_qty_after,
-    'product_id', p_product_id,
-    'variant_id', p_variant_id,
-    'product_name', v_prod_name,
-    'variant_name', v_var_name
-  );
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
+EXCEPTION WHEN duplicate_object THEN NULL;
 END;
 $$;
 
--- ---------------------------------------------------------------------------
--- Source: 20260918_0029_fix_barcode_mismatch.sql
--- ---------------------------------------------------------------------------
--- Migration: 20260916_0021_fix_barcode_mismatch.sql
--- Description: Fixes an issue where a custom barcode sent from the frontend (e.g. CLAD...)
---              was silently ignored if an active barcode (e.g. PBV...) already existed in the registry.
-
-CREATE OR REPLACE FUNCTION public.create_barcode_and_receive_stock(
-  p_product_id BIGINT,
-  p_variant_id UUID DEFAULT NULL,
-  p_quantity_received NUMERIC DEFAULT 0,
-  p_unit_cost NUMERIC DEFAULT NULL,
-  p_created_by_name TEXT DEFAULT '',
-  p_custom_barcode TEXT DEFAULT NULL,
-  p_note TEXT DEFAULT ''
-)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_entity_type TEXT;
-  v_barcode_id UUID;
-  v_barcode_value TEXT;
-  v_is_new_barcode BOOLEAN := FALSE;
-  v_movement_type TEXT;
-  v_qty_before NUMERIC := 0;
-  v_qty_after NUMERIC := 0;
-  v_prod_name TEXT;
-  v_var_name TEXT := '';
+DO $$
 BEGIN
-  IF p_quantity_received < 0 THEN
-    RAISE EXCEPTION 'Quantity received cannot be negative';
-  END IF;
-
-  -- 1. Check Parent Product Exists
-  SELECT name INTO v_prod_name FROM public.products WHERE id = p_product_id;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Product with ID % not found', p_product_id;
-  END IF;
-
-  -- 2. Verify Variant Belongs to Product if Variant is Provided
-  IF p_variant_id IS NOT NULL THEN
-    v_entity_type := 'variant';
-    SELECT variant_name, stock INTO v_var_name, v_qty_before
-    FROM public.product_variants
-    WHERE id = p_variant_id AND product_id = p_product_id;
-
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'Variant % does not belong to Product %', p_variant_id, p_product_id;
-    END IF;
-  ELSE
-    v_entity_type := 'product';
-    SELECT stock_quantity INTO v_qty_before
-    FROM public.products
-    WHERE id = p_product_id;
-  END IF;
-
-  -- 3. Check for Existing Active Barcode in barcode_registry (SKU Identity)
-  IF v_entity_type = 'variant' THEN
-    SELECT id, barcode_value INTO v_barcode_id, v_barcode_value
-    FROM public.barcode_registry
-    WHERE variant_id = p_variant_id AND is_active = TRUE
-    ORDER BY created_at DESC
-    LIMIT 1;
-  ELSE
-    SELECT id, barcode_value INTO v_barcode_id, v_barcode_value
-    FROM public.barcode_registry
-    WHERE product_id = p_product_id AND variant_id IS NULL AND is_active = TRUE
-    ORDER BY created_at DESC
-    LIMIT 1;
-  END IF;
-
-  -- 4. Handle Custom Barcode Override
-  IF p_custom_barcode IS NOT NULL AND BTRIM(p_custom_barcode) <> '' THEN
-    IF v_barcode_id IS NOT NULL AND v_barcode_value <> UPPER(BTRIM(p_custom_barcode)) THEN
-      -- The user provided a NEW custom barcode that overrides the existing active one
-      UPDATE public.barcode_registry
-      SET is_active = FALSE, updated_at = NOW()
-      WHERE id = v_barcode_id;
-
-      v_barcode_id := NULL; -- Force creation of a new registry entry
-    END IF;
-  END IF;
-
-  -- 5. Reuse Existing or Create New Barcode
-  IF v_barcode_id IS NOT NULL THEN
-    v_is_new_barcode := FALSE;
-    v_movement_type := CASE WHEN v_qty_before = 0 THEN 'INITIAL_BARCODE_STOCK' ELSE 'RESTOCK' END;
-  ELSE
-    v_is_new_barcode := TRUE;
-    v_movement_type := 'INITIAL_BARCODE_STOCK';
-    v_barcode_value := UPPER(COALESCE(NULLIF(BTRIM(p_custom_barcode), ''), public.generate_barcode_value(v_entity_type)));
-
-    INSERT INTO public.barcode_registry (
-      barcode_value, entity_type, product_id, variant_id, is_active, created_by_name
-    )
-    VALUES (
-      v_barcode_value, v_entity_type, p_product_id, p_variant_id, TRUE, COALESCE(p_created_by_name, '')
-    )
-    RETURNING id INTO v_barcode_id;
-  END IF;
-
-  -- 6. Synchronize compatibility column on target table
-  IF v_entity_type = 'variant' THEN
-    UPDATE public.product_variants
-    SET barcode = v_barcode_value, updated_at = NOW()
-    WHERE id = p_variant_id;
-  ELSE
-    UPDATE public.products
-    SET barcode = v_barcode_value, updated_at = NOW()
-    WHERE id = p_product_id;
-  END IF;
-
-  -- 7. Apply Stock Increment & Parent Aggregate Sync (ONLY if quantity received > 0)
-  IF p_quantity_received > 0 THEN
-    v_qty_after := v_qty_before + p_quantity_received;
-
-    IF v_entity_type = 'variant' THEN
-      UPDATE public.product_variants
-      SET stock = v_qty_after, updated_at = NOW()
-      WHERE id = p_variant_id;
-
-      -- Refresh parent aggregate stock cache
-      UPDATE public.products
-      SET stock_quantity = (
-            SELECT COALESCE(SUM(stock), 0)
-            FROM public.product_variants
-            WHERE product_id = p_product_id AND is_active = TRUE
-          ),
-          stock = FLOOR((
-            SELECT COALESCE(SUM(stock), 0)
-            FROM public.product_variants
-            WHERE product_id = p_product_id AND is_active = TRUE
-          ))::INTEGER,
-          updated_at = NOW()
-      WHERE id = p_product_id;
-    ELSE
-      UPDATE public.products
-      SET stock_quantity = v_qty_after,
-          stock = FLOOR(v_qty_after)::INTEGER,
-          updated_at = NOW()
-      WHERE id = p_product_id;
-    END IF;
-
-    -- 8. Record Immutable Inventory Movement
-    INSERT INTO public.inventory_movements (
-      product_id, variant_id, barcode_id, movement_type,
-      quantity_delta, quantity_before, quantity_after,
-      unit_cost, reference_type, reference_id, note, created_by_name
-    )
-    VALUES (
-      p_product_id, p_variant_id, v_barcode_id, v_movement_type,
-      p_quantity_received, v_qty_before, v_qty_after,
-      p_unit_cost, 'barcode_receipt', v_barcode_value,
-      COALESCE(p_note, ''), COALESCE(p_created_by_name, '')
-    );
-  ELSE
-    v_qty_after := v_qty_before;
-  END IF;
-
-  RETURN jsonb_build_object(
-    'success', TRUE,
-    'barcode_id', v_barcode_id,
-    'barcode_value', v_barcode_value,
-    'is_new_barcode', v_is_new_barcode,
-    'movement_type', v_movement_type,
-    'quantity_before', v_qty_before,
-    'quantity_received', p_quantity_received,
-    'quantity_after', v_qty_after,
-    'product_id', p_product_id,
-    'variant_id', p_variant_id,
-    'product_name', v_prod_name,
-    'variant_name', v_var_name
-  );
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+EXCEPTION WHEN duplicate_object THEN NULL;
 END;
 $$;
 
--- ---------------------------------------------------------------------------
--- Source: 20260919_0030_product_location.sql
--- ---------------------------------------------------------------------------
--- ============================================================================
--- Migration: 20260919_0030_product_location.sql
--- Description: Adds a free-text rack/row storage location per product, so
---              staff can note where an item physically sits in the store
---              (mirrors the mfg_date/expiry_date single-column pattern).
--- ============================================================================
+-- ----------------------------------------------------------------------------
+-- Seed data
+-- ----------------------------------------------------------------------------
 
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS location TEXT;
+INSERT INTO public.invoice_counter (id, counter, year)
+VALUES (1, 0, EXTRACT(YEAR FROM NOW())::INTEGER)
+ON CONFLICT (id) DO NOTHING;
+
+-- ON CONFLICT DO NOTHING (not DO UPDATE): seeds the row only on first
+-- creation, so re-running this file after the owner has customized their
+-- store settings via the Settings screen never reverts those edits.
+INSERT INTO public.store_settings (id, name, owner_name, phone, email, address)
+VALUES (
+  1,
+  'Mahalashmi Stores',
+  'M. Senthamil',
+  '+91 98659 75714',
+  'senthamil75714@gmail.com',
+  '5/85, Teacher''s Colony, Masinaickanpatty, Ayyothiyapattanam, Salem - 636103'
+)
+ON CONFLICT (id) DO NOTHING;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.categories
+    WHERE LOWER(name_en) = 'unregistered'
+  ) THEN
+    INSERT INTO public.categories (name_en, name_ta, is_active, sort_order)
+    VALUES ('Unregistered', 'பதிவுசெய்யப்படாதது', TRUE, 999);
+  END IF;
+END $$;
+
+INSERT INTO public.expense_categories (name, is_active) VALUES
+  ('Maintenance', TRUE),
+  ('Marketing', TRUE),
+  ('Other', TRUE),
+  ('Rent', TRUE),
+  ('Salaries', TRUE),
+  ('Supplies', TRUE)
+ON CONFLICT (name) DO NOTHING;
 
 NOTIFY pgrst, 'reload schema';
