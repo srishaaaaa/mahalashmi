@@ -13,6 +13,7 @@ import {
   Box,
   Edit2,
   Trash2,
+  MapPin,
 } from 'lucide-react'
 import { inventoryService, type InventoryStockItem } from '../../services/inventoryService'
 import { CreateBarcodeModal } from '../barcode/CreateBarcodeModal'
@@ -20,6 +21,7 @@ import { BarcodePrintModal } from '../barcode/BarcodePrintModal'
 import { AdjustStockModal } from './AdjustStockModal'
 import { StockHistoryDrawer } from './StockHistoryDrawer'
 import { QuickPriceModal } from './QuickPriceModal'
+import { BulkSetLocationModal } from './BulkSetLocationModal'
 import { formatCurrency } from '../../lib/retail'
 import { useProductStore, useAdminAuthStore } from '../../store/store'
 import { CategoryManagerView } from './CategoryManagerView'
@@ -47,6 +49,10 @@ export const InventoryTable: React.FC = () => {
   const [adjustModalItem, setAdjustModalItem] = useState<InventoryStockItem | null>(null)
   const [historyDrawerItem, setHistoryDrawerItem] = useState<InventoryStockItem | null>(null)
   const [priceModalItem, setPriceModalItem] = useState<InventoryStockItem | null>(null)
+
+  // Bulk selection for storage location assignment
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkLocationOpen, setBulkLocationOpen] = useState(false)
 
   const { play } = useSound()
   const getStockStatus = (stock: number): 'ok' | 'low' | 'out' => (stock <= 0 ? 'out' : stock <= 5 ? 'low' : 'ok')
@@ -87,6 +93,15 @@ export const InventoryTable: React.FC = () => {
     }
   }
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   useEffect(() => {
     void loadData()
   }, [loadData])
@@ -111,6 +126,26 @@ export const InventoryTable: React.FC = () => {
 
     return true
   })
+
+  const toggleSelectAllVisible = () => {
+    setSelectedIds((prev) => {
+      const allVisibleSelected = filtered.length > 0 && filtered.every((item) => prev.has(item.id))
+      if (allVisibleSelected) return new Set()
+      return new Set(filtered.map((item) => item.id))
+    })
+  }
+
+  const selectedProductIds = Array.from(
+    new Set(items.filter((item) => selectedIds.has(item.id)).map((item) => item.product_id))
+  )
+
+  const handleBulkSetLocation = async (location: string) => {
+    await inventoryService.bulkSetLocation(selectedProductIds, location)
+    setSelectedIds(new Set())
+    await fetchProducts(true)
+    await loadData()
+    play('success')
+  }
 
   // Summary Metrics
   const totalSkus = items.length
@@ -371,6 +406,31 @@ export const InventoryTable: React.FC = () => {
             </div>
           </div>
 
+          {/* Bulk Selection Action Bar (Admin Only) */}
+          {role === 'admin' && selectedIds.size > 0 && (
+            <div className="bg-[#0A0A0A] border border-[#2E7D32] rounded-2xl p-3.5 shadow-sm flex items-center justify-between gap-3 flex-wrap">
+              <span className="text-xs font-black text-[#2E7D32]">
+                {selectedProductIds.length} product{selectedProductIds.length === 1 ? '' : 's'} selected
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBulkLocationOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-[#1A1A1A] border border-[#2E7D32] text-[#2E7D32] text-xs font-black hover:bg-[#2A2A2A] transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <MapPin size={14} /> Set Location
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="px-3.5 py-2 rounded-xl border border-gray-600 text-gray-300 text-xs font-bold hover:bg-white/5 transition-all cursor-pointer"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Stock Table */}
           <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
             {loading ? (
@@ -385,9 +445,20 @@ export const InventoryTable: React.FC = () => {
             ) : (
               <>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-left text-xs whitespace-nowrap">
+                <table className="w-full min-w-[760px] text-left text-xs whitespace-nowrap">
                   <thead className="bg-[#FBFAF6] border-b border-gray-200 text-xs font-bold text-gray-700">
                     <tr>
+                      {role === 'admin' && (
+                        <th className="p-3.5 w-10">
+                          <input
+                            type="checkbox"
+                            checked={filtered.length > 0 && filtered.every((item) => selectedIds.has(item.id))}
+                            onChange={toggleSelectAllVisible}
+                            className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-[#2E7D32]"
+                            title="Select all visible rows"
+                          />
+                        </th>
+                      )}
                       <th className="p-3.5">Product &amp; Variant SKU</th>
                       <th className="p-3.5">Barcode</th>
                       <th className="p-3.5">Location</th>
@@ -400,6 +471,16 @@ export const InventoryTable: React.FC = () => {
                   <tbody className="divide-y divide-gray-100">
                     {filtered.map((item) => (
                       <tr key={item.id} className="hover:bg-[#FBFAF6] transition-colors">
+                        {role === 'admin' && (
+                          <td className="p-3.5">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(item.id)}
+                              onChange={() => toggleSelect(item.id)}
+                              className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-[#2E7D32]"
+                            />
+                          </td>
+                        )}
                         {/* Name & Variant */}
                         <td className="p-3.5">
                           <div className="font-black text-gray-900 text-xs">
@@ -623,6 +704,14 @@ export const InventoryTable: React.FC = () => {
           }}
         />
       )}
+
+      {/* Modal: Bulk Set Storage Location */}
+      <BulkSetLocationModal
+        isOpen={bulkLocationOpen}
+        onClose={() => setBulkLocationOpen(false)}
+        productCount={selectedProductIds.length}
+        onSubmit={handleBulkSetLocation}
+      />
     </div>
   )
 }

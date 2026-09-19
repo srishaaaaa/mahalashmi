@@ -188,6 +188,23 @@ export const inventoryService = {
   },
 
   /**
+   * Set the storage location for a batch of products in one request.
+   * Location is a product-level field, so variant rows are resolved to
+   * their parent product_id by the caller before this is invoked.
+   */
+  async bulkSetLocation(productIds: number[], location: string | null): Promise<void> {
+    if (productIds.length === 0) return
+    const { error } = await supabase
+      .from('products')
+      .update({ location })
+      .in('id', productIds)
+    if (error) {
+      console.error('[inventoryService.bulkSetLocation] Error:', error)
+      throw error
+    }
+  },
+
+  /**
    * Permanently remove a catalog item.
    *
    * A catalog deletion must release the `(category_id, name)` unique key.  A
