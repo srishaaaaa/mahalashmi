@@ -71,6 +71,8 @@ export interface Product {
   expiryDate?: string | null
   /** Optional manufacture date (YYYY-MM-DD), shown alongside the expiry date. */
   mfgDate?: string | null
+  /** Optional free-text rack/row storage location (e.g. "Rack 3, Row 2"). */
+  location?: string | null
 }
 
 interface AuthUser {
@@ -266,6 +268,7 @@ const mapDbProduct = (input: unknown, categoriesById: Record<string, string> = {
     color: readString(p.color),
     expiryDate: readString(p.expiry_date) || null,
     mfgDate: readString(p.mfg_date) || null,
+    location: readString(p.location) || null,
   }
 }
 

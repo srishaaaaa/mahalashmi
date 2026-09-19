@@ -19,6 +19,7 @@ export interface InventoryStockItem {
   unit_type?: string
   category?: string
   image_url?: string
+  location?: string
   is_active: boolean
   updated_at?: string
 }
@@ -89,7 +90,7 @@ export const inventoryService = {
     // 1. Fetch products
     const { data: products, error: prodErr } = await supabase
       .from('products')
-      .select('id, name, name_ta, price, offer_price, purchase_price, stock_quantity, unit, unit_type, category, category_id, image_url, barcode, sku, is_active, updated_at')
+      .select('id, name, name_ta, price, offer_price, purchase_price, stock_quantity, unit, unit_type, category, category_id, image_url, barcode, sku, location, is_active, updated_at')
       .order('name', { ascending: true })
 
     if (prodErr) {
@@ -150,6 +151,7 @@ export const inventoryService = {
             unit_type: p.unit_type,
             category: p.category,
             image_url: p.image_url,
+            location: p.location,
             is_active: v.is_active && p.is_active,
             updated_at: v.updated_at || p.updated_at
           })
@@ -175,6 +177,7 @@ export const inventoryService = {
           unit_type: p.unit_type,
           category: p.category,
           image_url: p.image_url,
+          location: p.location,
           is_active: p.is_active,
           updated_at: p.updated_at
         })

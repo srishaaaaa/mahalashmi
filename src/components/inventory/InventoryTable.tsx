@@ -100,7 +100,8 @@ export const InventoryTable: React.FC = () => {
       (item.variant_name && item.variant_name.toLowerCase().includes(q)) ||
       (item.barcode && item.barcode.toLowerCase().includes(q)) ||
       (item.sku && item.sku.toLowerCase().includes(q)) ||
-      (item.category && item.category.toLowerCase().includes(q))
+      (item.category && item.category.toLowerCase().includes(q)) ||
+      (item.location && item.location.toLowerCase().includes(q))
 
     if (!matchesSearch) return false
 
@@ -304,7 +305,7 @@ export const InventoryTable: React.FC = () => {
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search SKU name, variant, barcode, category..."
+                placeholder="Search SKU name, variant, barcode, category, location..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 bg-[#FBFAF6] text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A] focus:bg-white"
@@ -384,11 +385,12 @@ export const InventoryTable: React.FC = () => {
             ) : (
               <>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[620px] text-left text-xs whitespace-nowrap">
+                <table className="w-full min-w-[720px] text-left text-xs whitespace-nowrap">
                   <thead className="bg-[#FBFAF6] border-b border-gray-200 text-xs font-bold text-gray-700">
                     <tr>
                       <th className="p-3.5">Product &amp; Variant SKU</th>
                       <th className="p-3.5">Barcode</th>
+                      <th className="p-3.5">Location</th>
                       <th className="p-3.5">Category</th>
                       <th className="p-3.5 text-center">Stock Level</th>
                       <th className="p-3.5 text-right">Selling Price</th>
@@ -423,6 +425,11 @@ export const InventoryTable: React.FC = () => {
                           ) : (
                             <span className="text-gray-400 italic">No Barcode</span>
                           )}
+                        </td>
+
+                        {/* Location */}
+                        <td className="p-3.5 text-gray-600 font-semibold">
+                          {item.location || <span className="text-gray-400 italic font-normal">—</span>}
                         </td>
 
                         {/* Category */}

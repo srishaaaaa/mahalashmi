@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { X, Search, ShoppingBag, Edit2, Trash2 } from 'lucide-react'
+import { X, Search, ShoppingBag, Edit2, Trash2, MapPin } from 'lucide-react'
 import { useProductStore, type Product } from '../store/store'
 import { supabase } from '../lib/supabase'
 import { useSound } from '../context/SoundContext'
@@ -79,7 +79,8 @@ export default function CatalogModal({ isOpen, onClose, onAdd }: CatalogModalPro
     if (q) src = src.filter(p =>
       p.name.toLowerCase().includes(q) ||
       (p.nameTa || '').toLowerCase().includes(q) ||
-      p.category.toLowerCase().includes(q)
+      p.category.toLowerCase().includes(q) ||
+      (p.location || '').toLowerCase().includes(q)
     )
     return src
   }, [products, search, activeCategory])
@@ -233,6 +234,11 @@ export default function CatalogModal({ isOpen, onClose, onAdd }: CatalogModalPro
                       <div onClick={() => onAdd(product)} className="cursor-pointer flex-1 pr-14">
                         <h4 className="text-[13px] font-black text-[#111111] leading-tight break-words group-hover:text-[#2E7D32] transition-colors">{product.name}</h4>
                         {product.nameTa && <p className="text-[10px] font-bold text-[#374151] mt-0.5 break-words">{product.nameTa}</p>}
+                        {product.location && (
+                          <p className="flex items-center gap-1 text-[10px] font-bold text-[#2E7D32] mt-1">
+                            <MapPin size={11} /> {product.location}
+                          </p>
+                        )}
                       </div>
                       <div onClick={() => onAdd(product)} className="cursor-pointer">
                         <div className="flex items-end justify-between mt-2 pt-2 border-t border-[#E5E7EB]/30">

@@ -47,6 +47,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
   const [lowStockAlert, setLowStockAlert] = useState<string>('5')
   const [expiryDate, setExpiryDate] = useState<string>('')
   const [mfgDate, setMfgDate] = useState<string>('')
+  const [location, setLocation] = useState<string>('')
   const [barcode, setBarcode] = useState<string>('')
   const [description, setDescription] = useState<string>('')
   const [hasVariants, setHasVariants] = useState<boolean>(false)
@@ -76,6 +77,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     setLowStockAlert('5')
     setExpiryDate('')
     setMfgDate('')
+    setLocation('')
     setBarcode('')
     setDescription('')
     setHasVariants(false)
@@ -98,6 +100,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     setLowStockAlert(p.lowStockAlert ? String(p.lowStockAlert) : '5')
     setExpiryDate(p.expiryDate || '')
     setMfgDate(p.mfgDate || '')
+    setLocation(p.location || '')
     setBarcode(p.barcode || '')
     setDescription(p.description || '')
     setHasVariants(Boolean(p.hasVariants))
@@ -241,6 +244,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               low_stock_alert: alertThreshold,
               expiry_date: expiryDate || null,
               mfg_date: mfgDate || null,
+              location: location.trim() || null,
               barcode: barcode.trim() ? normalizeBarcode(barcode) : null,
               description: description.trim() || '',
               has_variants: false,
@@ -381,6 +385,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               low_stock_alert: alertThreshold,
               expiry_date: expiryDate || null,
               mfg_date: mfgDate || null,
+              location: location.trim() || null,
               barcode: null,
               description: description.trim() || '',
               has_variants: true,
@@ -416,6 +421,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               low_stock_alert: alertThreshold,
               expiry_date: expiryDate || null,
               mfg_date: mfgDate || null,
+              location: location.trim() || null,
               barcode: barcode.trim() ? normalizeBarcode(barcode) : null,
               description: description.trim() || '',
               has_variants: false,
@@ -486,6 +492,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               low_stock_alert: alertThreshold,
               expiry_date: expiryDate || null,
               mfg_date: mfgDate || null,
+              location: location.trim() || null,
               barcode: null,
               description: description.trim() || '',
               has_variants: true,
@@ -791,8 +798,8 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               </div>
             </div>
 
-            {/* Category, Barcode, Low Stock Alert, Manufacture Date, and Expiry Date */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            {/* Category, Barcode, Storage Location, Low Stock Alert, Manufacture Date, and Expiry Date */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
                   Category
@@ -826,6 +833,19 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                   autoComplete="off"
                   spellCheck={false}
                   className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A] disabled:bg-gray-100 disabled:text-gray-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
+                  Storage Location <span className="text-gray-400 font-normal ml-1">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Rack 3, Row 2"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
                 />
               </div>
 
