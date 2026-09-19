@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { X, Search, ShoppingBag, Edit2, Trash2, MapPin } from 'lucide-react'
+import { X, Search, ShoppingBag, Edit2, Trash2, MapPin, Package } from 'lucide-react'
 import { useProductStore, type Product } from '../store/store'
 import { supabase } from '../lib/supabase'
 import { useSound } from '../context/SoundContext'
@@ -217,34 +217,42 @@ export default function CatalogModal({ isOpen, onClose, onAdd }: CatalogModalPro
                   <p className="text-[14px] font-bold">No products found</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                <div className="flex flex-col gap-3">
                   {filtered.map(product => (
                     <div key={product.id}
-                      className="bg-white border border-[#E5E7EB]/60 rounded-2xl p-3 flex flex-col gap-2 hover:border-[#2E7D32]/40 hover:shadow-md transition-all group relative">
-                      <div className="absolute top-2 right-2 flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
-                        <button onClick={(e) => { e.stopPropagation(); startEdit(product) }} title="Edit product"
-                          className="p-1.5 rounded-lg bg-white border border-[#E5E7EB]/60 text-[#374151] hover:text-[#2E7D32] hover:border-[#2E7D32]/40 shadow-sm transition-colors">
-                          <Edit2 size={14} />
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); void handleDelete(product) }} title="Delete product"
-                          className="p-1.5 rounded-lg bg-white border border-[#E5E7EB]/60 text-red-400 hover:text-red-600 hover:border-red-300 shadow-sm transition-colors">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                      <div onClick={() => onAdd(product)} className="cursor-pointer flex-1 pr-14">
-                        <h4 className="text-[13px] font-black text-[#111111] leading-tight break-words group-hover:text-[#2E7D32] transition-colors">{product.name}</h4>
-                        {product.nameTa && <p className="text-[10px] font-bold text-[#374151] mt-0.5 break-words">{product.nameTa}</p>}
-                        {product.location && (
-                          <p className="flex items-center gap-1 text-[10px] font-bold text-[#2E7D32] mt-1">
-                            <MapPin size={11} /> {product.location}
-                          </p>
-                        )}
-                      </div>
-                      <div onClick={() => onAdd(product)} className="cursor-pointer">
-                        <div className="flex items-end justify-between mt-2 pt-2 border-t border-[#E5E7EB]/30">
-                          <span className="text-[14px] font-black text-[#111111]">₹{product.price}</span>
-                          <span className="text-[9px] font-black text-[#374151] uppercase tracking-wider bg-[#F9FAFB] px-2 py-1 rounded border border-[#E5E7EB]/40">{product.category}</span>
+                      className="bg-white border border-[#E5E7EB]/60 rounded-2xl p-4 hover:border-[#2E7D32]/40 hover:shadow-md transition-all group">
+                      <div className="flex items-start justify-between gap-3">
+                        <div onClick={() => onAdd(product)} className="cursor-pointer flex-1 min-w-0">
+                          <h4 className="text-[15px] font-black text-[#111111] leading-tight break-words group-hover:text-[#2E7D32] transition-colors">{product.name}</h4>
+                          {product.nameTa && <p className="text-[11px] font-bold text-[#374151] mt-0.5 break-words">{product.nameTa}</p>}
+                          {product.location && (
+                            <p className="flex items-center gap-1 text-[10px] font-bold text-[#2E7D32] mt-1">
+                              <MapPin size={11} /> {product.location}
+                            </p>
+                          )}
+                          <span className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 text-blue-600 text-[10px] font-black uppercase tracking-wider">
+                            <Package size={12} /> Product
+                          </span>
                         </div>
+                        <div className="flex gap-1.5 shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                          <button onClick={(e) => { e.stopPropagation(); startEdit(product) }} title="Edit product"
+                            className="p-2 rounded-lg bg-white border border-[#E5E7EB]/60 text-[#374151] hover:text-[#2E7D32] hover:border-[#2E7D32]/40 shadow-sm transition-colors">
+                            <Edit2 size={15} />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); void handleDelete(product) }} title="Delete product"
+                            className="p-2 rounded-lg bg-white border border-[#E5E7EB]/60 text-red-400 hover:text-red-600 hover:border-red-300 shadow-sm transition-colors">
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </div>
+                      <div onClick={() => onAdd(product)} className="cursor-pointer flex items-end justify-between mt-3 pt-3 border-t border-[#E5E7EB]/40">
+                        <div>
+                          <span className="text-[18px] font-black text-[#111111]">₹{product.price}</span>
+                          {!!product.purchasePrice && (
+                            <p className="text-[11px] font-semibold text-[#9CA3AF] mt-0.5">Cost: ₹{product.purchasePrice}</p>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-black text-[#374151] uppercase tracking-wider bg-[#F9FAFB] px-2.5 py-1.5 rounded-lg border border-[#E5E7EB]/60">{product.category}</span>
                       </div>
                     </div>
                   ))}
