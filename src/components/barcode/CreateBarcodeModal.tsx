@@ -16,21 +16,17 @@ import {
   type BarcodeQueueItem,
   type BarcodeSettings,
   type LabelSizeConfig,
-  DEFAULT_LABEL_SIZES,
   getStoredBarcodeSettings,
   getAllLabelSizes,
-  subscribeCustomSizes,
-  fetchRemoteCustomSizes,
   renderBarcodeSvg,
   generateBarcodeSvgString,
-  normalizeBarcode,
 } from '../../lib/barcode'
-import { BRAND_EN } from '../../lib/brand'
+import { BRAND_EN, BRAND_MONOGRAM } from '../../lib/brand'
 import { barcodeService } from '../../services/barcodeService'
 import { fetchVariantsByProduct, type ProductVariant } from '../../services/variantService'
+import { useProductStore } from '../../store/store'
 import { BarcodeSettingsDrawer } from './BarcodeSettingsDrawer'
 import { BarcodeSheetPreviewModal } from './BarcodeSheetPreviewModal'
-import { useProductStore } from '../../store/store'
 
 interface ProductOption {
   id: number
@@ -60,10 +56,13 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
   preselectedVariantId,
   onSuccess,
 }) => {
+  const fetchProducts = useProductStore((state) => state.fetchProducts)
+
   // Settings
   const [settings, setSettings] = useState<BarcodeSettings>(getStoredBarcodeSettings())
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false)
   const [showSheetPreviewModal, setShowSheetPreviewModal] = useState(false)
+  const [updateStock, setUpdateStock] = useState(false)
 
   // Close on Escape key
   useEffect(() => {
@@ -111,26 +110,12 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
   // Submission & Status
   const [generating, setGenerating] = useState(false)
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [updateStock, setUpdateStock] = useState<boolean>(false)
 
   // Preview SVG Ref
   const previewSvgRef = useRef<SVGSVGElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const [allSizes, setAllSizes] = useState<LabelSizeConfig[]>(getAllLabelSizes)
-
-  // Sync custom sizes from database and subscribe
-  useEffect(() => {
-    if (!isOpen) return
-    fetchRemoteCustomSizes().then((remote) => {
-      setAllSizes([...DEFAULT_LABEL_SIZES, ...remote])
-    })
-    const unsubscribe = subscribeCustomSizes((updated) => {
-      setAllSizes([...DEFAULT_LABEL_SIZES, ...updated])
-    })
-    return unsubscribe
-  }, [isOpen])
-
+  const allSizes = getAllLabelSizes()
   const currentSizeConfig: LabelSizeConfig =
     allSizes.find((s) => s.id === settings.selectedSizeId) || allSizes[0]
 
@@ -140,7 +125,7 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
     setDropdownOpen(false)
 
     // Set default item code (product barcode or generate new code)
-    const code = prod.barcode || `CLAD${Math.floor(1000000 + Math.random() * 9000000)}`
+    const code = prod.barcode || `${BRAND_MONOGRAM}${Math.floor(1000000 + Math.random() * 9000000)}`
     setItemCode(code)
     setLine1(prod.name)
     setLine2(prod.category || '')
@@ -193,7 +178,7 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
 
   // Update live preview SVG with dynamic dimension calculations
   useEffect(() => {
-    const codeToRender = (itemCode && itemCode.trim()) || 'CLAD0000000'
+    const codeToRender = (itemCode && itemCode.trim()) || `${BRAND_MONOGRAM}0000000`
 
     // Proportional preview dimensions: fit comfortably within preview box
     const previewScale = Math.min(230 / currentSizeConfig.widthMm, 150 / currentSizeConfig.heightMm)
@@ -246,7 +231,7 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
   }
 
   const handleAssignCode = () => {
-    const generated = 'CLAD' + Math.floor(1000000 + Math.random() * 9000000)
+    const generated = BRAND_MONOGRAM + Math.floor(1000000 + Math.random() * 9000000)
     setItemCode(generated)
   }
 
@@ -291,7 +276,7 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
       productName: selectedProduct.name,
       variantId: selectedVariant?.id || null,
       variantName: selectedVariant?.variantName || undefined,
-      barcodeValue: normalizeBarcode(itemCode),
+      barcodeValue: itemCode.trim(),
       price: selectedVariant?.price || selectedProduct.price,
       costPrice: selectedProduct.cost_price || 0,
       noOfLabels: finalLabels,
@@ -343,35 +328,28 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
     setStatusMessage(null)
 
     try {
-      // Process all queued items sequentially or in parallel
       for (const item of selectedItems) {
         await barcodeService.receiveStockWithBarcode({
           product_id: item.productId,
           variant_id: item.variantId || null,
           quantity_received: updateStock ? item.noOfLabels : 0,
           unit_cost: item.costPrice || null,
-          custom_barcode: normalizeBarcode(item.barcodeValue),
-          note: updateStock
-            ? `Received via Barcode Generator (${item.noOfLabels} labels)`
-            : `Barcode Tagging (${item.noOfLabels} labels)`,
+          custom_barcode: item.barcodeValue,
+          note: updateStock ? `Received via Barcode Generator (${item.noOfLabels} labels)` : 'Barcode assigned',
           created_by_name: 'Admin',
         })
       }
 
+      await fetchProducts(true)
       setStatusMessage({
         type: 'success',
-        text: updateStock
-          ? `Successfully generated barcodes & added stock for ${selectedItems.length} items (${totalLabelsNeeded} total units)!`
-          : `Successfully generated barcodes for ${selectedItems.length} items (${totalLabelsNeeded} labels ready)!`,
+        text: `Successfully generated barcodes for ${selectedItems.length} items (${totalLabelsNeeded} labels)${updateStock ? ' and updated stock' : ''}!`,
       })
-
-      // Refresh product store so changes reflect across the app
-      await useProductStore.getState().fetchProducts(true)
 
       onSuccess?.()
       setShowSheetPreviewModal(true)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to generate barcodes'
+      const msg = err instanceof Error ? err.message : 'Failed to receive stock with barcodes'
       setStatusMessage({ type: 'error', text: msg })
     } finally {
       setGenerating(false)
@@ -420,7 +398,7 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
     const titleFontSize = isSmall ? '6pt' : isLarge ? '9pt' : '7.5pt'
     const tagFontSize = isSmall ? '5.5pt' : isLarge ? '8.5pt' : '7pt'
     const priceFontSize = isSmall ? '8pt' : isLarge ? '12pt' : '9.5pt'
-    const stickerPadding = isSmall ? '0.8mm 2mm' : '1.0mm 1.6mm'
+    const stickerPadding = isSmall ? '0.6mm 1.2mm' : '1.0mm 1.6mm'
 
     // Generate individual sticker cards HTML with pre-rendered SVGs
     const allStickers: string[] = []
@@ -445,7 +423,7 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
               ${svgMarkup}
             </div>
             <div class="footer">
-              <span>${item.line2 ? `<span class="tag">${item.line2}</span>` : '<span class="tag">CLAD RETAIL</span>'}</span>
+              <span>${item.line2 ? `<span class="tag">${item.line2}</span>` : `<span class="tag">${BRAND_EN} RETAIL</span>`}</span>
               ${settings.showSalePrice ? `<span class="price">₹${item.price}</span>` : ''}
             </div>
           </div>
@@ -453,23 +431,29 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
       }
     })
 
-    // Group stickers into rows of `labelsPerRow` so 2-up (or 3-up) roll presets place
-    // labels side-by-side instead of forcing a new page after every single sticker.
-    const labelsPerRow = Math.max(1, currentSizeConfig.labelsPerRow || 1)
-    const gapMm = currentSizeConfig.horizontalGapMm || 0
-    const rowWidthMm = currentSizeConfig.widthMm * labelsPerRow + gapMm * (labelsPerRow - 1)
-
     let bodyContent = ''
+    // How many labels sit side-by-side across the physical roll/sheet width.
+    // A roll printer fed with a "2-up" / "3-up" die-cut roll MUST receive a page
+    // that is the full physical width (all columns), not a single label's width —
+    // otherwise the printer anchors the narrow page to one side of the roll and
+    // the other column(s) print blank.
+    const columns = isThermal ? Math.max(1, currentSizeConfig.labelsPerRow || 1) : 1
+    const gapMm = currentSizeConfig.horizontalGapMm || 0
+
     if (isThermal) {
-      let rowsHtml = ''
-      for (let i = 0; i < allStickers.length; i += labelsPerRow) {
-        const rowHtml = allStickers.slice(i, i + labelsPerRow).join('')
-        rowsHtml += `<div class="page-wrapper"><div class="row">${rowHtml}</div></div>`
+      const rows: string[] = []
+      for (let i = 0; i < allStickers.length; i += columns) {
+        const rowStickers = allStickers.slice(i, i + columns)
+        rows.push(`<div class="sticker-row">${rowStickers.join('')}</div>`)
       }
-      bodyContent = rowsHtml
+      bodyContent = rows.join('')
     } else {
-      // Regular A4 printer — flat grid, no row wrappers needed (CSS grid handles columns)
-      bodyContent = `<div class="a4-container">${allStickers.join('')}</div>`
+      // Regular A4 printer container
+      bodyContent = `
+        <div class="a4-container">
+          ${allStickers.join('')}
+        </div>
+      `
     }
 
     doc.open()
@@ -477,13 +461,13 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>CLAD Barcode Labels</title>
+          <title>${BRAND_EN} Barcode Labels</title>
           <style>
             @page {
               ${
                 isThermal
-                  ? `size: ${rowWidthMm}mm ${currentSizeConfig.heightMm}mm !important; margin: 0mm !important; marks: none !important;`
-                  : `size: A4 portrait; margin: 0mm !important;`
+                  ? `size: ${(currentSizeConfig.widthMm * columns + gapMm * (columns - 1)).toFixed(2)}mm ${currentSizeConfig.heightMm}mm; margin: 0mm !important; marks: none !important;`
+                  : `size: A4 portrait; margin: 10mm !important;`
               }
             }
             * {
@@ -499,43 +483,23 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }
-            ${
-              isThermal
-                ? `
-            .page-wrapper {
-              width: ${rowWidthMm}mm !important;
-              height: ${currentSizeConfig.heightMm}mm !important;
-              overflow: hidden !important;
-              page-break-after: always !important;
-              break-after: page !important;
-            }
-            @media print {
-              .page-wrapper {
-                width: ${rowWidthMm}mm !important;
-                height: ${currentSizeConfig.heightMm}mm !important;
-              }
-            }`
-                : ''
-            }
             .a4-container {
-              width: 210mm;
-              padding: 5mm;
-              display: grid;
-              grid-template-columns: repeat(${labelsPerRow}, ${currentSizeConfig.widthMm}mm);
-              grid-auto-rows: ${currentSizeConfig.heightMm}mm;
-              column-gap: ${gapMm}mm;
-              row-gap: ${currentSizeConfig.horizontalGapMm || gapMm}mm;
+              display: flex;
+              flex-wrap: wrap;
+              align-content: flex-start;
+              gap: 3mm 4mm;
             }
-            .row {
+            .sticker-row {
               display: flex;
               flex-direction: row;
-              align-items: stretch;
-              width: ${rowWidthMm}mm;
-              height: ${currentSizeConfig.heightMm}mm;
-              justify-content: space-between;
-              gap: 0;
+              align-items: flex-start;
+              gap: ${gapMm}mm;
+              width: ${(currentSizeConfig.widthMm * columns + gapMm * (columns - 1)).toFixed(2)}mm;
               break-inside: avoid !important;
               page-break-inside: avoid !important;
+            }
+            .sticker-row + .sticker-row {
+              ${isThermal ? 'break-before: page !important; page-break-before: always !important;' : ''}
             }
             .label-sticker {
               width: ${currentSizeConfig.widthMm}mm !important;
@@ -550,6 +514,7 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
               align-items: center;
               text-align: center;
               overflow: hidden;
+              flex-shrink: 0;
               break-inside: avoid !important;
               page-break-inside: avoid !important;
               background: #fff;
@@ -889,7 +854,7 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
                               productName: selectedProduct.name,
                               variantId: v.id,
                               variantName: v.variantName,
-                              barcodeValue: `CLAD${Math.floor(1000000 + Math.random() * 9000000)}`,
+                              barcodeValue: `${BRAND_MONOGRAM}${Math.floor(1000000 + Math.random() * 9000000)}`,
                               price: v.price || selectedProduct.price,
                               costPrice: selectedProduct.cost_price || 0,
                               noOfLabels: parseInt(noOfLabels, 10) || 1,
@@ -1075,7 +1040,7 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
                             className="font-mono font-bold text-gray-800 tracking-wider leading-none"
                             style={{ fontSize: `${Math.max(7.5, Math.round(previewHeightPx * 0.075))}px` }}
                           >
-                            {itemCode || 'CLAD0000000'}
+                            {itemCode || `${BRAND_MONOGRAM}0000000`}
                           </span>
 
                           {/* Product Title */}
@@ -1123,7 +1088,7 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
 
                     <div className="mt-2.5 text-[10px] font-bold text-gray-500 text-center">
                       {settings.printerType === 'label'
-                        ? `Thermal Roll • 1 barcode per page (${currentSizeConfig.name})`
+                        ? `Thermal Roll • ${(currentSizeConfig.labelsPerRow || 1) > 1 ? `${currentSizeConfig.labelsPerRow} barcodes per page` : '1 barcode per page'} (${currentSizeConfig.name})`
                         : 'Regular Printer (A4 Sheet Layout)'}
                     </div>
                   </div>
@@ -1318,14 +1283,19 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
             </button>
 
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              <label className="flex items-center gap-1.5 text-xs font-bold text-gray-700 cursor-pointer select-none bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+              <label className="flex items-center gap-1.5 mr-2 cursor-pointer" title="Check this to automatically increase stock by the number of labels printed.">
                 <input
                   type="checkbox"
                   checked={updateStock}
                   onChange={(e) => setUpdateStock(e.target.checked)}
-                  className="rounded border-gray-300 text-[#0A0A0A] focus:ring-black h-3.5 w-3.5 cursor-pointer"
+                  className="w-3.5 h-3.5 rounded border-gray-300 text-[#0A0A0A] focus:ring-[#0A0A0A] cursor-pointer"
                 />
-                <span className="text-[11px] sm:text-xs font-semibold">Update Stock</span>
+                <span className="text-[11px] font-bold text-gray-700 select-none hidden sm:inline">
+                  Update Stock
+                </span>
+                <span className="text-[11px] font-bold text-gray-700 select-none sm:hidden">
+                  Stock+
+                </span>
               </label>
 
               {queue.length > 0 && (
@@ -1347,19 +1317,12 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
                 {generating ? (
                   <>
                     <span className="w-3.5 h-3.5 border-2 border-[#D4AF37]/30 border-t-[#D4AF37] rounded-full animate-spin inline-block" />
-                    <span className="hidden sm:inline">
-                      {updateStock ? 'Receiving Stock & Generating...' : 'Generating Barcodes...'}
-                    </span>
-                    <span className="sm:hidden">Working...</span>
+                    <span className="hidden sm:inline">Generating...</span>
+                    <span className="sm:hidden">Gen...</span>
                   </>
                 ) : (
                   <>
-                    <Printer size={15} />{' '}
-                    <span>
-                      {updateStock
-                        ? `Generate & Add Stock (${totalLabelsNeeded})`
-                        : `Generate & Print (${totalLabelsNeeded})`}
-                    </span>
+                    <Printer size={15} /> <span>Generate &amp; Print ({totalLabelsNeeded})</span>
                   </>
                 )}
               </button>

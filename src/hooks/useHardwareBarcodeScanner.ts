@@ -53,24 +53,23 @@ export function useHardwareBarcodeScanner({
 
           bufferRef.current = { code: '', lastTime: 0, targetInput: null }
 
+          const normalized = normalizeBarcode(buffered)
+
           const onBillingView =
             isBillingActive ??
             (currentTab === 'billing' ||
               currentTab === 'pos' ||
               window.location.pathname === '/pos')
 
-          const cleanCode = normalizeBarcode(buffered)
-          if (!cleanCode) return
-
           if (onBillingView) {
             if (onScanDirect) {
-              onScanDirect(cleanCode)
+              onScanDirect(normalized)
             } else {
-              useNavigationStore.getState().setExternalScannedCode(cleanCode)
+              useNavigationStore.getState().setExternalScannedCode(normalized)
             }
           } else {
             // Show cross-tab alert warning dialog
-            setPendingBarcode(cleanCode)
+            setPendingBarcode(normalized)
           }
           return
         }

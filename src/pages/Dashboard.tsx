@@ -3,7 +3,7 @@ import {
   BarChart2, Trash2, Edit2, List, ShoppingCart, LayoutDashboard,
   Box, AlertCircle, Power, Download, TrendingUp, TrendingDown,
   Package, Search, RefreshCw, ShieldCheck, ShieldOff, Trophy,
-  MessageCircle, ChevronDown, Eye, FileText, Printer, X, Layers, Receipt, Settings, Bell,
+  MessageCircle, ChevronDown, Eye, FileText, Printer, X, Layers, Receipt, Settings, Bell, Wallet,
 } from 'lucide-react'
 
 // Custom Malaysian Ringgit icon — replaces the generic dollar-sign icon
@@ -55,6 +55,10 @@ import { useNavigationStore } from '../store/navigationStore'
 import { useHardwareBarcodeScanner } from '../hooks/useHardwareBarcodeScanner'
 import { BarcodeRedirectDialog } from '../components/pos/BarcodeRedirectDialog'
 import ExpiryAlarmModal from '../components/dashboard/ExpiryAlarmModal'
+import CreditDueAlarmModal from '../components/dashboard/CreditDueAlarmModal'
+import CustomerEventAlarmModal from '../components/dashboard/CustomerEventAlarmModal'
+import { OutstandingCreditsView } from '../components/dashboard/OutstandingCreditsView'
+import { creditService } from '../services/creditService'
 import { exportAnalyticsToExcel, exportAnalyticsToPDF } from '../services/analyticsExport'
 import StoreSettingsView from '../components/dashboard/StoreSettingsView'
 import LowStockAlarmModal from '../components/dashboard/LowStockAlarmModal'
@@ -75,6 +79,7 @@ type DashboardOrder = {
   created_at: string; total: number; status: string; order_mode: string; order_type: string; user_id: string | null; items: unknown
   coupon_code: string; discount_amount: number; manual_discount_amount: number; delivery_charge: number
   total_gst: number; payment_mode: string; payment_method?: string; invoice_pdf_url: string; remarks?: string; reference_number?: string
+  credit_due_date?: string | null; credit_status?: string | null; credit_paid_at?: string | null
 }
 type DashboardOrderItem = { order_id: string; product_name: string; category?: string; quantity: number; line_total: number; is_manual?: boolean | null }
 type DashboardCoupon = {
@@ -87,7 +92,7 @@ type DashboardCoupon = {
   usage_count: number
   min_order_value: number
 }
-type TabKey = 'overview' | 'whatsapp' | 'pos_analytics' | 'billing' | 'advance_orders' | 'inventory' | 'expiry_alerts' | 'expenses' | 'coupons' | 'users' | 'history' | 'settings'
+type TabKey = 'overview' | 'whatsapp' | 'pos_analytics' | 'billing' | 'advance_orders' | 'inventory' | 'expiry_alerts' | 'expenses' | 'coupons' | 'users' | 'history' | 'settings' | 'outstanding_credits'
 type PosAnalyticsTab = 'revenue' | 'today' | 'products' | 'categories' | 'coupons'
 type ProfileUser = { id: string; email: string; name: string; mobile: string; role: string; created_at: string }
 
@@ -288,6 +293,9 @@ export default function Dashboard() {
     invoice_pdf_url: String(row.invoice_pdf_url || ''),
     remarks: row.remarks ? String(row.remarks) : undefined,
     reference_number: row.reference_number ? String(row.reference_number) : undefined,
+    credit_due_date: row.credit_due_date ? String(row.credit_due_date) : null,
+    credit_status: row.credit_status ? String(row.credit_status) : null,
+    credit_paid_at: row.credit_paid_at ? String(row.credit_paid_at) : null,
   })
 
   const handleAdvanceOrderCompleted = useCallback((advance: AdvanceOrder) => {
@@ -708,7 +716,7 @@ export default function Dashboard() {
       const productsPromise = fetchProducts(true)
       const [oRes, couponRes, expList] = await Promise.all([
         supabase.from('orders')
-          .select('id, invoice_no, customer_name, phone, address, created_at, total, status, order_mode, order_type, user_id, items, coupon_code, discount_amount, manual_discount_amount, delivery_charge, total_gst, gst_amount, payment_mode, payment_method, invoice_pdf_url, remarks, reference_number')
+          .select('id, invoice_no, customer_name, phone, address, created_at, total, status, order_mode, order_type, user_id, items, coupon_code, discount_amount, manual_discount_amount, delivery_charge, total_gst, gst_amount, payment_mode, payment_method, invoice_pdf_url, remarks, reference_number, credit_due_date, credit_status, credit_paid_at')
           .order('created_at', { ascending: false })
           .limit(1000),
         supabase.from('coupons')
@@ -1192,6 +1200,14 @@ export default function Dashboard() {
     }).length
   }, [products, expiryAlertDays])
 
+  const [outstandingCreditCount, setOutstandingCreditCount] = useState(0)
+  const refreshOutstandingCreditCount = useCallback(() => {
+    creditService.fetchOverdueCount().then(setOutstandingCreditCount).catch(() => {})
+  }, [])
+  useEffect(() => {
+    refreshOutstandingCreditCount()
+  }, [tab, refreshOutstandingCreditCount])
+
   if (!isAdmin) return (
     <div className="min-h-screen bg-bgMain flex items-center justify-center p-4">
       <div className="bg-white p-8 rounded-3xl shadow-xl text-center max-w-sm">
@@ -1216,6 +1232,7 @@ export default function Dashboard() {
         { id: 'advance_orders', icon: <FileText size={18} />,     label: 'Advance Orders' },
         { id: 'expiry_alerts',  icon: <Bell size={18} />,         label: 'Expiry Alerts', badge: expiryAlertCount },
         { id: 'expenses',       icon: <Receipt size={18} />,      label: 'Expenses' },
+        { id: 'outstanding_credits', icon: <Wallet size={18} />, label: 'Outstanding Credits', badge: outstandingCreditCount },
         { id: 'history',        icon: <List size={18} />,         label: 'Order History' },
         { id: 'pos_analytics',  icon: <BarChart2 size={18} />,    label: 'Analytics Dashboard' },
         { id: 'coupons',        icon: <Box size={18} />,          label: 'Coupons' },
@@ -1226,6 +1243,8 @@ export default function Dashboard() {
     <div className="admin-shell h-dvh max-h-dvh min-h-dvh bg-bgMain flex flex-col lg:flex-row overflow-hidden">
       <LowStockAlarmModal triggerKey={tab} />
       <ExpiryAlarmModal triggerKey={tab} />
+      <CreditDueAlarmModal triggerKey={tab} />
+      <CustomerEventAlarmModal triggerKey={tab} />
       {/* Sidebar */}
       <aside
         className={[
@@ -2993,7 +3012,17 @@ export default function Dashboard() {
                           <td className="px-2 py-3 text-[11px]">
                             {o.delivery_charge > 0 ? <span className="font-bold text-[#111111]">{formatCurrency(o.delivery_charge)}</span> : <span className="text-[#9BAB9A]">—</span>}
                           </td>
-                          <td className="whitespace-nowrap px-2 py-3 text-[11px] font-bold text-[#111111]">{formatCurrency(getOrderTotal(o))}</td>
+                          <td className="whitespace-nowrap px-2 py-3 text-[11px] font-bold text-[#111111]">
+                            {formatCurrency(getOrderTotal(o))}
+                            {o.credit_status === 'outstanding' && (
+                              <span className="mt-1 block rounded-full bg-red-50 px-1.5 py-0.5 text-[9px] font-black uppercase text-red-700">Credit Due</span>
+                            )}
+                            {o.credit_status === 'paid' && o.credit_paid_at && (
+                              <span className="mt-1 block rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-700">
+                                Paid {new Date(o.credit_paid_at).toLocaleDateString('en-IN')}
+                              </span>
+                            )}
+                          </td>
                           <td className="whitespace-nowrap px-2 py-3 text-[11px] text-[#374151]">{new Date(o.created_at).toLocaleDateString('en-IN')}</td>
                           <td className="px-2 py-3">
                             <div className="flex items-center justify-center gap-1.5">
@@ -3477,6 +3506,10 @@ export default function Dashboard() {
         {/* ── EXPENSES TAB ── */}
         {tab === 'expenses' && (
           <ExpensesView />
+        )}
+        {/* ── OUTSTANDING CREDITS TAB ── */}
+        {tab === 'outstanding_credits' && (
+          <OutstandingCreditsView onSettled={refreshOutstandingCreditCount} />
         )}
         {/* ── STORE SETTINGS TAB ── */}
         {tab === 'settings' && (

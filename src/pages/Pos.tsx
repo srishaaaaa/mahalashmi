@@ -12,6 +12,7 @@ import { getErrorMessage } from '../lib/errorMessage'
 import { useProductStore, useVariantStore, useAdminAuthStore, type Product } from '../store/store'
 import { useNavigationStore } from '../store/navigationStore'
 import { barcodeService } from '../services/barcodeService'
+import { normalizeBarcode } from '../lib/barcode'
 import { Invoice } from '../components/Invoice'
 import CatalogModal from '../components/CatalogModal'
 import { invoicePdfFile } from '../lib/invoicePdf'
@@ -35,6 +36,7 @@ import { BarcodeScannerInput, type ScannedItemPayload } from '../components/pos/
 import { QuickAddScannedProductModal } from '../components/pos/QuickAddScannedProductModal'
 import { AddUnregisteredItemModal } from '../components/pos/AddUnregisteredItemModal'
 import { getOrCreateUnregisteredProduct } from '../services/productService'
+import { customerService } from '../services/customerService'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type PosItem = Product & {
@@ -138,10 +140,29 @@ export default function Pos(props: PosProps = {}) {
   const [quickAddBarcode, setQuickAddBarcode] = useState('')
   const [scanResetTick, setScanResetTick] = useState(0)
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '' })
+  const [customerBirthday, setCustomerBirthday] = useState('')
+  const [customerAnniversary, setCustomerAnniversary] = useState('')
+
+  // Look up a previously-saved customer by phone so returning customers
+  // don't need to re-enter their name/address/birthday/anniversary.
+  const handlePhoneLookup = async () => {
+    const normalized = normalizePhone(customer.phone || '')
+    if (!normalized) return
+    const found = await customerService.findByPhone(normalized)
+    if (!found) return
+    setCustomer((prev) => ({
+      ...prev,
+      name: prev.name.trim() || found.name || prev.name,
+      address: prev.address.trim() || found.address || prev.address,
+    }))
+    if (found.birthday) setCustomerBirthday((prev) => prev || found.birthday || '')
+    if (found.anniversary) setCustomerAnniversary((prev) => prev || found.anniversary || '')
+  }
   const [remarks, setRemarks] = useState('')
   const [referenceNumber, setReferenceNumber] = useState('')
   const [billingDate, setBillingDate] = useState('') // '' = use current date/time
-  const [paymentType, setPaymentType] = useState<'cash' | 'qr' | 'card'>('cash')
+  const [paymentType, setPaymentType] = useState<'cash' | 'qr' | 'card' | 'credit'>('cash')
+  const [creditDueDate, setCreditDueDate] = useState('')
   const [saving, setSaving] = useState(false)
   const [shipping, setShipping] = useState<string>('0')
   const [couponInput, setCouponInput] = useState('')
@@ -401,7 +422,7 @@ export default function Pos(props: PosProps = {}) {
   const setExternalScannedCode = useNavigationStore((s) => s.setExternalScannedCode)
 
   const processIncomingCode = useCallback(async (codeToProcess: string) => {
-    const clean = codeToProcess.trim()
+    const clean = normalizeBarcode(codeToProcess)
     if (!clean) return
     try {
       const record = await barcodeService.lookupBarcode(clean)
@@ -555,8 +576,11 @@ export default function Pos(props: PosProps = {}) {
   const clearAll = () => {
     setItems([])
     setCustomer({ name: '', phone: '', address: '' })
+    setCustomerBirthday('')
+    setCustomerAnniversary('')
     setInvoice(null)
     setCashReceived('')
+    setCreditDueDate('')
     setCouponInput('')
     setAppliedCoupon(null)
     setCouponError('')
@@ -694,6 +718,8 @@ export default function Pos(props: PosProps = {}) {
     // Validate payment amount (only required for cash)
     if (paymentType === 'cash' && !cashReceived.trim()) { setError('Enter the amount received from customer'); return }
     if (paymentType === 'cash' && cashReceivedNum < total) { setError(`Insufficient payment. Customer still owes ${formatCurrency(total - cashReceivedNum)}`); return }
+    // Validate credit due date
+    if (paymentType === 'credit' && !creditDueDate.trim()) { setError('Select a due date for this credit sale'); return }
     // Validate online mode availability
     if (ordermode === 'online' && !isSupabaseConfigured) { setError('Cannot place online orders while offline'); return }
     setSaving(true); setError('')
@@ -735,7 +761,9 @@ export default function Pos(props: PosProps = {}) {
         couponPercentage: appliedCoupon?.percentage,
         totalGst,
         gstEnabled: billGstEnabled,
-        paymentMethod: paymentMode
+        paymentMethod: paymentMode,
+        isCredit: paymentType === 'credit',
+        creditDueDate: paymentType === 'credit' ? creditDueDate : undefined,
       })
 
       // ── CRITICAL: immediately fix totals in DB, independent of PDF upload ──
@@ -758,6 +786,8 @@ export default function Pos(props: PosProps = {}) {
         remarks: remarks.trim(),
         reference_number: referenceNumber.trim(),
         billing_date: effectiveBillingDate,
+        credit_due_date: paymentType === 'credit' ? creditDueDate : null,
+        credit_status: paymentType === 'credit' ? 'outstanding' : null,
       }).eq('id', created.orderId)
       const createdInvoice: InvoiceSnap = {
         id: created.orderId,
@@ -779,14 +809,24 @@ export default function Pos(props: PosProps = {}) {
         address: customer.address.trim() || 'POS Counter',
         amountReceived: cashReceivedNum,
         balanceReturned: balanceToReturn,
-        paymentMode: ordermode === 'online' ? 'Online' : paymentType === 'qr' ? 'QR' : paymentType === 'card' ? 'Card' : 'Cash',
+        paymentMode: ordermode === 'online' ? 'Online' : paymentType === 'qr' ? 'QR' : paymentType === 'card' ? 'Card' : paymentType === 'credit' ? 'Credit' : 'Cash',
         paymentMethod: paymentMode,
       }
       setInvoice(createdInvoice)
       void persistInvoicePdf(createdInvoice)
+      void customerService.upsertFromSale({
+        phone: normalizedPhone,
+        name: customer.name,
+        address: customer.address,
+        birthday: customerBirthday,
+        anniversary: customerAnniversary,
+      })
 
       setItems([])
       setCustomer({ name: '', phone: '', address: '' })
+      setCreditDueDate('')
+      setCustomerBirthday('')
+      setCustomerAnniversary('')
       void fetchProducts()
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Failed to generate bill'))
@@ -1072,8 +1112,27 @@ export default function Pos(props: PosProps = {}) {
                   type="text"
                   value={customer.phone}
                   onChange={e => setCustomer({...customer, phone: e.target.value})}
+                  onBlur={() => void handlePhoneLookup()}
                   placeholder="Enter WhatsApp number"
                   className="w-full h-10 sm:h-11 px-3 sm:px-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#2E7D32] text-[13px] font-bold text-[#111111] placeholder:text-gray-400 placeholder:font-medium"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] md:text-[10px] font-bold text-[#374151] mb-1">Birthday (Optional)</label>
+                <input
+                  type="date"
+                  value={customerBirthday}
+                  onChange={e => setCustomerBirthday(e.target.value)}
+                  className="w-full h-10 sm:h-11 px-3 sm:px-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#2E7D32] text-[13px] font-bold text-[#111111]"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] md:text-[10px] font-bold text-[#374151] mb-1">Anniversary (Optional)</label>
+                <input
+                  type="date"
+                  value={customerAnniversary}
+                  onChange={e => setCustomerAnniversary(e.target.value)}
+                  className="w-full h-10 sm:h-11 px-3 sm:px-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#2E7D32] text-[13px] font-bold text-[#111111]"
                 />
               </div>
               <div>
@@ -1432,6 +1491,7 @@ export default function Pos(props: PosProps = {}) {
                       type="text"
                       value={customer.phone}
                       onChange={e => setCustomer({...customer, phone: e.target.value})}
+                      onBlur={() => void handlePhoneLookup()}
                       placeholder="Enter WhatsApp number"
                       className={`w-full h-8 px-2 bg-white border rounded-lg text-[12px] font-bold text-[#111111] focus:outline-none ${customer.phone && !normalizePhone(customer.phone) ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-[#2E7D32]'}`}
                     />
@@ -1592,27 +1652,46 @@ export default function Pos(props: PosProps = {}) {
               {/* Payment Mode Selector */}
               <div>
                 <label className="block text-[10px] font-black text-[#374151] tracking-wider uppercase mb-1">Payment Mode</label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {(['cash', 'qr', 'card'] as const).map(mode => (
+                <div className="grid grid-cols-4 gap-1.5">
+                  {(['cash', 'qr', 'card', 'credit'] as const).map(mode => (
                     <button
                       key={mode}
                       type="button"
                       onClick={() => setPaymentType(mode)}
                       className={`py-2 rounded-xl text-[11px] font-black uppercase tracking-wide border-2 transition-colors ${
                         paymentType === mode
-                          ? 'bg-[#0A0A0A] text-[#2E7D32] border-[#0A0A0A]'
+                          ? mode === 'credit'
+                            ? 'bg-amber-600 text-white border-amber-600'
+                            : 'bg-[#0A0A0A] text-[#2E7D32] border-[#0A0A0A]'
                           : 'bg-white text-[#374151] border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      {mode === 'qr' ? 'QR' : mode === 'card' ? 'Card' : 'Cash'}
+                      {mode === 'qr' ? 'QR' : mode === 'card' ? 'Card' : mode === 'credit' ? 'Credit' : 'Cash'}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Amount Received (shown for all payment modes) */}
+              {/* Amount Received (cash / QR / card) or Due Date (credit) */}
               {ordermode !== 'online' && (
               <div>
+                {paymentType === 'credit' ? (
+                  <div className="border-2 border-amber-300 rounded-xl p-2.5 bg-amber-50">
+                    <label className="block text-[10px] font-black text-amber-900 tracking-wider uppercase mb-0.5">
+                      Credit Sale — Due Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={creditDueDate}
+                      onChange={e => setCreditDueDate(e.target.value)}
+                      min={new Date().toISOString().slice(0, 10)}
+                      className="w-full h-9 px-3 bg-white border border-amber-300 rounded-xl text-[13px] font-black text-[#111111] focus:outline-none focus:border-amber-600"
+                    />
+                    <p className="mt-1.5 text-[10px] font-bold text-amber-800">
+                      This sale is billed on credit. It shows as outstanding until marked paid, and you'll get an alert when the due date arrives.
+                    </p>
+                  </div>
+                ) : (
                 <div className="border border-gray-200 rounded-xl p-2.5 bg-white">
                   <label className="block text-[10px] font-black text-[#374151] tracking-wider uppercase mb-0.5">
                     {paymentType === 'qr' ? 'QR' : paymentType === 'card' ? 'Card' : 'Cash'} — Amount Received (₹)
@@ -1631,6 +1710,7 @@ export default function Pos(props: PosProps = {}) {
                     </div>
                   )}
                 </div>
+                )}
               </div>
               )}
 

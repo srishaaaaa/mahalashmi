@@ -3,14 +3,7 @@ import { createPortal } from 'react-dom'
 import { X, Printer, Copy, Check } from 'lucide-react'
 import { BarcodeLabel } from './BarcodeLabel'
 import { BRAND_EN } from '../../lib/brand'
-import {
-  getAllLabelSizes,
-  generateBarcodeSvgString,
-  getStoredBarcodeSettings,
-  saveStoredBarcodeSettings,
-  subscribeCustomSizes,
-  fetchRemoteCustomSizes,
-} from '../../lib/barcode'
+import { getAllLabelSizes, generateBarcodeSvgString, getStoredBarcodeSettings, saveStoredBarcodeSettings } from '../../lib/barcode'
 
 export interface BarcodePrintModalProps {
   isOpen: boolean
@@ -34,10 +27,10 @@ type LabelSizePreset = {
 const getAvailablePresets = (): LabelSizePreset[] => {
   const sizes = getAllLabelSizes()
   return sizes.map((s) => ({
-    name: `${s.name} (${s.widthMm}mm × ${s.heightMm}mm)`,
+    name: `${s.name} (${s.widthMm}mm × ${s.heightMm}mm${s.labelsPerRow > 1 ? ` × ${s.labelsPerRow} across` : ''})`,
     widthMm: s.widthMm,
     heightMm: s.heightMm,
-    labelsPerRow: Math.max(1, s.labelsPerRow || 1),
+    labelsPerRow: s.labelsPerRow || 1,
     horizontalGapMm: s.horizontalGapMm || 0,
   }))
 }
@@ -52,25 +45,13 @@ export const BarcodePrintModal: React.FC<BarcodePrintModalProps> = ({
   mrp,
   defaultQuantity = 1,
 }) => {
-  const [presets, setPresets] = useState<LabelSizePreset[]>(getAvailablePresets)
+  const presets = getAvailablePresets()
   const [quantity, setQuantity] = useState<string>(String(defaultQuantity || 1))
-  const [selectedPreset, setSelectedPreset] = useState<LabelSizePreset>(() => presets[0] || { name: 'Thermal Standard', widthMm: 50, heightMm: 25, labelsPerRow: 1, horizontalGapMm: 0 })
+  const [selectedPreset, setSelectedPreset] = useState<LabelSizePreset>(presets[0] || { name: 'Thermal Standard', widthMm: 50, heightMm: 25, labelsPerRow: 1, horizontalGapMm: 0 })
   const [copied, setCopied] = useState(false)
   const [printerType, setPrinterType] = useState<'label' | 'regular'>(() => {
     return getStoredBarcodeSettings().printerType || 'label'
   })
-
-  // Sync custom sizes from database and subscribe
-  useEffect(() => {
-    if (!isOpen) return
-    fetchRemoteCustomSizes().then(() => {
-      setPresets(getAvailablePresets())
-    })
-    const unsubscribe = subscribeCustomSizes(() => {
-      setPresets(getAvailablePresets())
-    })
-    return unsubscribe
-  }, [isOpen])
 
   const handlePrinterTypeChange = (type: 'label' | 'regular') => {
     setPrinterType(type)
@@ -147,244 +128,244 @@ export const BarcodePrintModal: React.FC<BarcodePrintModalProps> = ({
       const titleFontSize = isSmall ? '6pt' : isLarge ? '9pt' : '7.5pt'
       const tagFontSize = isSmall ? '5.5pt' : isLarge ? '8.5pt' : '7pt'
       const priceFontSize = isSmall ? '8pt' : isLarge ? '12pt' : '9.5pt'
-      const stickerPadding = isSmall ? '0.8mm 2mm' : '1.0mm 1.6mm'
 
-      const parsedQty = parseInt(quantity.trim(), 10)
-      const validQuantity = !isNaN(parsedQty) && parsedQty > 0 ? parsedQty : 1
-      const singleStickerHtml = `
-        <div class="sticker">
-          <div class="header">
-            <div class="brand">${BRAND_EN}</div>
-            <div class="prod-title">${fullTitle}</div>
-          </div>
-          <div class="barcode-box">
-            ${svgMarkup}
-          </div>
-          <div class="footer">
-            <span>${mrp && mrp > price ? `<span class="mrp">MRP ₹${mrp}</span>` : '<span class="retail-tag">CLAD RETAIL</span>'}</span>
-            <span class="price">₹${price}</span>
-          </div>
+    // Build standalone HTML for the printed stickers with strict thermal proportions
+    const parsedQty = parseInt(quantity.trim(), 10)
+    const validQuantity = !isNaN(parsedQty) && parsedQty > 0 ? parsedQty : 1
+    const singleStickerHtml = `
+      <div class="sticker">
+        <div class="header">
+          <div class="brand">${BRAND_EN}</div>
+          <div class="prod-title">${fullTitle}</div>
         </div>
-      `
+        <div class="barcode-box">
+          ${svgMarkup}
+        </div>
+        <div class="footer">
+          <span>${mrp && mrp > price ? `<span class="mrp">MRP ₹${mrp}</span>` : `<span class="retail-tag">${BRAND_EN} RETAIL</span>`}</span>
+          <span class="price">₹${price}</span>
+        </div>
+      </div>
+    `
 
-      // Group stickers into rows of `labelsPerRow` for 2-up / 3-up side-by-side printing.
-      // Each row becomes one physical "page" on the thermal roll; the browser then
-      // advances to a new row/page rather than leaving the second slot blank.
-      const labelsPerRow = Math.max(1, selectedPreset.labelsPerRow || 1)
-      const gapMm = selectedPreset.horizontalGapMm || 0
-      const rowWidthMm = selectedPreset.widthMm * labelsPerRow + gapMm * (labelsPerRow - 1)
+    const columns = isThermal ? Math.max(1, selectedPreset.labelsPerRow || 1) : 1
+    const gapMm = selectedPreset.horizontalGapMm || 0
 
-      const allStickers = Array.from({ length: Math.max(1, validQuantity) }, () => singleStickerHtml)
+    const totalStickers = Math.max(1, validQuantity)
+    const rows: string[] = []
+    for (let i = 0; i < totalStickers; i += columns) {
+      const rowCount = Math.min(columns, totalStickers - i)
+      const rowHtml = Array.from({ length: rowCount }).map(() => singleStickerHtml).join('')
 
-      let rowsHtml = ''
-      for (let i = 0; i < allStickers.length; i += labelsPerRow) {
-        const rowHtml = allStickers.slice(i, i + labelsPerRow).join('')
-        if (isThermal) {
-          rowsHtml += `<div class="page-wrapper"><div class="row">${rowHtml}</div></div>`
-        } else {
-          rowsHtml += `<div class="row">${rowHtml}</div>`
-        }
+      if (isThermal) {
+        // Wrap each row in a discrete page container to force hardware gap sensor alignment
+        rows.push(`<div class="page-wrapper"><div class="sticker-row">${rowHtml}</div></div>`)
+      } else {
+        rows.push(`<div class="sticker-row">${rowHtml}</div>`)
       }
+    }
+    const allStickersHtml = rows.join('')
 
-      const bodyContent = isThermal
-        ? rowsHtml
-        : `<div class="a4-container">${allStickers.join('')}</div>`
+    const bodyContent = isThermal
+      ? allStickersHtml
+      : `<div class="a4-container">${allStickersHtml}</div>`
 
-      const html = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Print Barcode - ${barcodeValue}</title>
-            <style>
-              @page {
-                ${
-                  isThermal
-                    ? `size: ${rowWidthMm}mm ${selectedPreset.heightMm}mm !important; margin: 0mm !important; marks: none !important;`
-                    : `size: A4 portrait; margin: 0mm !important;`
-                }
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Print Barcode - ${barcodeValue}</title>
+          <style>
+            @page {
+              ${
+                isThermal
+                  ? `size: ${(selectedPreset.widthMm * columns + gapMm * (columns - 1)).toFixed(2)}mm ${selectedPreset.heightMm}mm; margin: 0;`
+                  : `size: A4 portrait; margin: 10mm;`
               }
-              * {
-                box-sizing: border-box;
-                margin: 0;
-                padding: 0;
-              }
-              html, body {
-                margin: 0 !important;
-                padding: 0 !important;
-                background: #fff !important;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-              }
+            }
+            @media print {
               ${
                 isThermal
                   ? `
-              .page-wrapper {
-                width: ${rowWidthMm}mm !important;
-                height: ${selectedPreset.heightMm}mm !important;
-                overflow: hidden !important;
-                page-break-after: always !important;
-                break-after: page !important;
-              }
-              @media print {
-                .page-wrapper {
-                  width: ${rowWidthMm}mm !important;
-                  height: ${selectedPreset.heightMm}mm !important;
-                }
-              }`
+                  html, body {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                  }
+                  .page-wrapper {
+                    width: ${(selectedPreset.widthMm * columns + gapMm * (columns - 1)).toFixed(2)}mm !important;
+                    height: ${selectedPreset.heightMm}mm !important;
+                    overflow: hidden !important;
+                    page-break-after: always !important;
+                    break-after: page !important;
+                  }
+                  `
                   : ''
               }
-              .a4-container {
-                width: 210mm;
-                padding: 5mm;
-                display: grid;
-                grid-template-columns: repeat(${labelsPerRow}, ${selectedPreset.widthMm}mm);
-                grid-auto-rows: ${selectedPreset.heightMm}mm;
-                column-gap: ${gapMm}mm;
-                row-gap: ${selectedPreset.horizontalGapMm || gapMm}mm;
-              }
-              .row {
-                display: flex;
-                flex-direction: row;
-                align-items: stretch;
-                width: ${rowWidthMm}mm;
-                height: ${selectedPreset.heightMm}mm;
-                justify-content: space-between;
-                gap: 0;
-                break-inside: avoid !important;
-                page-break-inside: avoid !important;
-              }
-              .sticker {
-                width: ${selectedPreset.widthMm}mm;
-                height: ${selectedPreset.heightMm}mm;
-                max-width: ${selectedPreset.widthMm}mm;
-                max-height: ${selectedPreset.heightMm}mm;
-                padding: ${stickerPadding};
-                display: flex;
-                flex-direction: column;
-                justify-content: space-between;
-                align-items: center;
-                text-align: center;
-                overflow: hidden;
-                box-sizing: border-box;
-                break-inside: avoid !important;
-                page-break-inside: avoid !important;
-                background: #fff;
-                ${!isThermal ? 'border: 0.2mm dashed #bbb;' : ''}
-              }
-              .header {
-                width: 100%;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: flex-start;
-                line-height: 1.1;
-                flex-shrink: 0;
-              }
-              .brand {
-                font-size: ${headerFontSize};
-                font-weight: 900;
-                letter-spacing: 0.3px;
-                text-transform: uppercase;
-                color: #000;
-                line-height: 1.1;
-              }
-              .prod-title {
-                font-size: ${titleFontSize};
-                font-weight: 700;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                max-width: 98%;
-                margin-top: 0.3mm;
-                color: #111;
-                line-height: 1.1;
-              }
-              .barcode-box {
-                width: 100%;
-                flex: 1;
-                min-height: 0;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                margin: 0.4mm 0;
-                overflow: hidden;
-              }
-              .barcode-box svg {
-                display: block;
-                margin: 0 auto;
-                max-width: 98%;
-                max-height: 100%;
-                width: auto;
-                height: auto;
-              }
-              .footer {
-                width: 100%;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                border-top: 0.6pt solid #000;
-                padding-top: 0.5mm;
-                line-height: 1;
-                flex-shrink: 0;
-              }
-              .retail-tag {
-                font-size: ${tagFontSize};
-                font-weight: 800;
-                color: #444;
-              }
-              .mrp {
-                text-decoration: line-through;
-                color: #555;
-                font-size: ${tagFontSize};
-                font-weight: 600;
-              }
-              .price {
-                font-size: ${priceFontSize};
-                font-weight: 900;
-                color: #000;
-              }
-            </style>
-          </head>
-          <body data-gramm="false">
-            ${bodyContent}
-          </body>
-        </html>
-      `
+            }
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+            }
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #fff !important;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .a4-container {
+              display: flex;
+              flex-wrap: wrap;
+              align-content: flex-start;
+              gap: 3mm 4mm;
+            }
+            .page-wrapper {
+              display: block;
+            }
+            .sticker-row {
+              display: flex;
+              flex-direction: row;
+              align-items: center;
+              justify-content: ${isThermal ? 'space-between' : 'flex-start'};
+              gap: ${isThermal ? '0' : gapMm + 'mm'};
+              width: ${(selectedPreset.widthMm * columns + gapMm * (columns - 1)).toFixed(2)}mm;
+              height: ${isThermal ? selectedPreset.heightMm + 'mm' : 'auto'};
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
+            }
+            .sticker {
+              width: ${selectedPreset.widthMm}mm;
+              height: ${selectedPreset.heightMm}mm;
+              max-width: ${selectedPreset.widthMm}mm;
+              max-height: ${selectedPreset.heightMm}mm;
+              /* Increased horizontal padding to protect text from physical printer misalignment */
+              padding: ${isSmall ? '0.8mm 2mm' : '1.2mm 2.5mm'};
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              align-items: center;
+              text-align: center;
+              overflow: hidden;
+              box-sizing: border-box;
+              flex-shrink: 0;
+              background: #fff;
+              ${!isThermal ? 'border: 0.2mm dashed #bbb;' : ''}
+            }
+            .header {
+              width: 100%;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: flex-start;
+              line-height: 1.1;
+              flex-shrink: 0;
+            }
+            .brand {
+              font-size: ${headerFontSize};
+              font-weight: 900;
+              letter-spacing: 0.3px;
+              text-transform: uppercase;
+              color: #000;
+              line-height: 1.1;
+            }
+            .prod-title {
+              font-size: ${titleFontSize};
+              font-weight: 700;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              max-width: 98%;
+              margin-top: 0.3mm;
+              color: #111;
+              line-height: 1.1;
+            }
+            .barcode-box {
+              width: 100%;
+              flex: 1;
+              min-height: 0;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              margin: 0.4mm 0;
+              overflow: hidden;
+            }
+            .barcode-box svg {
+              display: block;
+              margin: 0 auto;
+              max-width: 98%;
+              max-height: 100%;
+              width: auto;
+              height: auto;
+            }
+            .footer {
+              width: 100%;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-top: 0.6pt solid #000;
+              padding-top: 0.5mm;
+              line-height: 1;
+              flex-shrink: 0;
+            }
+            .retail-tag {
+              font-size: ${tagFontSize};
+              font-weight: 800;
+              color: #444;
+            }
+            .mrp {
+              text-decoration: line-through;
+              color: #555;
+              font-size: ${tagFontSize};
+              font-weight: 600;
+            }
+            .price {
+              font-size: ${priceFontSize};
+              font-weight: 900;
+              color: #000;
+            }
+          </style>
+        </head>
+        <body data-gramm="false">
+          ${bodyContent}
+        </body>
+      </html>
+    `
 
-      doc.open()
-      doc.write(html)
-      doc.close()
+    doc.open()
+    doc.write(html)
+    doc.close()
 
-      const cleanup = () => {
-        try {
-          if (iframe.parentNode) {
-            iframe.parentNode.removeChild(iframe)
-          }
-        } catch {
-          // iframe may already be detached
+    const cleanup = () => {
+      try {
+        if (iframe.parentNode) {
+          iframe.parentNode.removeChild(iframe)
         }
+      } catch {
+        // iframe may already be detached
       }
-
-      setTimeout(() => {
-        try {
-          if (iframe.contentWindow) {
-            iframe.contentWindow.onbeforeunload = null
-            iframe.contentWindow.onunload = null
-            iframe.contentWindow.onafterprint = cleanup
-            iframe.contentWindow.focus()
-            iframe.contentWindow.print()
-          }
-        } catch (err) {
-          console.warn('[BarcodePrintModal] Failed to execute print:', err)
-        } finally {
-          setTimeout(cleanup, 2500)
-        }
-      }, 200)
-    } catch (err) {
-      console.warn('[BarcodePrintModal] Failed to execute print:', err)
     }
+
+    setTimeout(() => {
+      try {
+        if (iframe.contentWindow) {
+          iframe.contentWindow.onbeforeunload = null
+          iframe.contentWindow.onunload = null
+          iframe.contentWindow.onafterprint = cleanup
+          iframe.contentWindow.focus()
+          iframe.contentWindow.print()
+        }
+      } catch (err) {
+        console.warn('[BarcodePrintModal] Failed to execute print:', err)
+      } finally {
+        setTimeout(cleanup, 2500)
+      }
+    }, 200)
+  } catch (err) {
+    console.warn('[BarcodePrintModal] Failed to execute print:', err)
   }
+}
 
   return createPortal(
     <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 w-screen h-screen h-[100dvh] z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4 overflow-hidden animate-in fade-in duration-150">
@@ -478,7 +459,7 @@ export const BarcodePrintModal: React.FC<BarcodePrintModalProps> = ({
                 </div>
                 <p className="text-[11px] text-gray-500 mt-1">
                   {printerType === 'label'
-                    ? 'Roll label printer (1 label per page)'
+                    ? `Roll label printer (${(selectedPreset.labelsPerRow || 1) > 1 ? `${selectedPreset.labelsPerRow} labels per page` : '1 label per page'})`
                     : 'A4 sheet printer (Canon G2010, HP, Epson)'}
                 </p>
               </div>
@@ -572,8 +553,7 @@ export const BarcodePrintModal: React.FC<BarcodePrintModalProps> = ({
                 Sticker Print Preview
               </label>
               <span className="text-[11px] font-bold text-[#B48811]">
-                {quantity || 1} {quantity === '1' ? 'Label' : 'Labels'} • {selectedPreset.widthMm} × {selectedPreset.heightMm} mm
-                {selectedPreset.labelsPerRow > 1 ? ` • ${selectedPreset.labelsPerRow}-Up` : ''} ({printerType === 'label' ? 'Roll' : 'A4 Sheet'})
+                {quantity || 1} {quantity === '1' ? 'Label' : 'Labels'} • {selectedPreset.widthMm} × {selectedPreset.heightMm} mm ({printerType === 'label' ? 'Roll' : 'A4 Sheet'})
               </span>
             </div>
             <div className="bg-[#FBFAF6] border-2 border-dashed border-[#E8D399] rounded-2xl py-6 px-4 flex items-center justify-center min-h-[140px]">

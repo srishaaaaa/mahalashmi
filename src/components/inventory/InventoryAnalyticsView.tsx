@@ -409,7 +409,7 @@ export const InventoryAnalyticsView: React.FC = () => {
                   <th className="p-3">Date &amp; Time</th>
                   <th className="p-3">Type</th>
                   <th className="p-3">Product / Variant</th>
-                  <th className="p-3">Barcode</th>
+                  <th className="p-3 whitespace-nowrap">Barcode</th>
                   <th className="p-3 text-center">Qty Delta</th>
                   <th className="p-3 text-center">Before → After</th>
                   <th className="p-3">User</th>

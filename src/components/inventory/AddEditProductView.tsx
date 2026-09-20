@@ -245,7 +245,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               expiry_date: expiryDate || null,
               mfg_date: mfgDate || null,
               location: location.trim() || null,
-              barcode: barcode.trim() ? normalizeBarcode(barcode) : null,
+              barcode: barcode.trim() || null,
               description: description.trim() || '',
               has_variants: false,
               has_special_offer: hasSpecialOffer,
@@ -273,7 +273,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
             })
           }
 
-          if (barcode.trim()) {
+          if (normalizeBarcode(barcode)) {
             await supabase.from('barcode_registry').upsert(
               {
                 barcode_value: normalizeBarcode(barcode),
@@ -311,7 +311,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                   price: vPrice,
                   purchase_price: vCost,
                   stock: vStock,
-                  barcode: v.customBarcode?.trim() ? normalizeBarcode(v.customBarcode) : null,
+                  barcode: v.customBarcode?.trim() || null,
                   is_active: true,
                 })
                 .select()
@@ -350,7 +350,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                   price: vPrice,
                   purchase_price: vCost,
                   stock: vStock,
-                  barcode: v.customBarcode?.trim() ? normalizeBarcode(v.customBarcode) : null,
+                  barcode: v.customBarcode?.trim() || null,
                 })
                 .eq('id', v.id)
 
@@ -422,7 +422,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               expiry_date: expiryDate || null,
               mfg_date: mfgDate || null,
               location: location.trim() || null,
-              barcode: barcode.trim() ? normalizeBarcode(barcode) : null,
+              barcode: barcode.trim() || null,
               description: description.trim() || '',
               has_variants: false,
               has_special_offer: hasSpecialOffer,
@@ -437,7 +437,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
 
           if (insErr || !newProd) throw insErr || new Error('Failed to create product')
 
-          if (barcode.trim()) {
+          if (normalizeBarcode(barcode)) {
             await supabase.from('barcode_registry').upsert(
               {
                 barcode_value: normalizeBarcode(barcode),
@@ -529,7 +529,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               .select('id')
               .single()
 
-            if (createdVar && v.customBarcode?.trim()) {
+            if (createdVar && normalizeBarcode(v.customBarcode)) {
               await supabase.from('barcode_registry').upsert(
                 {
                   barcode_value: normalizeBarcode(v.customBarcode),
@@ -569,7 +569,10 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
       await fetchProducts()
       onStockUpdated?.()
     } catch (err: unknown) {
-      const msg = getErrorMessage(err, 'An error occurred while saving')
+      let msg = getErrorMessage(err, 'An error occurred while saving')
+      if (msg.includes('barcode_registry_barcode_value_key') || (msg.includes('barcode') && msg.includes('duplicate key value violates unique constraint'))) {
+        msg = 'This barcode is already registered to another item.'
+      }
       play('error')
       setStatusMessage({ type: 'error', text: msg })
     } finally {

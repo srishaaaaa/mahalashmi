@@ -23,6 +23,10 @@ type CreateOrderInput = {
   splitDetails?: Record<string, unknown>
   totalGst?: number
   gstEnabled?: boolean
+
+  // Credit (pay-later) sale
+  isCredit?: boolean
+  creditDueDate?: string
 }
 
 type CreatedOrder = {
@@ -60,6 +64,8 @@ export const createOrderWithStock = async (input: CreateOrderInput): Promise<Cre
   const gstEnabled      = Boolean(input.gstEnabled)
   const paymentMethod   = input.paymentMethod || 'cash'
   const splitDetails    = input.splitDetails || {}
+  const isCredit        = Boolean(input.isCredit)
+  const creditDueDate   = input.creditDueDate?.trim() || null
 
   const rpcPayload = {
     p_customer_name:          customerName,
@@ -84,7 +90,14 @@ export const createOrderWithStock = async (input: CreateOrderInput): Promise<Cre
   }
 
   // 1. Try complete_pos_sale_with_inventory (inventory-aware transaction with atomic stock checks & movements ledger)
-  const inventoryRpcResult = await supabase.rpc('complete_pos_sale_with_inventory', rpcPayload)
+  // Credit fields are only passed here — create_order_with_stock and the legacy
+  // fallback below don't declare those params, so reusing rpcPayload as-is for
+  // them keeps those calls working even before migration 0031 is deployed.
+  const inventoryRpcResult = await supabase.rpc('complete_pos_sale_with_inventory', {
+    ...rpcPayload,
+    p_credit_due_date: creditDueDate,
+    p_is_credit: isCredit,
+  })
   data = inventoryRpcResult.data
   error = inventoryRpcResult.error
 

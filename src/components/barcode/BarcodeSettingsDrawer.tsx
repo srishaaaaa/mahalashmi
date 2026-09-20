@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Plus, Info, Check, Trash2 } from 'lucide-react'
+import { X, Plus, Info, Check } from 'lucide-react'
 import {
   type BarcodeSettings,
   type LabelSizeConfig,
   DEFAULT_LABEL_SIZES,
   getStoredCustomSizes,
-  fetchRemoteCustomSizes,
-  deleteStoredCustomSize,
-  subscribeCustomSizes,
   saveStoredBarcodeSettings,
 } from '../../lib/barcode'
+import { BRAND_EN } from '../../lib/brand'
 import { CreateCustomSizeModal } from './CreateCustomSizeModal'
 
 interface BarcodeSettingsDrawerProps {
@@ -28,17 +26,6 @@ export const BarcodeSettingsDrawer: React.FC<BarcodeSettingsDrawerProps> = ({
 }) => {
   const [customSizes, setCustomSizes] = useState<LabelSizeConfig[]>(getStoredCustomSizes())
   const [showCustomModal, setShowCustomModal] = useState(false)
-
-  // Sync custom sizes from database and subscribe to updates
-  useEffect(() => {
-    fetchRemoteCustomSizes().then((sizes) => {
-      setCustomSizes(sizes)
-    })
-    const unsubscribe = subscribeCustomSizes((updated) => {
-      setCustomSizes(updated)
-    })
-    return unsubscribe
-  }, [])
 
   // Close on Escape key
   useEffect(() => {
@@ -82,13 +69,6 @@ export const BarcodeSettingsDrawer: React.FC<BarcodeSettingsDrawerProps> = ({
     const updated: BarcodeSettings = { ...settings, [field]: !settings[field] }
     saveStoredBarcodeSettings(updated)
     onUpdateSettings(updated)
-  }
-
-  const handleDeleteCustomSize = (sizeId: string) => {
-    deleteStoredCustomSize(sizeId)
-    if (settings.selectedSizeId === sizeId) {
-      handleSizeChange(DEFAULT_LABEL_SIZES[0].id)
-    }
   }
 
   const allSizes = [...DEFAULT_LABEL_SIZES, ...customSizes]
@@ -157,13 +137,13 @@ export const BarcodeSettingsDrawer: React.FC<BarcodeSettingsDrawerProps> = ({
                   Select any 1 option
                 </span>
               </div>
-              <div className="space-y-1.5 bg-[#FBFAF6] p-3 rounded-xl border border-gray-200">
+              <div className="space-y-2.5 bg-[#FBFAF6] p-3 rounded-xl border border-gray-200">
                 {allSizes.map((size) => (
-                  <div
+                  <label
                     key={size.id}
-                    className="flex items-center justify-between gap-2 text-xs font-bold text-gray-700 hover:text-black"
+                    className="flex items-center justify-between gap-2 text-xs font-bold text-gray-700 cursor-pointer hover:text-black"
                   >
-                    <label className="flex items-center gap-2.5 cursor-pointer flex-1 py-1">
+                    <div className="flex items-center gap-2.5">
                       <input
                         type="radio"
                         name="labelSize"
@@ -172,27 +152,13 @@ export const BarcodeSettingsDrawer: React.FC<BarcodeSettingsDrawerProps> = ({
                         className="accent-[#0A0A0A] w-4 h-4 cursor-pointer"
                       />
                       <span>{size.name}</span>
-                    </label>
+                    </div>
                     {size.isCustom && (
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-[9px] font-black uppercase tracking-wider bg-[#0A0A0A] text-[#D4AF37] px-1.5 py-0.5 rounded">
-                          Custom
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handleDeleteCustomSize(size.id)
-                          }}
-                          title="Delete custom size"
-                          className="text-gray-400 hover:text-red-600 p-1 rounded transition-colors cursor-pointer"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
+                      <span className="text-[9px] font-black uppercase tracking-wider bg-[#0A0A0A] text-[#D4AF37] px-1.5 py-0.5 rounded">
+                        Custom
+                      </span>
                     )}
-                  </div>
+                  </label>
                 ))}
 
                 <button
@@ -230,7 +196,7 @@ export const BarcodeSettingsDrawer: React.FC<BarcodeSettingsDrawerProps> = ({
                     onChange={() => handleFieldToggle('showCompanyName')}
                     className="accent-[#0A0A0A] w-4 h-4 rounded cursor-pointer"
                   />
-                  Company Name (CLAD)
+                  Company Name ({BRAND_EN})
                 </label>
                 <label className="flex items-center gap-2.5 text-xs font-bold text-gray-700 cursor-pointer">
                   <input

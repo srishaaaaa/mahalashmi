@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase'
-import { normalizeBarcode } from '../lib/barcode'
 
 export interface BarcodeRegistryRecord {
   id: string
@@ -81,10 +80,11 @@ export const barcodeService = {
    * Lookup barcode value in registry and resolve product + variant info.
    */
   async lookupBarcode(barcodeValue: string): Promise<BarcodeRegistryRecord | null> {
-    const cleanValue = normalizeBarcode(barcodeValue)
+    // Normalize to uppercase so hardware scanners emitting lowercase still match
+    const cleanValue = (barcodeValue ?? '').trim().toUpperCase()
     if (!cleanValue) return null
 
-    // 1. Direct registry lookup
+    // 1. Direct registry lookup (case-insensitive via ilike)
     const { data, error } = await supabase
       .from('barcode_registry')
       .select(`
@@ -111,7 +111,7 @@ export const barcodeService = {
       } as BarcodeRegistryRecord
     }
 
-    // 2. Fallback: Check product_variants.barcode
+    // 2. Fallback: Check product_variants.barcode (case-insensitive)
     const { data: varData } = await supabase
       .from('product_variants')
       .select('id, product_id, variant_name, price, stock, sku, barcode, product:products (id, name, name_ta, price, offer_price, image_url, category)')
@@ -141,7 +141,7 @@ export const barcodeService = {
       } as BarcodeRegistryRecord
     }
 
-    // 3. Fallback: Check products.barcode
+    // 3. Fallback: Check products.barcode (case-insensitive)
     const { data: prodData } = await supabase
       .from('products')
       .select('id, name, name_ta, price, offer_price, image_url, category, barcode, stock_quantity')

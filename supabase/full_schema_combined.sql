@@ -178,6 +178,9 @@ CREATE TABLE IF NOT EXISTS public.orders (
   reference_number TEXT NOT NULL DEFAULT '',
   billing_date TIMESTAMPTZ,
   invoice_pdf_url TEXT,
+  credit_due_date DATE,
+  credit_status TEXT CHECK (credit_status IS NULL OR credit_status IN ('outstanding', 'paid')),
+  credit_paid_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -366,6 +369,19 @@ CREATE TABLE IF NOT EXISTS public.barcode_custom_sizes (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Built up automatically from POS checkout (keyed by phone) so birthdays and
+-- anniversaries can be captured without a separate customer-management screen.
+CREATE TABLE IF NOT EXISTS public.customers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  phone TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL DEFAULT '',
+  address TEXT NOT NULL DEFAULT '',
+  birthday DATE,
+  anniversary DATE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ----------------------------------------------------------------------------
 -- Indexes
 -- ----------------------------------------------------------------------------
@@ -378,6 +394,8 @@ CREATE INDEX IF NOT EXISTS orders_phone_idx ON public.orders(phone);
 CREATE INDEX IF NOT EXISTS order_items_order_id_idx ON public.order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_invoice_no ON public.orders(invoice_no);
 CREATE INDEX IF NOT EXISTS idx_orders_billing_date ON public.orders(billing_date);
+CREATE INDEX IF NOT EXISTS idx_orders_credit_status ON public.orders(credit_status) WHERE credit_status = 'outstanding';
+CREATE INDEX IF NOT EXISTS idx_orders_credit_due_date ON public.orders(credit_due_date) WHERE credit_status = 'outstanding';
 
 CREATE INDEX IF NOT EXISTS advance_orders_created_idx ON public.advance_orders(created_at DESC);
 CREATE INDEX IF NOT EXISTS advance_orders_status_idx ON public.advance_orders(status);
@@ -393,6 +411,8 @@ CREATE INDEX IF NOT EXISTS idx_inv_movements_prod ON public.inventory_movements(
 CREATE INDEX IF NOT EXISTS idx_inv_movements_var ON public.inventory_movements(variant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_inv_movements_type ON public.inventory_movements(movement_type, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_barcode_custom_sizes_created_at ON public.barcode_custom_sizes(created_at ASC);
+
+CREATE INDEX IF NOT EXISTS idx_customers_phone ON public.customers(phone);
 
 CREATE INDEX IF NOT EXISTS idx_expenses_date ON public.expenses(expense_date DESC);
 CREATE INDEX IF NOT EXISTS idx_expenses_category ON public.expenses(category_id);
@@ -1363,7 +1383,9 @@ CREATE OR REPLACE FUNCTION public.complete_pos_sale_with_inventory(
   p_gst_enabled BOOLEAN DEFAULT FALSE,
   p_remarks TEXT DEFAULT NULL,
   p_reference_number TEXT DEFAULT NULL,
-  p_billing_date TIMESTAMPTZ DEFAULT NULL
+  p_billing_date TIMESTAMPTZ DEFAULT NULL,
+  p_credit_due_date DATE DEFAULT NULL,
+  p_is_credit BOOLEAN DEFAULT FALSE
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -1456,7 +1478,8 @@ BEGIN
     manual_discount_type, manual_discount_value, coupon_code,
     coupon_percentage, total_gst, gst_amount, gst_enabled,
     payment_method, payment_mode, split_details, remarks,
-    reference_number, billing_date, created_at, updated_at
+    reference_number, billing_date, credit_due_date, credit_status,
+    created_at, updated_at
   )
   VALUES (
     v_invoice_no, v_user_id, COALESCE(NULLIF(BTRIM(p_customer_name), ''), 'Customer'),
@@ -1470,7 +1493,9 @@ BEGIN
     COALESCE(p_total_gst, 0), COALESCE(p_gst_enabled, FALSE),
     COALESCE(p_payment_method, 'cash'), COALESCE(p_payment_method, 'cash'),
     COALESCE(p_split_details, '{}'::JSONB), COALESCE(p_remarks, ''),
-    COALESCE(p_reference_number, ''), p_billing_date, v_created_at, NOW()
+    COALESCE(p_reference_number, ''), p_billing_date, p_credit_due_date,
+    CASE WHEN p_is_credit THEN 'outstanding' ELSE NULL END,
+    v_created_at, NOW()
   )
   RETURNING id INTO v_order_id;
 
@@ -1581,6 +1606,35 @@ BEGIN
 END;
 $$;
 
+-- Settles an outstanding credit sale: marks it paid and stamps when.
+CREATE OR REPLACE FUNCTION public.mark_credit_order_paid(p_order_id UUID)
+RETURNS public.orders
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_order public.orders;
+BEGIN
+  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Order not found';
+  END IF;
+  IF v_order.credit_status IS DISTINCT FROM 'outstanding' THEN
+    RAISE EXCEPTION 'Order is not an outstanding credit sale';
+  END IF;
+
+  UPDATE public.orders
+  SET credit_status = 'paid', credit_paid_at = NOW(), updated_at = NOW()
+  WHERE id = p_order_id
+  RETURNING * INTO v_order;
+
+  RETURN v_order;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.mark_credit_order_paid(uuid) TO authenticated, anon, public;
+
 CREATE OR REPLACE FUNCTION public.get_expense_summary_metrics(
   p_current_date DATE DEFAULT CURRENT_DATE
 )
@@ -1640,6 +1694,7 @@ ALTER TABLE public.inventory_movements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.expense_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.barcode_custom_sizes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS profiles_portal_manage ON public.profiles;
 CREATE POLICY profiles_portal_manage ON public.profiles FOR ALL TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
@@ -1695,6 +1750,9 @@ CREATE POLICY expenses_all ON public.expenses FOR ALL USING (TRUE) WITH CHECK (T
 
 DROP POLICY IF EXISTS barcode_custom_sizes_all ON public.barcode_custom_sizes;
 CREATE POLICY barcode_custom_sizes_all ON public.barcode_custom_sizes FOR ALL USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS customers_all ON public.customers;
+CREATE POLICY customers_all ON public.customers FOR ALL USING (TRUE) WITH CHECK (TRUE);
 
 -- ----------------------------------------------------------------------------
 -- Storage buckets & policies
