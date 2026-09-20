@@ -178,12 +178,27 @@ CREATE TABLE IF NOT EXISTS public.orders (
   reference_number TEXT NOT NULL DEFAULT '',
   billing_date TIMESTAMPTZ,
   invoice_pdf_url TEXT,
-  credit_due_date DATE,
-  credit_status TEXT CHECK (credit_status IS NULL OR credit_status IN ('outstanding', 'paid')),
-  credit_paid_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Added via ALTER (not inline) because CREATE TABLE IF NOT EXISTS is a
+-- no-op against a database where orders already exists, which would
+-- otherwise silently skip these columns.
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS credit_due_date DATE;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS credit_status TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS credit_paid_at TIMESTAMPTZ;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'orders_credit_status_check'
+  ) THEN
+    ALTER TABLE public.orders
+      ADD CONSTRAINT orders_credit_status_check
+      CHECK (credit_status IS NULL OR credit_status IN ('outstanding', 'paid'));
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.order_items (
   id BIGSERIAL PRIMARY KEY,
@@ -240,6 +255,11 @@ CREATE TABLE IF NOT EXISTS public.store_settings (
   expiry_alert_days INTEGER NOT NULL DEFAULT 30,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Added via ALTER (not inline) for the same reason as orders.credit_due_date above.
+ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS accent_color TEXT NOT NULL DEFAULT '#2E7D32';
+ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS business_type TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS shop_contact_number TEXT NOT NULL DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS public.advance_orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

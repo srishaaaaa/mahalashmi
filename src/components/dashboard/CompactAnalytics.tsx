@@ -63,7 +63,7 @@ export default function CompactAnalytics({ analytics }: CompactAnalyticsProps) {
               <p className="text-[11px] text-[#7A846F] mt-1">Completed revenue only</p>
             </div>
             <div className="inline-flex items-center gap-1 rounded-full bg-[#F7F8F4] px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#6B7661]">
-              <Sparkles size={12} className="text-[#2E7D32]" /> Premium
+              <Sparkles size={12} className="text-[var(--accent)]" /> Premium
             </div>
           </div>
           <div className="h-[224px] w-full min-w-0">
@@ -124,7 +124,7 @@ export default function CompactAnalytics({ analytics }: CompactAnalyticsProps) {
                   <XAxis type="number" tick={chartAxis} axisLine={false} tickLine={false} width={30} />
                   <YAxis type="category" dataKey="name" tick={{ ...chartAxis, fontSize: 10.5 }} axisLine={false} tickLine={false} width={110} />
                   <Tooltip content={<TooltipCard />} />
-                  <Bar dataKey="qty" fill="#2E7D32" radius={[0, 8, 8, 0]} barSize={14} />
+                  <Bar dataKey="qty" fill="var(--accent)" radius={[0, 8, 8, 0]} barSize={14} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

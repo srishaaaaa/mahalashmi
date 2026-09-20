@@ -21,6 +21,8 @@ export type InvoicePdfData = {
   gstAmount?: number
   couponCode?: string | null
   paymentMode?: string
+  isCredit?: boolean
+  creditDueDate?: string | null
 }
 
 // jsPDF's built-in Helvetica font has no ₹ (U+20B9) glyph — it renders as a
@@ -40,15 +42,19 @@ export function createInvoicePdf(data: InvoicePdfData): Blob {
   const pageWidth = 210
   const left = 16
   const right = 194
-  const primaryColor = '#2E7D32' // Flamingo Pink
+  const primaryColor = storeSettings?.accentColor || '#2E7D32'
   const ink = '#18202a'
   const muted = '#68717c'
   let y = 16
 
+  const dueDateLabel = data.creditDueDate
+    ? new Date(`${data.creditDueDate}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : ''
+
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8)
   doc.setTextColor(muted)
-  doc.text('TAX INVOICE', left, y)
+  doc.text(data.isCredit ? 'CREDIT INVOICE' : 'TAX INVOICE', left, y)
   doc.text(`Invoice: #${formattedNo}`, right, y, { align: 'right' })
   y += 7
   doc.setDrawColor('#d8dce0')
@@ -79,7 +85,27 @@ export function createInvoicePdf(data: InvoicePdfData): Blob {
   doc.text(`Phone: ${shopPhone}`, left + 24, y + 18)
   doc.text(`Date: ${new Date(data.date).toLocaleDateString('en-IN')}`, right, y + 2, { align: 'right' })
   doc.text(`Payment: ${data.paymentMode || 'POS'}`, right, y + 7, { align: 'right' })
+  if (data.isCredit && dueDateLabel) {
+    doc.setTextColor('#B91C1C')
+    doc.text(`Due: ${dueDateLabel}`, right, y + 12, { align: 'right' })
+    doc.setTextColor(muted)
+  }
   y += 28
+
+  if (data.isCredit) {
+    doc.setFillColor('#FEE2E2')
+    doc.roundedRect(left, y, right - left, 10, 2, 2, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor('#B91C1C')
+    doc.text(
+      dueDateLabel ? `CREDIT SALE — PAYMENT DUE ON ${dueDateLabel}` : 'CREDIT SALE — PAYMENT PENDING',
+      left + (right - left) / 2,
+      y + 6.5,
+      { align: 'center' },
+    )
+    y += 16
+  }
 
   const customerName = String(data.customerName || 'Walk-in Customer').trim()
   const customerPhone = data.phone ? formatPhoneDisplay(String(data.phone)) : '—'
@@ -147,19 +173,20 @@ export function createInvoicePdf(data: InvoicePdfData): Blob {
 
   y = Math.max(y + 6, 150)
   const rows: Array<[string, string, string]> = [['Subtotal', money(data.subtotal), ink]]
-  if ((data.discountAmount || 0) > 0) rows.push([`Coupon${data.couponCode ? ` (${data.couponCode})` : ''}`, `-${money(data.discountAmount || 0)}`, '#2E7D32'])
-  if ((data.manualDiscountAmount || 0) > 0) rows.push(['Discount', `-${money(data.manualDiscountAmount || 0)}`, '#2E7D32'])
+  if ((data.discountAmount || 0) > 0) rows.push([`Coupon${data.couponCode ? ` (${data.couponCode})` : ''}`, `-${money(data.discountAmount || 0)}`, primaryColor])
+  if ((data.manualDiscountAmount || 0) > 0) rows.push(['Discount', `-${money(data.manualDiscountAmount || 0)}`, primaryColor])
   if ((data.gstAmount || 0) > 0) rows.push(['GST', money(data.gstAmount || 0), ink])
   rows.push(['Delivery', (data.shipping || 0) > 0 ? money(data.shipping) : 'FREE', ink])
   doc.setFontSize(9)
   rows.forEach(([label, value, color]) => { doc.setFont('helvetica', 'normal'); doc.setTextColor(color); doc.text(label, 143, y, { align: 'right' }); doc.text(value, right - 4, y, { align: 'right' }); y += 7 })
-  doc.setDrawColor(primaryColor)
+  const totalColor = data.isCredit ? '#B91C1C' : primaryColor
+  doc.setDrawColor(totalColor)
   doc.setLineWidth(0.7)
   doc.line(118, y - 3, right, y - 3)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(14)
-  doc.setTextColor(primaryColor)
-  doc.text('TOTAL', 143, y + 6, { align: 'right' })
+  doc.setTextColor(totalColor)
+  doc.text(data.isCredit ? 'AMOUNT DUE' : 'TOTAL', 143, y + 6, { align: 'right' })
   doc.text(money(data.total), right - 4, y + 6, { align: 'right' })
 
   y = 275
@@ -168,8 +195,15 @@ export function createInvoicePdf(data: InvoicePdfData): Blob {
   doc.line(left, y, right, y)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8)
-  doc.setTextColor(primaryColor)
-  doc.text('THANK YOU FOR SHOPPING WITH US', pageWidth / 2, y + 8, { align: 'center' })
+  doc.setTextColor(data.isCredit ? '#B91C1C' : primaryColor)
+  doc.text(
+    data.isCredit
+      ? `CREDIT SALE — KINDLY SETTLE${dueDateLabel ? ` BY ${dueDateLabel}` : ''}. THANK YOU!`
+      : 'THANK YOU FOR SHOPPING WITH US',
+    pageWidth / 2,
+    y + 8,
+    { align: 'center' },
+  )
   return doc.output('blob')
 }
 

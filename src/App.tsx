@@ -5,6 +5,7 @@ import { useAuthStore, useProductStore, useVariantStore, useAdminAuthStore, useS
 import { BRAND_EN } from './lib/brand'
 import { clearLocalOrders } from './lib/ordersFallback'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
+import { darkenHex, hexToRgba, ACCENT_ALPHA_STEPS } from './lib/color'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Pos = lazy(() => import('./pages/Pos'))
@@ -15,7 +16,7 @@ const AdminLogin = lazy(() => import('./pages/AdminLogin'))
 function LoadingSpinner() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bgMain">
-      <span className="h-10 w-10 animate-spin rounded-full border-4 border-[#E5E7EB] border-t-[#2E7D32]" />
+      <span className="h-10 w-10 animate-spin rounded-full border-4 border-[#E5E7EB] border-t-[var(--accent)]" />
     </div>
   )
 }
@@ -65,6 +66,17 @@ function AppShell() {
   const fetchSettings = useSettingsStore((state) => state.fetchSettings)
   const shopName = useSettingsStore((state) => state.settings?.name)
   const shopLogoUrl = useSettingsStore((state) => state.settings?.logoUrl)
+  const accentColor = useSettingsStore((state) => state.settings?.accentColor)
+
+  // Site-wide accent colour, customizable in Store Settings > Appearance.
+  useEffect(() => {
+    const hex = accentColor || '#2E7D32'
+    document.documentElement.style.setProperty('--accent', hex)
+    document.documentElement.style.setProperty('--accent-dark', darkenHex(hex))
+    for (const step of ACCENT_ALPHA_STEPS) {
+      document.documentElement.style.setProperty(`--accent-a${step}`, hexToRgba(hex, step / 100))
+    }
+  }, [accentColor])
 
   useEffect(() => {
     document.title = shopName

@@ -13,6 +13,17 @@
     --brand-surface: #FBFAF6;
     --brand-text-dark: #111111;
     --brand-text-muted: #6B7280;
+    /* Site-wide accent colour, customizable in Store Settings > Appearance.
+       Kept up to date at runtime by App.tsx from settings.accentColor. */
+    --accent: #2E7D32;
+    --accent-dark: #1B5E20;
+    --accent-a5: rgba(46, 125, 50, 0.05);
+    --accent-a10: rgba(46, 125, 50, 0.1);
+    --accent-a15: rgba(46, 125, 50, 0.15);
+    --accent-a20: rgba(46, 125, 50, 0.2);
+    --accent-a30: rgba(46, 125, 50, 0.3);
+    --accent-a40: rgba(46, 125, 50, 0.4);
+    --accent-a50: rgba(46, 125, 50, 0.5);
   }
 
   *, *::before, *::after {

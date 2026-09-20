@@ -144,14 +144,14 @@ export default function CatalogModal({ isOpen, onClose, onAdd }: CatalogModalPro
                 <label className="block text-[10px] font-black text-[#374151] tracking-wider uppercase mb-1.5">Product Name</label>
                 <input type="text" value={editForm.name}
                   onChange={e => setEditForm({...editForm, name: e.target.value})}
-                  className="w-full px-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl focus:outline-none focus:border-[#2E7D32] text-[13px] font-bold" />
+                  className="w-full px-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl focus:outline-none focus:border-[var(--accent)] text-[13px] font-bold" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-black text-[#374151] tracking-wider uppercase mb-1.5">Category</label>
                   <select value={editForm.category}
                     onChange={e => setEditForm({...editForm, category: e.target.value})}
-                    className="w-full min-w-0 h-12 px-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl focus:outline-none focus:border-[#2E7D32] text-[13px] font-bold touch-manipulation">
+                    className="w-full min-w-0 h-12 px-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl focus:outline-none focus:border-[var(--accent)] text-[13px] font-bold touch-manipulation">
                     <option value="">Select category</option>
                     {allCategoryOptions.map(category => <option key={category.id} value={category.name_en}>{category.name_en}</option>)}
                     {!allCategoryOptions.some(category => category.name_en === editForm.category) && editForm.category && (
@@ -163,11 +163,11 @@ export default function CatalogModal({ isOpen, onClose, onAdd }: CatalogModalPro
                   <label className="block text-[10px] font-black text-[#374151] tracking-wider uppercase mb-1.5">Price (₹)</label>
                   <input type="number" value={editForm.price}
                     onChange={e => setEditForm({...editForm, price: e.target.value})}
-                    className="w-full px-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl focus:outline-none focus:border-[#2E7D32] text-[13px] font-bold text-right" placeholder="0" />
+                    className="w-full px-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl focus:outline-none focus:border-[var(--accent)] text-[13px] font-bold text-right" placeholder="0" />
                 </div>
               </div>
               <button type="submit" disabled={editLoading}
-                className="mt-4 w-full py-3.5 bg-[#2E7D32] hover:bg-[#065F46] text-white rounded-xl text-[13px] font-black uppercase tracking-wider transition-colors disabled:opacity-50">
+                className="mt-4 w-full py-3.5 bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white rounded-xl text-[13px] font-black uppercase tracking-wider transition-colors disabled:opacity-50">
                 {editLoading ? 'Saving...' : 'Save Changes'}
               </button>
             </form>
@@ -176,7 +176,7 @@ export default function CatalogModal({ isOpen, onClose, onAdd }: CatalogModalPro
           <>
             <div className="flex items-center justify-between p-5 border-b border-[#E5E7EB]/40 bg-[#F9FAFB]">
               <h2 className="text-[18px] font-black text-[#111111] flex items-center gap-2">
-                <Search size={18} className="text-[#2E7D32]" />
+                <Search size={18} className="text-[var(--accent)]" />
                 Search Catalog
               </h2>
               <button onClick={onClose} className="p-2 rounded-xl hover:bg-black/5 text-[#374151]">
@@ -189,12 +189,12 @@ export default function CatalogModal({ isOpen, onClose, onAdd }: CatalogModalPro
                 <input type="text" value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search by product name, Tamil name, or category..."
-                  className="w-full pl-10 pr-4 py-3 bg-[#FAFAFA] border border-[#E5E7EB]/60 rounded-xl focus:outline-none focus:border-[#2E7D32] text-[13px] font-bold text-[#111111]" />
+                  className="w-full pl-10 pr-4 py-3 bg-[#FAFAFA] border border-[#E5E7EB]/60 rounded-xl focus:outline-none focus:border-[var(--accent)] text-[13px] font-bold text-[#111111]" />
               </div>
               <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
                 {categories.map(cat => (
                   <button key={cat} onClick={() => setActiveCategory(cat)}
-                    className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider whitespace-nowrap transition-colors ${activeCategory === cat ? 'bg-[#2E7D32] text-white' : 'bg-[#FAFAFA] text-[#374151] hover:bg-[#F9FAFB] border border-[#E5E7EB]/60'}`}>
+                    className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider whitespace-nowrap transition-colors ${activeCategory === cat ? 'bg-[var(--accent)] text-white' : 'bg-[#FAFAFA] text-[#374151] hover:bg-[#F9FAFB] border border-[#E5E7EB]/60'}`}>
                     {cat}
                   </button>
                 ))}
@@ -203,13 +203,13 @@ export default function CatalogModal({ isOpen, onClose, onAdd }: CatalogModalPro
             <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 bg-[#FAFAFA]">
               {loading ? (
                 <div className="flex min-h-48 flex-col items-center justify-center gap-3 text-[#374151]/70">
-                  <span className="h-7 w-7 animate-spin rounded-full border-2 border-[#E5E7EB] border-t-[#2E7D32]" />
+                  <span className="h-7 w-7 animate-spin rounded-full border-2 border-[#E5E7EB] border-t-[var(--accent)]" />
                   <p className="text-[13px] font-bold">Loading catalog...</p>
                 </div>
               ) : error ? (
                 <div className="flex min-h-48 flex-col items-center justify-center gap-2 px-4 text-center text-red-500">
                   <p className="text-[13px] font-bold">Unable to load catalog items.</p>
-                  <button type="button" onClick={() => void fetchProducts(true)} className="rounded-lg bg-[#2E7D32] px-3 py-2 text-[11px] font-black text-white">Try again</button>
+                  <button type="button" onClick={() => void fetchProducts(true)} className="rounded-lg bg-[var(--accent)] px-3 py-2 text-[11px] font-black text-white">Try again</button>
                 </div>
               ) : filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-[#374151]/60 py-12">
@@ -220,13 +220,13 @@ export default function CatalogModal({ isOpen, onClose, onAdd }: CatalogModalPro
                 <div className="flex flex-col gap-3">
                   {filtered.map(product => (
                     <div key={product.id}
-                      className="bg-white border border-[#E5E7EB]/60 rounded-2xl p-4 hover:border-[#2E7D32]/40 hover:shadow-md transition-all group">
+                      className="bg-white border border-[#E5E7EB]/60 rounded-2xl p-4 hover:border-[var(--accent-a40)] hover:shadow-md transition-all group">
                       <div className="flex items-start justify-between gap-3">
                         <div onClick={() => onAdd(product)} className="cursor-pointer flex-1 min-w-0">
-                          <h4 className="text-[15px] font-black text-[#111111] leading-tight break-words group-hover:text-[#2E7D32] transition-colors">{product.name}</h4>
+                          <h4 className="text-[15px] font-black text-[#111111] leading-tight break-words group-hover:text-[var(--accent)] transition-colors">{product.name}</h4>
                           {product.nameTa && <p className="text-[11px] font-bold text-[#374151] mt-0.5 break-words">{product.nameTa}</p>}
                           {product.location && (
-                            <p className="flex items-center gap-1 text-[10px] font-bold text-[#2E7D32] mt-1">
+                            <p className="flex items-center gap-1 text-[10px] font-bold text-[var(--accent)] mt-1">
                               <MapPin size={11} /> {product.location}
                             </p>
                           )}
@@ -236,7 +236,7 @@ export default function CatalogModal({ isOpen, onClose, onAdd }: CatalogModalPro
                         </div>
                         <div className="flex gap-1.5 shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                           <button onClick={(e) => { e.stopPropagation(); startEdit(product) }} title="Edit product"
-                            className="p-2 rounded-lg bg-white border border-[#E5E7EB]/60 text-[#374151] hover:text-[#2E7D32] hover:border-[#2E7D32]/40 shadow-sm transition-colors">
+                            className="p-2 rounded-lg bg-white border border-[#E5E7EB]/60 text-[#374151] hover:text-[var(--accent)] hover:border-[var(--accent-a40)] shadow-sm transition-colors">
                             <Edit2 size={15} />
                           </button>
                           <button onClick={(e) => { e.stopPropagation(); void handleDelete(product) }} title="Delete product"

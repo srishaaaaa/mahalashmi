@@ -603,7 +603,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
           type="button"
           onClick={() => { resetForm(); setMobileView('form') }}
           className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition-colors cursor-pointer ${
-            mobileView === 'form' ? 'bg-[#2E7D32] text-white' : 'text-gray-600'
+            mobileView === 'form' ? 'bg-[var(--accent)] text-white' : 'text-gray-600'
           }`}
         >
           <Plus size={14} /> Add New Product
@@ -654,7 +654,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                     key={p.id}
                     onClick={() => startEditProduct(p)}
                     className={`group cursor-pointer hover:bg-[#FBFAF6] transition-colors ${
-                      selectedProductId === Number(p.id) ? 'bg-[#FFF9E6] border-l-4 border-[#2E7D32]' : ''
+                      selectedProductId === Number(p.id) ? 'bg-[#FFF9E6] border-l-4 border-[var(--accent)]' : ''
                     }`}
                   >
                     <td className="max-w-[140px] whitespace-normal break-words px-3.5 py-2.5 align-top">
@@ -675,7 +675,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                             e.stopPropagation()
                             void startEditProduct(p)
                           }}
-                          className="p-1 rounded-md border border-gray-200 text-gray-500 hover:text-[#2E7D32] hover:border-[#2E7D32] hover:bg-[#EAF6EC] transition-all cursor-pointer"
+                          className="p-1 rounded-md border border-gray-200 text-gray-500 hover:text-[var(--accent)] hover:border-[var(--accent)] hover:bg-[#EAF6EC] transition-all cursor-pointer"
                           title={`Edit "${p.name}"`}
                         >
                           <Pencil size={13} />
@@ -716,7 +716,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
             </button>
             <div className="min-w-0">
               <h3 className="text-sm font-bold text-black flex items-center gap-2 truncate">
-                <Package size={16} className="text-[#2E7D32] shrink-0" />
+                <Package size={16} className="text-[var(--accent)] shrink-0" />
                 {selectedProductId ? 'Edit Product & Stock Details' : 'Add New Product to Catalog'}
               </h3>
               <p className="text-[11px] text-gray-500 font-semibold truncate">
@@ -974,7 +974,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                     onChange={(e) => setHasSpecialOffer(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2E7D32]" />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--accent)]" />
                 </label>
               </div>
               {hasSpecialOffer && (
@@ -986,7 +986,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                       placeholder="e.g. Buy 1 Get 1 Free, or Free sample gift with purchase"
                       value={specialOfferNote}
                       onChange={(e) => setSpecialOfferNote(e.target.value)}
-                      className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[#2E7D32]"
+                      className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[var(--accent)]"
                     />
                   </div>
                   <div>
@@ -998,7 +998,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                       placeholder="0"
                       value={specialOfferCost}
                       onChange={(e) => setSpecialOfferCost(e.target.value)}
-                      className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[#2E7D32]"
+                      className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[var(--accent)]"
                     />
                   </div>
                 </div>
@@ -1010,7 +1010,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xs font-black text-black flex items-center gap-1.5">
-                    <Tag size={14} className="text-[#2E7D32]" /> Multi-Variant Product (Sizes, Colors, SKUs)
+                    <Tag size={14} className="text-[var(--accent)]" /> Multi-Variant Product (Sizes, Colors, SKUs)
                   </span>
                   <p className="text-[11px] text-gray-500 font-medium">
                     Enable if this product comes in multiple sizes (e.g. S, M, L, XL) or colors
@@ -1041,7 +1041,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                     <button
                       type="button"
                       onClick={handleAddVariantRow}
-                      className="px-3 py-1 rounded-lg bg-[#0A0A0A] text-[#2E7D32] text-xs font-black flex items-center gap-1 hover:bg-[#1A1A1A] cursor-pointer"
+                      className="px-3 py-1 rounded-lg bg-[#0A0A0A] text-[var(--accent)] text-xs font-black flex items-center gap-1 hover:bg-[#1A1A1A] cursor-pointer"
                     >
                       <Plus size={12} /> Add Variant
                     </button>
@@ -1155,11 +1155,11 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2 sm:px-6 sm:py-2.5 rounded-xl bg-[#0A0A0A] border border-[#2E7D32] text-[#2E7D32] text-xs font-black uppercase tracking-wider hover:bg-[#1A1A1A] transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              className="px-5 py-2 sm:px-6 sm:py-2.5 rounded-xl bg-[#0A0A0A] border border-[var(--accent)] text-[var(--accent)] text-xs font-black uppercase tracking-wider hover:bg-[#1A1A1A] transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {loading ? (
                 <>
-                  <span className="w-3.5 h-3.5 border-2 border-[#2E7D32]/30 border-t-[#2E7D32] rounded-full animate-spin inline-block" />
+                  <span className="w-3.5 h-3.5 border-2 border-[var(--accent-a30)] border-t-[var(--accent)] rounded-full animate-spin inline-block" />
                   Saving Product...
                 </>
               ) : (

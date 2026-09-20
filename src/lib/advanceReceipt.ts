@@ -12,6 +12,7 @@ function getShopInfo() {
     name: storeSettings?.name || BRAND_EN,
     address: storeSettings?.address || BRAND_ADDRESS,
     phone: storeSettings?.phone || BRAND_PHONE_DISPLAY,
+    accentColor: storeSettings?.accentColor || '#2E7D32',
   }
 }
 
@@ -32,7 +33,7 @@ export function advanceReceiptPdf(order: AdvanceOrder) {
   const pageWidth = 210
   const left = 16
   const right = 194
-  const primaryColor = '#2E7D32'
+  const primaryColor = shop.accentColor
   const ink = '#18202a'
   const muted = '#68717c'
   let y = 16

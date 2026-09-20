@@ -138,7 +138,7 @@ export default function ExpiryAlerts() {
               <button
                 type="button"
                 onClick={() => navigate('/dashboard?tab=settings')}
-                className="font-bold text-[#2E7D32] hover:underline cursor-pointer"
+                className="font-bold text-[var(--accent)] hover:underline cursor-pointer"
               >
                 Customize window
               </button>
@@ -151,7 +151,7 @@ export default function ExpiryAlerts() {
           <button
             onClick={() => setBulkOpen(o => !o)}
             className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold cursor-pointer ${
-              bulkOpen ? 'border-[#2E7D32] bg-[#2E7D32] text-white' : 'border-[#ECE9E2] bg-white text-[#273126]'
+              bulkOpen ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : 'border-[#ECE9E2] bg-white text-[#273126]'
             }`}
           >
             <CalendarPlus size={16} /> Set Mfg / Expiry Dates
@@ -176,7 +176,7 @@ export default function ExpiryAlerts() {
       </div>
 
       {bulkOpen && (
-        <div className="rounded-2xl border border-[#2E7D32]/30 bg-[#FBFAF6] p-4 shadow-sm">
+        <div className="rounded-2xl border border-[var(--accent-a30)] bg-[#FBFAF6] p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
             <div>
               <h3 className="text-sm font-black text-[#273126]">Set Manufacture &amp; Expiry Dates for Existing Products</h3>
@@ -190,7 +190,7 @@ export default function ExpiryAlerts() {
               <button
                 onClick={() => void saveAllPending()}
                 disabled={savingIds.size > 0}
-                className="flex items-center gap-2 rounded-xl bg-[#0A0A0A] px-4 py-2 text-sm font-black text-white hover:bg-[#2E7D32] disabled:opacity-50 cursor-pointer"
+                className="flex items-center gap-2 rounded-xl bg-[#0A0A0A] px-4 py-2 text-sm font-black text-white hover:bg-[var(--accent)] disabled:opacity-50 cursor-pointer"
               >
                 <Save size={15} /> Save All ({pendingCount})
               </button>
@@ -204,7 +204,7 @@ export default function ExpiryAlerts() {
           <label className="relative block mb-3">
             <Search className="absolute left-3 top-3 text-[#9CA3AF]" size={15} />
             <input
-              className="w-full h-10 rounded-xl border border-[#E5E7EB] bg-white pl-9 pr-3 text-xs font-semibold text-[#273126] outline-none focus:border-[#2E7D32]"
+              className="w-full h-10 rounded-xl border border-[#E5E7EB] bg-white pl-9 pr-3 text-xs font-semibold text-[#273126] outline-none focus:border-[var(--accent)]"
               value={bulkSearch}
               onChange={e => setBulkSearch(e.target.value)}
               placeholder="Search products without an expiry date"
@@ -234,7 +234,7 @@ export default function ExpiryAlerts() {
                         value={mfgVal}
                         disabled={Boolean(p.mfgDate)}
                         onChange={e => setPendingMfgDates(prev => ({ ...prev, [key]: e.target.value }))}
-                        className="h-9 rounded-lg border border-[#E5E7EB] bg-white px-2.5 text-xs font-bold text-[#273126] outline-none focus:border-[#2E7D32] disabled:bg-gray-100 disabled:text-gray-400"
+                        className="h-9 rounded-lg border border-[#E5E7EB] bg-white px-2.5 text-xs font-bold text-[#273126] outline-none focus:border-[var(--accent)] disabled:bg-gray-100 disabled:text-gray-400"
                       />
                     </div>
                     <div>
@@ -244,14 +244,14 @@ export default function ExpiryAlerts() {
                         value={expiryVal}
                         disabled={Boolean(p.expiryDate)}
                         onChange={e => setPendingExpiryDates(prev => ({ ...prev, [key]: e.target.value }))}
-                        className="h-9 rounded-lg border border-[#E5E7EB] bg-white px-2.5 text-xs font-bold text-[#273126] outline-none focus:border-[#2E7D32] disabled:bg-gray-100 disabled:text-gray-400"
+                        className="h-9 rounded-lg border border-[#E5E7EB] bg-white px-2.5 text-xs font-bold text-[#273126] outline-none focus:border-[var(--accent)] disabled:bg-gray-100 disabled:text-gray-400"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => hasPending && void saveOne(p.id, { mfg: pendingMfgDates[key], expiry: pendingExpiryDates[key] })}
                       disabled={!hasPending || isSaving}
-                      className="flex items-center gap-1 rounded-lg bg-[#2E7D32] px-2.5 py-1.5 text-[11px] font-black text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer self-end"
+                      className="flex items-center gap-1 rounded-lg bg-[var(--accent)] px-2.5 py-1.5 text-[11px] font-black text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer self-end"
                     >
                       {isSaving ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />} Save
                     </button>
@@ -282,7 +282,7 @@ export default function ExpiryAlerts() {
           <label className="relative">
             <Search className="absolute left-3 top-3 text-[#9CA3AF]" size={17} />
             <input
-              className="w-full h-11 rounded-xl border border-[#E5E7EB] bg-white pl-10 pr-3 text-sm font-semibold text-[#273126] outline-none focus:border-[#2E7D32]"
+              className="w-full h-11 rounded-xl border border-[#E5E7EB] bg-white pl-10 pr-3 text-sm font-semibold text-[#273126] outline-none focus:border-[var(--accent)]"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search product or category"
@@ -297,7 +297,7 @@ export default function ExpiryAlerts() {
               <button
                 key={value}
                 onClick={() => setStatusFilter(value)}
-                className={`rounded-lg px-3 py-2 text-xs font-black ${statusFilter === value ? 'bg-[#1B5E20] text-white' : 'bg-[#F5F3F7] text-[#626B61]'}`}
+                className={`rounded-lg px-3 py-2 text-xs font-black ${statusFilter === value ? 'bg-[var(--accent-dark)] text-white' : 'bg-[#F5F3F7] text-[#626B61]'}`}
               >
                 {label}
               </button>
@@ -323,7 +323,7 @@ export default function ExpiryAlerts() {
                     {tracked.length === 0 ? (
                       <>
                         No products have an expiry date set yet.{' '}
-                        <button type="button" onClick={() => setBulkOpen(true)} className="font-bold text-[#2E7D32] hover:underline cursor-pointer">
+                        <button type="button" onClick={() => setBulkOpen(true)} className="font-bold text-[var(--accent)] hover:underline cursor-pointer">
                           Set expiry dates now
                         </button>
                       </>

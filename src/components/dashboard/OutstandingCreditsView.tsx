@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Wallet, RefreshCw, CheckCircle2, AlertTriangle, IndianRupee } from 'lucide-react'
-import { creditService, type OutstandingCreditOrder } from '../../services/creditService'
+import { creditService, toDaysOverdue, type OutstandingCreditOrder } from '../../services/creditService'
 import { formatCurrency } from '../../lib/retail'
 import { useSound } from '../../context/SoundContext'
 
 export interface OutstandingCreditsViewProps {
-  onSettled?: () => void
+  onSettled?: (orderId: string, paidAt: string) => void
 }
 
 export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({ onSettled }) => {
@@ -14,6 +14,7 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({ 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [settlingId, setSettlingId] = useState<string | null>(null)
+  const [savingDueDateId, setSavingDueDateId] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -42,13 +43,29 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({ 
       await creditService.markAsPaid(order.id)
       play('success')
       setItems((prev) => prev.filter((o) => o.id !== order.id))
-      onSettled?.()
+      onSettled?.(order.id, new Date().toISOString())
     } catch (err) {
       console.error('Failed to mark credit as paid:', err)
       play('error')
       alert('Failed to mark this credit sale as paid. Please try again.')
     } finally {
       setSettlingId(null)
+    }
+  }
+
+  const handleDueDateChange = async (order: OutstandingCreditOrder, newDate: string) => {
+    if (!newDate || newDate === order.credit_due_date) return
+    const previous = order.credit_due_date
+    setItems((prev) => prev.map((o) => (o.id === order.id ? { ...o, credit_due_date: newDate, daysOverdue: toDaysOverdue(newDate) } : o)))
+    setSavingDueDateId(order.id)
+    try {
+      await creditService.updateDueDate(order.id, newDate)
+    } catch (err) {
+      console.error('Failed to update due date:', err)
+      setItems((prev) => prev.map((o) => (o.id === order.id ? { ...o, credit_due_date: previous, daysOverdue: toDaysOverdue(previous) } : o)))
+      alert('Failed to update the due date. Please try again.')
+    } finally {
+      setSavingDueDateId(null)
     }
   }
 
@@ -61,7 +78,7 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({ 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="bg-white border border-[#B7E1BE] rounded-2xl p-3 sm:p-4 shadow-sm flex items-center gap-2.5 sm:gap-3">
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-[#0A0A0A] text-[#2E7D32] flex items-center justify-center font-black shrink-0">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-[#0A0A0A] text-[var(--accent)] flex items-center justify-center font-black shrink-0">
             <Wallet size={20} />
           </div>
           <div className="min-w-0">
@@ -111,7 +128,7 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({ 
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
         {loading ? (
           <div className="p-16 text-center text-gray-400 font-bold text-xs flex flex-col items-center justify-center">
-            <RefreshCw size={24} className="animate-spin text-[#2E7D32] mb-2" />
+            <RefreshCw size={24} className="animate-spin text-[var(--accent)] mb-2" />
             Loading outstanding credit sales...
           </div>
         ) : error ? (
@@ -148,18 +165,26 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({ 
                         {new Date(order.billing_date || order.created_at).toLocaleDateString('en-IN')}
                       </td>
                       <td className="p-3.5">
-                        <span
-                          className={`inline-block px-2.5 py-1 rounded-full text-xs font-black ${
-                            isOverdue
-                              ? 'bg-red-50 text-red-700 border border-red-200'
-                              : isDueToday
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                              : 'bg-gray-50 text-gray-600 border border-gray-200'
-                          }`}
-                        >
-                          {order.credit_due_date ? new Date(`${order.credit_due_date}T00:00:00`).toLocaleDateString('en-IN') : '—'}
-                          {isOverdue ? ` (${order.daysOverdue}d overdue)` : isDueToday ? ' (today)' : ''}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="date"
+                            value={order.credit_due_date || ''}
+                            disabled={savingDueDateId === order.id}
+                            onChange={(e) => void handleDueDateChange(order, e.target.value)}
+                            className={`px-2.5 py-1 rounded-full text-xs font-black border cursor-pointer outline-none disabled:opacity-50 ${
+                              isOverdue
+                                ? 'bg-red-50 text-red-700 border-red-200'
+                                : isDueToday
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-gray-50 text-gray-600 border-gray-200'
+                            }`}
+                          />
+                          {(isOverdue || isDueToday) && (
+                            <span className={`text-[10px] font-black ${isOverdue ? 'text-red-600' : 'text-amber-600'}`}>
+                              {isOverdue ? `${order.daysOverdue}d overdue` : 'today'}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-3.5 text-right font-black text-gray-900">{formatCurrency(order.total)}</td>
                       <td className="p-3.5 text-right">
@@ -167,7 +192,7 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({ 
                           type="button"
                           onClick={() => void handleMarkAsPaid(order)}
                           disabled={settlingId === order.id}
-                          className="px-3 py-1.5 rounded-lg bg-[#0A0A0A] border border-[#2E7D32] text-[#2E7D32] text-[11px] font-black hover:bg-[#1A1A1A] transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                          className="px-3 py-1.5 rounded-lg bg-[#0A0A0A] border border-[var(--accent)] text-[var(--accent)] text-[11px] font-black hover:bg-[#1A1A1A] transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
                         >
                           <CheckCircle2 size={13} /> {settlingId === order.id ? 'Saving...' : 'Mark as Paid'}
                         </button>

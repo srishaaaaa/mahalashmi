@@ -1,19 +1,33 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Store, SlidersHorizontal, Lock, RefreshCw, Camera, ImageIcon, X, Check, AlertCircle } from 'lucide-react'
-import { useSettingsStore, useAdminAuthStore } from '../../store/store'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { Store, Phone, MapPin, Palette, Package, SlidersHorizontal, Lock, RefreshCw, Camera, Trash2, X, Check, AlertCircle, Save } from 'lucide-react'
+import { useSettingsStore, useAdminAuthStore, useProductStore } from '../../store/store'
 import { BRAND_LOGO, BRAND_EN } from '../../lib/brand'
 import { isSupabaseConfigured } from '../../lib/supabase'
 
-export default function StoreSettingsView() {
-  const { settings, loading, saving, fetchSettings, updateSettings, uploadLogo, changePassword } = useSettingsStore()
+const ACCENT_SWATCHES = [
+  '#2E7D32', '#0F5132', '#1B5E20', '#DC2626', '#EA580C', '#B91C1C',
+  '#7C3AED', '#4338CA', '#2563EB', '#0EA5E9', '#7C2D92', '#701A75',
+  '#4C1D95', '#DB2777', '#BE185D', '#0D9488', '#0891B2', '#CA8A04',
+  '#111111', '#374151',
+]
+
+export interface StoreSettingsViewProps {
+  onAddProduct?: () => void
+}
+
+export default function StoreSettingsView({ onAddProduct }: StoreSettingsViewProps) {
+  const { settings, loading, saving, fetchSettings, updateSettings, uploadLogo, clearLogo, changePassword } = useSettingsStore()
   const role = useAdminAuthStore(state => state.role)
+  const products = useProductStore(state => state.products)
 
   const [form, setForm] = useState({
-    name: '', ownerName: '', phone: '', email: '', address: '', instagramHandle: '',
+    name: '', ownerName: '', phone: '', shopContactNumber: '', email: '', address: '', instagramHandle: '',
+    businessType: '', accentColor: '#2E7D32',
     gstEnabled: false, lowStockThreshold: 5, expiryAlertDays: 30,
   })
   const [saveMsg, setSaveMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [logoUploading, setLogoUploading] = useState(false)
+  const [logoRemoving, setLogoRemoving] = useState(false)
   const [logoErr, setLogoErr] = useState('')
   const logoInputRef = useRef<HTMLInputElement>(null)
 
@@ -26,25 +40,33 @@ export default function StoreSettingsView() {
 
   useEffect(() => { void fetchSettings() }, [fetchSettings])
 
+  const formFromSettings = (s: NonNullable<typeof settings>) => ({
+    name: s.name,
+    ownerName: s.ownerName,
+    phone: s.phone,
+    shopContactNumber: s.shopContactNumber,
+    email: s.email,
+    address: s.address,
+    instagramHandle: s.instagramHandle,
+    businessType: s.businessType,
+    accentColor: s.accentColor || '#2E7D32',
+    gstEnabled: s.gstEnabled,
+    lowStockThreshold: s.lowStockThreshold,
+    expiryAlertDays: s.expiryAlertDays,
+  })
+
   // Sync the editable form from freshly-fetched/updated settings. Done during
   // render (not in an effect) per React's "adjusting state when a prop
   // changes" pattern, so it doesn't trigger an extra cascading render pass.
   const [prevSettings, setPrevSettings] = useState(settings)
   if (settings !== prevSettings) {
     setPrevSettings(settings)
-    if (settings) {
-      setForm({
-        name: settings.name,
-        ownerName: settings.ownerName,
-        phone: settings.phone,
-        email: settings.email,
-        address: settings.address,
-        instagramHandle: settings.instagramHandle,
-        gstEnabled: settings.gstEnabled,
-        lowStockThreshold: settings.lowStockThreshold,
-        expiryAlertDays: settings.expiryAlertDays,
-      })
-    }
+    if (settings) setForm(formFromSettings(settings))
+  }
+
+  const handleReset = () => {
+    if (settings) setForm(formFromSettings(settings))
+    setSaveMsg(null)
   }
 
   const handleSave = async (e: FormEvent) => {
@@ -67,6 +89,14 @@ export default function StoreSettingsView() {
     if (error) setLogoErr(error)
   }
 
+  const handleRemoveLogo = async () => {
+    setLogoErr('')
+    setLogoRemoving(true)
+    const { error } = await clearLogo()
+    setLogoRemoving(false)
+    if (error) setLogoErr(error)
+  }
+
   const openPasswordModal = () => {
     setPwNew(''); setPwConfirm(''); setPwErr(''); setPwSuccess(false); setPwOpen(true)
   }
@@ -86,103 +116,222 @@ export default function StoreSettingsView() {
   }
 
   const logoSrc = settings?.logoUrl || BRAND_LOGO
+  const hasCustomLogo = Boolean(settings?.logoUrl)
+
+  const catalogueCategories = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const p of products) {
+      if (p.isActive === false) continue
+      const cat = (p.category || '').trim()
+      if (!cat || cat.toLowerCase() === 'unregistered') continue
+      map.set(cat, (map.get(cat) || 0) + 1)
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+  }, [products])
+  const catalogueItemCount = catalogueCategories.reduce((sum, [, count]) => sum + count, 0)
+
+  const instagramHandleClean = form.instagramHandle.trim().replace(/^@+/, '')
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-6xl">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-[20px] sm:text-[22px] font-black text-[#111111]">Store Configuration &amp; Settings</h2>
-          <p className="text-[13px] text-[#6B7280] mt-1">Manage shop information, contact details, branding, and system thresholds.</p>
+          <h2 className="text-[20px] sm:text-[22px] font-black text-[#111111]">Store Settings</h2>
+          <p className="text-[13px] text-[#6B7280] mt-1">Shop profile used across invoices, receipts and the app header.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => void fetchSettings()}
-          className="flex items-center gap-2 px-4 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-[13px] font-bold text-[#111111] hover:bg-[#F9FAFB] transition-colors shadow-sm"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Reload
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleReset}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-[#E5E7EB] rounded-xl text-[13px] font-bold text-[#111111] hover:bg-[#F9FAFB] transition-colors shadow-sm"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Reset
+          </button>
+          <button
+            type="submit" form="store-settings-form" disabled={saving}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white rounded-xl text-[13px] font-bold shadow-sm transition-colors disabled:opacity-60"
+          >
+            <Save size={14} /> {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
       </div>
+
+      {saveMsg && (
+        <span className={`inline-flex text-[12px] font-bold items-center gap-1.5 ${saveMsg.type === 'ok' ? 'text-[var(--accent)]' : 'text-red-600'}`}>
+          {saveMsg.type === 'ok' ? <Check size={14} /> : <AlertCircle size={14} />} {saveMsg.text}
+        </span>
+      )}
 
       {loading && !settings ? (
         <div className="p-10 text-center text-[13px] font-bold text-[#6B7280]">Loading settings...</div>
       ) : (
-        <form onSubmit={handleSave} className="space-y-6">
-          {/* Branding */}
-          <div className="bg-white rounded-2xl border border-[#E5E7EB]/60 p-4 sm:p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-5">
-              <ImageIcon size={16} className="text-[#2E7D32]" />
-              <h3 className="text-[13px] font-black uppercase tracking-wider text-[#2E7D32]">Branding</h3>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="relative shrink-0">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border border-[#E5E7EB]">
-                  <img src={logoSrc} alt={BRAND_EN} className="w-full h-full object-cover" />
+        <form id="store-settings-form" onSubmit={handleSave} className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Shop Profile */}
+            <SectionCard icon={Store} title="Shop Profile" subtitle="Logo, owner and shop name">
+              <div className="flex items-center gap-4 mb-5">
+                <div className="relative shrink-0">
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden border border-[#E5E7EB]">
+                    <img src={logoSrc} alt={BRAND_EN} className="w-full h-full object-cover" />
+                  </div>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) void handleLogoFile(f) }}
+                  />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => logoInputRef.current?.click()}
-                  disabled={logoUploading || !isSupabaseConfigured}
-                  className="absolute bottom-0 right-0 w-7 h-7 bg-[#2E7D32] hover:bg-[#256428] text-white rounded-full flex items-center justify-center shadow-md transition-colors disabled:opacity-60"
-                  aria-label="Change logo"
-                  title="Change logo"
-                >
-                  {logoUploading ? <RefreshCw size={13} className="animate-spin" /> : <Camera size={13} />}
-                </button>
-                <input
-                  ref={logoInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                  className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) void handleLogoFile(f) }}
-                />
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={logoUploading || !isSupabaseConfigured}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#E5E7EB] rounded-lg text-[11px] font-black text-[#111111] hover:bg-[#F9FAFB] transition-colors disabled:opacity-60"
+                  >
+                    {logoUploading ? <RefreshCw size={12} className="animate-spin" /> : <Camera size={12} />} REPLACE LOGO
+                  </button>
+                  {hasCustomLogo && (
+                    <button
+                      type="button"
+                      onClick={() => void handleRemoveLogo()}
+                      disabled={logoRemoving}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg text-[11px] font-black text-red-600 hover:bg-red-100 transition-colors disabled:opacity-60"
+                    >
+                      <Trash2 size={12} /> REMOVE
+                    </button>
+                  )}
+                  {logoErr && <p className="text-[11px] text-red-600">{logoErr}</p>}
+                  {!isSupabaseConfigured && <p className="text-[11px] text-amber-700">Connect Supabase to enable logo uploads.</p>}
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="text-[13px] font-bold text-[#111111]">Store logo</p>
-                <p className="text-[12px] text-[#6B7280] break-words">
-                  Used everywhere the app shows your brand mark — navigation bar, login screens, and generated invoices &amp; receipts.
-                </p>
-                {!isSupabaseConfigured && (
-                  <p className="text-[11px] text-amber-700 mt-1">Connect Supabase to enable logo uploads.</p>
-                )}
-                {logoErr && <p className="text-[11px] text-red-600 mt-1">{logoErr}</p>}
+              <div className="space-y-3.5">
+                <Field label="Full Name">
+                  <input className={inputCls} value={form.ownerName} onChange={e => setForm(f => ({ ...f, ownerName: e.target.value }))} />
+                </Field>
+                <Field label="Shop Name">
+                  <input className={inputCls} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+                </Field>
+                <Field label="Business Type">
+                  <input className={inputCls} placeholder="e.g. General Store / Provisions" value={form.businessType} onChange={e => setForm(f => ({ ...f, businessType: e.target.value }))} />
+                </Field>
               </div>
-            </div>
+            </SectionCard>
+
+            {/* Contact Details */}
+            <SectionCard icon={Phone} title="Contact Details" subtitle="Shop contact only — customer details are unaffected">
+              <div className="space-y-3.5">
+                <Field label="Phone Number">
+                  <input className={inputCls} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+                </Field>
+                <Field label="Shop Contact Number">
+                  <input className={inputCls} value={form.shopContactNumber} onChange={e => setForm(f => ({ ...f, shopContactNumber: e.target.value }))} />
+                </Field>
+                <Field label="Email ID">
+                  <input type="email" className={inputCls} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+                </Field>
+              </div>
+            </SectionCard>
+
+            {/* Shop Information */}
+            <SectionCard icon={MapPin} title="Shop Information" subtitle="Address and social profile">
+              <div className="space-y-3.5">
+                <Field label="Shop Address">
+                  <textarea rows={3} className={`${inputCls} resize-none`} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
+                </Field>
+                <Field label="Instagram ID">
+                  <div className={`${inputCls} flex items-center gap-1`}>
+                    <span className="text-[#9CA3AF]">@</span>
+                    <input
+                      className="flex-1 bg-transparent outline-none"
+                      value={instagramHandleClean}
+                      onChange={e => setForm(f => ({ ...f, instagramHandle: e.target.value.replace(/^@+/, '') }))}
+                    />
+                  </div>
+                  {instagramHandleClean && (
+                    <a
+                      href={`https://www.instagram.com/${instagramHandleClean}/`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="mt-1.5 inline-block text-[11px] font-bold text-[var(--accent)] hover:underline break-all"
+                    >
+                      https://www.instagram.com/{instagramHandleClean}/
+                    </a>
+                  )}
+                </Field>
+              </div>
+            </SectionCard>
+
+            {/* Appearance */}
+            <SectionCard icon={Palette} title="Appearance" subtitle="Preferred colour theme — selected card colour + white stays the app theme">
+              <div className="grid grid-cols-6 sm:grid-cols-8 gap-2 mb-4">
+                {ACCENT_SWATCHES.map(hex => (
+                  <button
+                    key={hex}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, accentColor: hex }))}
+                    className={`w-full aspect-square rounded-lg border-2 transition-transform hover:scale-105 ${form.accentColor.toLowerCase() === hex.toLowerCase() ? 'border-[#111111] ring-2 ring-offset-1 ring-[#111111]' : 'border-transparent'}`}
+                    style={{ backgroundColor: hex }}
+                    aria-label={hex}
+                    title={hex}
+                  />
+                ))}
+              </div>
+              <Field label="Custom Colour">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={/^#[0-9A-Fa-f]{6}$/.test(form.accentColor) ? form.accentColor : '#2E7D32'}
+                    onChange={e => setForm(f => ({ ...f, accentColor: e.target.value }))}
+                    className="w-11 h-11 shrink-0 rounded-xl border border-[#E5E7EB] cursor-pointer bg-white p-1"
+                  />
+                  <input
+                    className={`${inputCls} flex-1 uppercase`}
+                    value={form.accentColor}
+                    onChange={e => setForm(f => ({ ...f, accentColor: e.target.value }))}
+                    placeholder="#2E7D32"
+                  />
+                </div>
+              </Field>
+              <div className="mt-4 rounded-xl p-4 text-white" style={{ backgroundColor: /^#[0-9A-Fa-f]{6}$/.test(form.accentColor) ? form.accentColor : '#2E7D32' }}>
+                <p className="text-[10px] font-black uppercase tracking-wider opacity-80">Card Preview</p>
+                <p className="text-[13px] font-bold mt-0.5">Selected colour + white stays the app theme.</p>
+              </div>
+              <p className="mt-3 text-[11px] text-[#9CA3AF]">
+                White backgrounds, layout and components are unchanged — only the accent colour follows this setting.
+              </p>
+            </SectionCard>
           </div>
 
-          {/* Business Information */}
-          <div className="bg-white rounded-2xl border border-[#E5E7EB]/60 p-4 sm:p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-5">
-              <Store size={16} className="text-[#2E7D32]" />
-              <h3 className="text-[13px] font-black uppercase tracking-wider text-[#2E7D32]">Business Information</h3>
+          {/* Product Catalogue */}
+          <SectionCard icon={Package} title="Product Catalogue" subtitle="Uses the existing product & category system — nothing is duplicated">
+            <div className="flex flex-wrap items-center gap-3 mb-4">
+              <button
+                type="button"
+                onClick={onAddProduct}
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#111111] hover:bg-[#1A1A1A] text-white rounded-xl text-[12px] font-black transition-colors"
+              >
+                + ADD PRODUCT TO CATALOGUE
+              </button>
+              <span className="text-[12px] font-semibold text-[#6B7280]">{catalogueItemCount} items in the catalogue</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Shop Name">
-                <input className={inputCls} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-              </Field>
-              <Field label="Owner / Signatory Name">
-                <input className={inputCls} value={form.ownerName} onChange={e => setForm(f => ({ ...f, ownerName: e.target.value }))} />
-              </Field>
-              <Field label="Contact Phone Number(s)">
-                <input className={inputCls} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
-              </Field>
-              <Field label="Store Email Address">
-                <input type="email" className={inputCls} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-              </Field>
-              <Field label="Store Address (Invoices &amp; Receipts)" full>
-                <textarea rows={2} className={`${inputCls} resize-none`} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
-              </Field>
-              <Field label="Instagram Handle" full>
-                <input className={inputCls} value={form.instagramHandle} onChange={e => setForm(f => ({ ...f, instagramHandle: e.target.value }))} />
-              </Field>
-            </div>
-          </div>
+            {catalogueCategories.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {catalogueCategories.map(([name, count]) => (
+                  <span key={name} className="px-3 py-1.5 rounded-full bg-[#F9FAFB] border border-[#E5E7EB] text-[11px] font-bold text-[#374151]">
+                    {name} · {count}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[12px] text-[#9CA3AF]">No products yet — add your first product from the Inventory screen.</p>
+            )}
+            <p className="mt-3 text-[11px] text-[#9CA3AF]">
+              Product name, category, image, price and stock are managed on the existing inventory screen.
+            </p>
+          </SectionCard>
 
           {/* Billing & Inventory Thresholds */}
-          <div className="bg-white rounded-2xl border border-[#E5E7EB]/60 p-4 sm:p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-5">
-              <SlidersHorizontal size={16} className="text-[#2E7D32]" />
-              <h3 className="text-[13px] font-black uppercase tracking-wider text-[#2E7D32]">Billing &amp; Inventory Thresholds</h3>
-            </div>
+          <SectionCard icon={SlidersHorizontal} title="Billing & Inventory Thresholds">
             <div className="flex flex-col sm:flex-row sm:items-start gap-4">
               <div className="flex-1">
                 <Field label="Default Low Stock Threshold">
@@ -208,7 +357,7 @@ export default function StoreSettingsView() {
                 <input
                   type="checkbox" checked={form.gstEnabled}
                   onChange={e => setForm(f => ({ ...f, gstEnabled: e.target.checked }))}
-                  className="mt-0.5 w-4 h-4 accent-[#2E7D32]"
+                  className="mt-0.5 w-4 h-4 accent-[var(--accent)]"
                 />
                 <span>
                   <span className="block text-[13px] font-bold text-[#111111]">Enable GST Billing in POS</span>
@@ -216,28 +365,14 @@ export default function StoreSettingsView() {
                 </span>
               </label>
             </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-end gap-3">
-            {saveMsg && (
-              <span className={`text-[12px] font-bold flex items-center gap-1.5 ${saveMsg.type === 'ok' ? 'text-[#2E7D32]' : 'text-red-600'}`}>
-                {saveMsg.type === 'ok' ? <Check size={14} /> : <AlertCircle size={14} />} {saveMsg.text}
-              </span>
-            )}
-            <button
-              type="submit" disabled={saving}
-              className="px-6 py-3 bg-[#2E7D32] hover:bg-[#256428] text-white rounded-xl text-[13px] font-bold shadow-sm transition-colors disabled:opacity-60"
-            >
-              {saving ? 'Saving...' : 'Save Configuration'}
-            </button>
-          </div>
+          </SectionCard>
 
           {/* Account Security */}
           <div className="bg-white rounded-2xl border border-[#E5E7EB]/60 p-4 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
-              <Lock size={16} className="text-[#2E7D32] shrink-0" />
+              <Lock size={16} className="text-[var(--accent)] shrink-0" />
               <div>
-                <p className="text-[13px] font-black uppercase tracking-wider text-[#2E7D32]">Account Security</p>
+                <p className="text-[13px] font-black uppercase tracking-wider text-[var(--accent)]">Account Security</p>
                 <p className="text-[12px] text-[#6B7280]">Update your {role || 'portal'} login password.</p>
               </div>
             </div>
@@ -265,7 +400,7 @@ export default function StoreSettingsView() {
             </div>
             <form onSubmit={handleChangePassword} className="p-4 space-y-4">
               {pwSuccess ? (
-                <p className="text-[13px] font-bold text-[#2E7D32] flex items-center gap-2"><Check size={16} /> Password updated.</p>
+                <p className="text-[13px] font-bold text-[var(--accent)] flex items-center gap-2"><Check size={16} /> Password updated.</p>
               ) : (
                 <>
                   <Field label="New Password">
@@ -277,7 +412,7 @@ export default function StoreSettingsView() {
                   {pwErr && <p className="text-[12px] text-red-600">{pwErr}</p>}
                   <button
                     type="submit" disabled={pwSaving}
-                    className="w-full py-3 bg-[#2E7D32] hover:bg-[#256428] text-white rounded-xl text-[13px] font-bold shadow-sm transition-colors disabled:opacity-60"
+                    className="w-full py-3 bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white rounded-xl text-[13px] font-bold shadow-sm transition-colors disabled:opacity-60"
                   >
                     {pwSaving ? 'Saving...' : 'Update Password'}
                   </button>
@@ -291,12 +426,27 @@ export default function StoreSettingsView() {
   )
 }
 
-const inputCls = 'w-full px-3.5 py-2.5 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl text-[13px] font-bold text-[#111111] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#2E7D32] transition-colors'
+const inputCls = 'w-full px-3.5 py-2.5 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl text-[13px] font-bold text-[#111111] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[var(--accent)] transition-colors'
 
-function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className={full ? 'sm:col-span-2' : ''}>
+    <div>
       <label className="block text-[11px] font-black uppercase tracking-wider text-[#6B7280] mb-1.5">{label}</label>
+      {children}
+    </div>
+  )
+}
+
+function SectionCard({ icon: Icon, title, subtitle, children }: { icon: typeof Store; title: string; subtitle?: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-2xl border border-[#E5E7EB]/60 p-4 sm:p-6 shadow-sm">
+      <div className="flex items-start gap-2 mb-5">
+        <Icon size={16} className="text-[var(--accent)] mt-0.5 shrink-0" />
+        <div>
+          <h3 className="text-[13px] font-black text-[#111111]">{title}</h3>
+          {subtitle && <p className="text-[11px] text-[#6B7280] mt-0.5">{subtitle}</p>}
+        </div>
+      </div>
       {children}
     </div>
   )

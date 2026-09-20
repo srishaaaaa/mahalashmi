@@ -36,6 +36,16 @@ export type BuildWhatsAppMessageInput = {
   shipping?: number
   gstAmount?: number
   total?: number
+  isCredit?: boolean
+  creditDueDate?: string | null
+}
+
+export type CreditReminderWhatsAppInput = {
+  customerName?: string
+  invoiceNumber: string
+  amount: number
+  dueDate?: string | null
+  daysOverdue: number
 }
 
 export type AdvanceDepositWhatsAppInput = {
@@ -69,6 +79,13 @@ export const buildProfessionalWhatsAppMessage = (input: BuildWhatsAppMessageInpu
     ? input.items.map(item => `• ${item.name} (x${item.qty}) - ₹ ${Number(item.lineTotal || 0).toFixed(2)}`).join('\n')
     : ''
 
+  const dueDateText = input.creditDueDate
+    ? new Date(`${input.creditDueDate}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : ''
+  const creditBlock = input.isCredit
+    ? `\n🔴 *CREDIT SALE — PAYMENT PENDING*\n${dueDateText ? `📅 *Due Date:* ${dueDateText}\n` : ''}Kindly settle this amount by the due date. Thank you!\n`
+    : ''
+
   return `✨ *${shop.name}* ✨
 🛍️ *Official Purchase Invoice & Receipt* 🛍️
 
@@ -78,7 +95,7 @@ Thank you for shopping at ${shop.name}! We truly appreciate your patronage.
 
 🧾 *INVOICE DETAILS*
 📌 *Invoice No:* #${formattedNo}
-${input.invoiceDate ? `📅 *Date:* ${new Date(input.invoiceDate).toLocaleDateString('en-IN')}\n` : ''}${input.paymentMode ? `💳 *Payment Mode:* ${input.paymentMode}\n` : ''}${input.total !== undefined ? `💰 *Total Amount:* ₹ ${Number(input.total || 0).toFixed(2)}\n` : ''}
+${input.invoiceDate ? `📅 *Date:* ${new Date(input.invoiceDate).toLocaleDateString('en-IN')}\n` : ''}${input.paymentMode ? `💳 *Payment Mode:* ${input.paymentMode}\n` : ''}${input.total !== undefined ? `💰 *Total Amount:* ₹ ${Number(input.total || 0).toFixed(2)}\n` : ''}${creditBlock}
 ${itemsText ? `📦 *ITEMS ORDERED:*\n${itemsText}\n\n` : ''}📄 *View & Download Digital Invoice / PDF:*
 👉 ${invoiceUrl}
 
@@ -86,6 +103,35 @@ ${itemsText ? `📦 *ITEMS ORDERED:*\n${itemsText}\n\n` : ''}📄 *View & Downlo
 📷 *Follow us on Instagram:* ${shop.instagramUrl}
 
 Thank you, and visit us again! ✨`
+}
+
+export const buildCreditReminderWhatsAppMessage = (input: CreditReminderWhatsAppInput) => {
+  const shop = getShopInfo()
+  const customerName = input.customerName?.trim() || 'Valued Customer'
+  const formattedNo = formatInvoiceNo(input.invoiceNumber)
+  const dueDateText = input.dueDate
+    ? new Date(`${input.dueDate}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '-'
+  const statusLine = input.daysOverdue > 0
+    ? `⚠️ This payment is *${input.daysOverdue} day${input.daysOverdue > 1 ? 's' : ''} overdue*.`
+    : input.daysOverdue === 0
+      ? '⏰ This payment is *due today*.'
+      : `📅 This payment is due on *${dueDateText}*.`
+
+  return `🔔 *Payment Reminder — ${shop.name}* 🔔
+
+Dear ${customerName},
+
+This is a friendly reminder about your pending credit purchase.
+
+🧾 *Invoice No:* #${formattedNo}
+💰 *Amount Due:* ₹ ${Number(input.amount || 0).toFixed(2)}
+📅 *Due Date:* ${dueDateText}
+${statusLine}
+
+Kindly clear the payment at your earliest convenience. Thank you for your continued support!
+
+📞 *Shop Contact:* ${shop.phone}`
 }
 
 export const buildAdvanceDepositWhatsAppMessage = (input: AdvanceDepositWhatsAppInput) => {

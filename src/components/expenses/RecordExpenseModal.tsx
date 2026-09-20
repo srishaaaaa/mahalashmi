@@ -87,7 +87,7 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
         {/* Header */}
         <div className="shrink-0 px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-[#FBFAF6]">
           <div className="flex items-center gap-2">
-            <Tag size={17} className="text-[#2E7D32]" />
+            <Tag size={17} className="text-[var(--accent)]" />
             <h3 className="text-sm font-bold text-[#0A0A0A]">
               {isEditing ? 'Edit Expense' : 'Record Expense'}
             </h3>
@@ -193,7 +193,7 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="flex-[1.5] h-11 rounded-xl bg-[#0A0A0A] border border-[#2E7D32] text-[#2E7D32] text-xs font-bold hover:bg-[#1A1A1A] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="flex-[1.5] h-11 rounded-xl bg-[#0A0A0A] border border-[var(--accent)] text-[var(--accent)] text-xs font-bold hover:bg-[#1A1A1A] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {loading ? 'Saving...' : isEditing ? 'Update Expense' : 'Save Expense'}
             </button>

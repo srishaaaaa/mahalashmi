@@ -14,7 +14,7 @@ export interface OutstandingCreditOrder {
 
 const OUTSTANDING_COLUMNS = 'id, invoice_no, customer_name, phone, total, created_at, billing_date, credit_due_date'
 
-function toDaysOverdue(dueDate: string | null): number {
+export function toDaysOverdue(dueDate: string | null): number {
   if (!dueDate) return 0
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const due = new Date(`${dueDate}T00:00:00`)
@@ -71,6 +71,18 @@ export const creditService = {
     const { error } = await supabase.rpc('mark_credit_order_paid', { p_order_id: orderId })
     if (error) {
       console.error('[creditService.markAsPaid] Error:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Reschedule an outstanding credit sale's due date (e.g. the customer
+   * asked for more time). Only meaningful while credit_status is 'outstanding'.
+   */
+  async updateDueDate(orderId: string, dueDate: string): Promise<void> {
+    const { error } = await supabase.from('orders').update({ credit_due_date: dueDate }).eq('id', orderId)
+    if (error) {
+      console.error('[creditService.updateDueDate] Error:', error)
       throw error
     }
   },

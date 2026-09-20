@@ -188,16 +188,16 @@ export const AddUnregisteredItemModal: React.FC<Props> = ({ isOpen, onClose, onS
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-8 px-3.5 text-[11px] font-bold rounded-lg bg-[#0A0A0A] text-[#2E7D32] border border-[#2E7D32] hover:bg-[#1A1A1A] transition-all shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+              className="h-8 px-3.5 text-[11px] font-bold rounded-lg bg-[#0A0A0A] text-[var(--accent)] border border-[var(--accent)] hover:bg-[#1A1A1A] transition-all shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
             >
               {isSubmitting ? (
                 <>
-                  <span className="w-3 h-3 border-2 border-[#2E7D32]/30 border-t-[#2E7D32] rounded-full animate-spin inline-block" />
+                  <span className="w-3 h-3 border-2 border-[var(--accent-a30)] border-t-[var(--accent)] rounded-full animate-spin inline-block" />
                   <span>{l('Adding...', 'சேர்க்கிறது...')}</span>
                 </>
               ) : (
                 <>
-                  <PlusCircle className="w-3.5 h-3.5 text-[#2E7D32]" />
+                  <PlusCircle className="w-3.5 h-3.5 text-[var(--accent)]" />
                   <span>{l('Add to Bill', 'பில்லில் சேர்')}</span>
                 </>
               )}

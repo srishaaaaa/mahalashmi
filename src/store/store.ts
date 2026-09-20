@@ -116,6 +116,11 @@ export interface StoreSettings {
   logoUrl: string | null
   /** Same image as logoUrl, pre-converted to a base64 data URI so PDF generation (invoicePdf.ts, advanceReceipt.ts) can embed it synchronously without an extra fetch. */
   logoBase64: string | null
+  /** Site-wide accent colour (hex). Applied to CSS var(--accent)/var(--accent-dark) everywhere. */
+  accentColor: string
+  businessType: string
+  /** Separate shop/business contact number, distinct from the owner's personal phone. */
+  shopContactNumber: string
 }
 
 export interface StoreSettingsInput {
@@ -128,6 +133,9 @@ export interface StoreSettingsInput {
   gstEnabled: boolean
   lowStockThreshold: number
   expiryAlertDays: number
+  accentColor: string
+  businessType: string
+  shopContactNumber: string
 }
 
 interface SettingsState {
@@ -137,6 +145,7 @@ interface SettingsState {
   fetchSettings: () => Promise<void>
   updateSettings: (input: StoreSettingsInput) => Promise<{ error: string | null }>
   uploadLogo: (file: File) => Promise<{ url: string | null; error: string | null }>
+  clearLogo: () => Promise<{ error: string | null }>
   changePassword: (role: 'admin' | 'staff', newPassword: string) => Promise<{ error: string | null }>
 }
 
@@ -457,6 +466,9 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
             expiryAlertDays: Number(data.expiry_alert_days ?? 30),
             logoUrl,
             logoBase64: null,
+            accentColor: data.accent_color || '#2E7D32',
+            businessType: data.business_type || '',
+            shopContactNumber: data.shop_contact_number || '',
           },
           loading: false
         })
@@ -483,6 +495,9 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
         expiryAlertDays: 30,
         logoUrl: null,
         logoBase64: null,
+        accentColor: '#2E7D32',
+        businessType: '',
+        shopContactNumber: '',
       },
       loading: false
     })
@@ -503,6 +518,9 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
       gst_enabled: input.gstEnabled,
       low_stock_threshold: input.lowStockThreshold,
       expiry_alert_days: input.expiryAlertDays,
+      accent_color: input.accentColor,
+      business_type: input.businessType,
+      shop_contact_number: input.shopContactNumber,
       updated_at: new Date().toISOString(),
     }).eq('id', 1)
     set({ saving: false })
@@ -525,6 +543,15 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
     const base64 = await urlToBase64(url)
     set((state) => state.settings ? { settings: { ...state.settings, logoUrl: url, logoBase64: base64 } } : state)
     return { url, error: null }
+  },
+  clearLogo: async () => {
+    if (!isSupabaseConfigured) {
+      return { error: 'Supabase is required to remove the logo' }
+    }
+    const { error } = await supabase.from('store_settings').update({ logo_url: null, updated_at: new Date().toISOString() }).eq('id', 1)
+    if (error) return { error: error.message }
+    set((state) => state.settings ? { settings: { ...state.settings, logoUrl: null, logoBase64: null } } : state)
+    return { error: null }
   },
   changePassword: async (role, newPassword) => {
     if (!isSupabaseConfigured) {

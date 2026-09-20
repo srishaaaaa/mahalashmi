@@ -90,14 +90,14 @@ export const QuickAddScannedProductModal: React.FC<QuickAddScannedProductModalPr
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-150"
     >
       <div className="bg-white rounded-3xl w-full max-w-sm max-h-[90vh] overflow-y-auto border border-[#B7E1BE] shadow-2xl flex flex-col animate-in zoom-in-95 duration-150">
-        <div className="shrink-0 bg-[#0A0A0A] p-4 border-b border-[#2E7D32]/30 flex items-center justify-between text-white">
+        <div className="shrink-0 bg-[#0A0A0A] p-4 border-b border-[var(--accent-a30)] flex items-center justify-between text-white">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-[#1A1A1A] border border-[#2E7D32] flex items-center justify-center text-[#2E7D32] shrink-0 shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-[#1A1A1A] border border-[var(--accent)] flex items-center justify-center text-[var(--accent)] shrink-0 shadow-sm">
               <PackagePlus size={20} />
             </div>
             <div className="min-w-0">
               <h3 className="text-sm font-black text-white tracking-wide">New Product</h3>
-              <p className="text-[11px] font-mono font-bold text-[#2E7D32] break-words mt-0.5 flex items-center gap-1">
+              <p className="text-[11px] font-mono font-bold text-[var(--accent)] break-words mt-0.5 flex items-center gap-1">
                 <ScanLine size={12} className="shrink-0" /> {barcode}
               </p>
             </div>
@@ -120,7 +120,7 @@ export const QuickAddScannedProductModal: React.FC<QuickAddScannedProductModalPr
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Tata Salt 1kg"
-              className="w-full h-11 px-3 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:border-[#2E7D32]"
+              className="w-full h-11 px-3 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:border-[var(--accent)]"
             />
           </div>
 
@@ -134,7 +134,7 @@ export const QuickAddScannedProductModal: React.FC<QuickAddScannedProductModalPr
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="0"
-                className="w-full h-11 px-3 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:border-[#2E7D32]"
+                className="w-full h-11 px-3 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:border-[var(--accent)]"
               />
             </div>
             <div>
@@ -144,7 +144,7 @@ export const QuickAddScannedProductModal: React.FC<QuickAddScannedProductModalPr
                 min="0"
                 value={openingStock}
                 onChange={(e) => setOpeningStock(e.target.value)}
-                className="w-full h-11 px-3 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:border-[#2E7D32]"
+                className="w-full h-11 px-3 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:border-[var(--accent)]"
               />
             </div>
           </div>
@@ -155,7 +155,7 @@ export const QuickAddScannedProductModal: React.FC<QuickAddScannedProductModalPr
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full h-11 px-3 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:border-[#2E7D32]"
+                className="w-full h-11 px-3 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:border-[var(--accent)]"
               >
                 {categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -165,7 +165,7 @@ export const QuickAddScannedProductModal: React.FC<QuickAddScannedProductModalPr
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="General"
-                className="w-full h-11 px-3 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:border-[#2E7D32]"
+                className="w-full h-11 px-3 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:border-[var(--accent)]"
               />
             )}
           </div>
@@ -183,7 +183,7 @@ export const QuickAddScannedProductModal: React.FC<QuickAddScannedProductModalPr
             type="button"
             onClick={handleSubmit}
             disabled={saving}
-            className="px-5 py-2 text-xs font-black rounded-xl bg-[#0A0A0A] border border-[#2E7D32] text-[#2E7D32] hover:bg-[#1A1A1A] transition-all shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            className="px-5 py-2 text-xs font-black rounded-xl bg-[#0A0A0A] border border-[var(--accent)] text-[var(--accent)] hover:bg-[#1A1A1A] transition-all shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
             <PackagePlus size={14} />
             <span>{saving ? 'Adding...' : 'Add & Bill It'}</span>
