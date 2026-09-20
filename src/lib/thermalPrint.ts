@@ -25,6 +25,8 @@ export interface ThermalReceiptData {
   storePhone?: string
   storeAddress?: string
   storeEmail?: string
+  isCredit?: boolean
+  creditDueDate?: string | null
 }
 
 export function printThermalReceipt(data: ThermalReceiptData) {
@@ -52,6 +54,13 @@ export function printThermalReceipt(data: ThermalReceiptData) {
     try { return new Date(data.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }
     catch { return new Date().toLocaleString('en-IN') }
   })()
+
+  const dueDateStr = data.creditDueDate
+    ? (() => {
+        try { return new Date(`${data.creditDueDate}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) }
+        catch { return data.creditDueDate as string }
+      })()
+    : ''
 
   const html = `
     <!DOCTYPE html>
@@ -104,6 +113,13 @@ export function printThermalReceipt(data: ThermalReceiptData) {
           ${data.customerName ? `<div>Name: ${data.customerName}</div>` : ''}
           ${data.phone ? `<div>Tel: ${formatPhoneDisplay(data.phone)}</div>` : ''}
         </div>
+
+        ${data.isCredit ? `
+          <div class="text-center border-bottom" style="font-size: 12px; font-weight: bold; padding: 3px 0; border: 1px dashed #000; margin-bottom: 4px;">
+            *** CREDIT BILL ***<br/>
+            ${dueDateStr ? `PAY BY: ${dueDateStr}` : 'PAYMENT PENDING'}
+          </div>
+        ` : ''}
 
         <table class="border-bottom">
           <thead>
@@ -164,14 +180,16 @@ export function printThermalReceipt(data: ThermalReceiptData) {
               </tr>
             ` : ''}
             <tr class="font-bold" style="font-size: 14px;">
-              <td class="text-left">Total</td>
+              <td class="text-left">${data.isCredit ? 'Amount Due' : 'Total'}</td>
               <td class="text-right">${formatCurrency(data.total)}</td>
             </tr>
           </table>
         </div>
 
         <div class="text-center mt-2" style="font-size: 11px;">
-          <div class="font-bold">Thank you for shopping at ${storeName}!</div>
+          ${data.isCredit
+            ? `<div class="font-bold">Credit sale — kindly settle${dueDateStr ? ` by ${dueDateStr}` : ''}. Thank you!</div>`
+            : `<div class="font-bold">Thank you for shopping at ${storeName}!</div>`}
           <div>Follow us on Instagram: @${storeInstagram}</div>
         </div>
       </body>

@@ -1,49 +1,84 @@
-import React, { useCallback, useEffect, useState } from 'react'
-import { Wallet, RefreshCw, CheckCircle2, AlertTriangle, IndianRupee } from 'lucide-react'
-import { creditService, toDaysOverdue, type OutstandingCreditOrder } from '../../services/creditService'
-import { formatCurrency } from '../../lib/retail'
+import React, { useMemo, useState } from 'react'
+import { Wallet, CheckCircle2, AlertTriangle, IndianRupee, Eye, Printer, Download, MessageCircle, Trash2, Search, History } from 'lucide-react'
+import { creditService, toDaysOverdue } from '../../services/creditService'
+import { formatCurrency, formatInvoiceNo } from '../../lib/retail'
 import { useSound } from '../../context/SoundContext'
+import type { DashboardOrder } from '../../pages/Dashboard'
 
 export interface OutstandingCreditsViewProps {
-  onSettled?: (orderId: string, paidAt: string) => void
+  orders: DashboardOrder[]
+  historyOrders: DashboardOrder[]
+  onSettled: (orderId: string, paidAt: string) => void
+  onDueDateChanged: (orderId: string, newDate: string) => void
+  onView: (order: DashboardOrder) => void
+  onPrint: (order: DashboardOrder) => void
+  onDownload: (order: DashboardOrder) => void
+  onShare: (order: DashboardOrder) => void
+  onDelete: (order: DashboardOrder) => void
 }
 
-export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({ onSettled }) => {
+const matchesSearch = (order: DashboardOrder, query: string) => {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return (
+    (order.customer_name || '').toLowerCase().includes(q) ||
+    (order.phone || '').toLowerCase().includes(q) ||
+    formatInvoiceNo(order.invoice_no).toLowerCase().includes(q)
+  )
+}
+
+function ActionButtons({ order, onView, onPrint, onDownload, onShare, onDelete }: {
+  order: DashboardOrder
+  onView: (order: DashboardOrder) => void
+  onPrint: (order: DashboardOrder) => void
+  onDownload: (order: DashboardOrder) => void
+  onShare: (order: DashboardOrder) => void
+  onDelete: (order: DashboardOrder) => void
+}) {
+  return (
+    <div className="flex items-center justify-center gap-1">
+      <button type="button" onClick={() => onView(order)} className="p-1.5 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors" title="View Invoice">
+        <Eye size={14} />
+      </button>
+      <button type="button" onClick={() => onPrint(order)} className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors" title="Print Receipt">
+        <Printer size={14} />
+      </button>
+      <button type="button" onClick={() => onDownload(order)} className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors" title="Download Invoice">
+        <Download size={14} />
+      </button>
+      <button type="button" onClick={() => onShare(order)} className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 transition-colors" title="Invoice & Share">
+        <MessageCircle size={14} />
+      </button>
+      <button type="button" onClick={() => onDelete(order)} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors" title="Delete Order">
+        <Trash2 size={14} />
+      </button>
+    </div>
+  )
+}
+
+export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
+  orders, historyOrders, onSettled, onDueDateChanged, onView, onPrint, onDownload, onShare, onDelete,
+}) => {
   const { play } = useSound()
-  const [items, setItems] = useState<OutstandingCreditOrder[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [settlingId, setSettlingId] = useState<string | null>(null)
   const [savingDueDateId, setSavingDueDateId] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
 
-  const loadData = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const data = await creditService.fetchOutstandingCredits()
-      setItems(data)
-    } catch (err) {
-      console.error('Failed to load outstanding credits:', err)
-      setError('Failed to load outstanding credit sales.')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const items = useMemo(
+    () => orders.filter(o => matchesSearch(o, search)).map(o => ({ ...o, daysOverdue: toDaysOverdue(o.credit_due_date || null) })),
+    [orders, search]
+  )
+  const filteredHistory = useMemo(() => historyOrders.filter(o => matchesSearch(o, search)), [historyOrders, search])
 
-  useEffect(() => {
-    void loadData()
-  }, [loadData])
-
-  const handleMarkAsPaid = async (order: OutstandingCreditOrder) => {
-    if (!window.confirm(`Mark ${formatCurrency(order.total)} from "${order.customer_name}" (${order.invoice_no}) as paid?`)) {
+  const handleMarkAsPaid = async (order: DashboardOrder) => {
+    if (!window.confirm(`Mark ${formatCurrency(order.total)} from "${order.customer_name}" (${formatInvoiceNo(order.invoice_no)}) as paid?`)) {
       return
     }
     setSettlingId(order.id)
     try {
       await creditService.markAsPaid(order.id)
       play('success')
-      setItems((prev) => prev.filter((o) => o.id !== order.id))
-      onSettled?.(order.id, new Date().toISOString())
+      onSettled(order.id, new Date().toISOString())
     } catch (err) {
       console.error('Failed to mark credit as paid:', err)
       play('error')
@@ -53,16 +88,14 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({ 
     }
   }
 
-  const handleDueDateChange = async (order: OutstandingCreditOrder, newDate: string) => {
+  const handleDueDateChange = async (order: DashboardOrder, newDate: string) => {
     if (!newDate || newDate === order.credit_due_date) return
-    const previous = order.credit_due_date
-    setItems((prev) => prev.map((o) => (o.id === order.id ? { ...o, credit_due_date: newDate, daysOverdue: toDaysOverdue(newDate) } : o)))
     setSavingDueDateId(order.id)
     try {
       await creditService.updateDueDate(order.id, newDate)
+      onDueDateChanged(order.id, newDate)
     } catch (err) {
       console.error('Failed to update due date:', err)
-      setItems((prev) => prev.map((o) => (o.id === order.id ? { ...o, credit_due_date: previous, daysOverdue: toDaysOverdue(previous) } : o)))
       alert('Failed to update the due date. Please try again.')
     } finally {
       setSavingDueDateId(null)
@@ -108,38 +141,35 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({ 
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="bg-white border border-[#B7E1BE] rounded-2xl p-4 shadow-sm flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-black text-[#0A0A0A]">Outstanding Credit Sales</h2>
-          <p className="text-xs font-semibold text-gray-500">Sales billed on credit that haven't been paid yet</p>
+      {/* Toolbar + Search */}
+      <div className="bg-white border border-[#B7E1BE] rounded-2xl p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-black text-[#0A0A0A]">Outstanding Credit Sales</h2>
+            <p className="text-xs font-semibold text-gray-500">Sales billed on credit that haven't been paid yet</p>
+          </div>
+          <div className="relative w-full sm:w-64">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search invoice, customer, phone..."
+              className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 bg-[#FBFAF6] text-xs font-semibold text-gray-800 outline-none focus:border-[var(--accent)] transition-colors"
+            />
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={loadData}
-          className="shrink-0 p-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
-          title="Refresh"
-        >
-          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-        </button>
       </div>
 
-      {/* Table */}
+      {/* Outstanding Table */}
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-        {loading ? (
-          <div className="p-16 text-center text-gray-400 font-bold text-xs flex flex-col items-center justify-center">
-            <RefreshCw size={24} className="animate-spin text-[var(--accent)] mb-2" />
-            Loading outstanding credit sales...
-          </div>
-        ) : error ? (
-          <div className="p-16 text-center text-red-500 font-bold text-xs">{error}</div>
-        ) : items.length === 0 ? (
+        {items.length === 0 ? (
           <div className="p-16 text-center text-gray-400 font-bold text-xs">
-            No outstanding credit sales. Everything's settled!
+            {search ? 'No outstanding credit sales match your search.' : "No outstanding credit sales. Everything's settled!"}
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] text-left text-xs whitespace-nowrap">
+            <table className="w-full min-w-[760px] text-left text-xs whitespace-nowrap">
               <thead className="bg-[#FBFAF6] border-b border-gray-200 text-xs font-bold text-gray-700">
                 <tr>
                   <th className="p-3.5">Invoice</th>
@@ -147,7 +177,7 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({ 
                   <th className="p-3.5">Sale Date</th>
                   <th className="p-3.5">Due Date</th>
                   <th className="p-3.5 text-right">Amount</th>
-                  <th className="p-3.5 text-right">Actions</th>
+                  <th className="p-3.5 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -156,13 +186,13 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({ 
                   const isDueToday = order.daysOverdue === 0
                   return (
                     <tr key={order.id} className="hover:bg-[#FBFAF6] transition-colors">
-                      <td className="p-3.5 font-mono font-bold text-gray-800">{order.invoice_no}</td>
+                      <td className="p-3.5 font-mono font-bold text-gray-800">{formatInvoiceNo(order.invoice_no)}</td>
                       <td className="p-3.5">
                         <div className="font-black text-gray-900">{order.customer_name}</div>
                         <div className="text-[10px] text-gray-400 font-medium">{order.phone}</div>
                       </td>
                       <td className="p-3.5 text-gray-600 font-semibold">
-                        {new Date(order.billing_date || order.created_at).toLocaleDateString('en-IN')}
+                        {new Date(order.created_at).toLocaleDateString('en-IN')}
                       </td>
                       <td className="p-3.5">
                         <div className="flex items-center gap-2">
@@ -187,19 +217,76 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({ 
                         </div>
                       </td>
                       <td className="p-3.5 text-right font-black text-gray-900">{formatCurrency(order.total)}</td>
-                      <td className="p-3.5 text-right">
-                        <button
-                          type="button"
-                          onClick={() => void handleMarkAsPaid(order)}
-                          disabled={settlingId === order.id}
-                          className="px-3 py-1.5 rounded-lg bg-[#0A0A0A] border border-[var(--accent)] text-[var(--accent)] text-[11px] font-black hover:bg-[#1A1A1A] transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
-                        >
-                          <CheckCircle2 size={13} /> {settlingId === order.id ? 'Saving...' : 'Mark as Paid'}
-                        </button>
+                      <td className="p-3.5">
+                        <div className="flex items-center justify-center gap-1">
+                          <ActionButtons order={order} onView={onView} onPrint={onPrint} onDownload={onDownload} onShare={onShare} onDelete={onDelete} />
+                          <button
+                            type="button"
+                            onClick={() => void handleMarkAsPaid(order)}
+                            disabled={settlingId === order.id}
+                            className="ml-1 px-3 py-1.5 rounded-lg bg-[#0A0A0A] border border-[var(--accent)] text-[var(--accent)] text-[11px] font-black hover:bg-[#1A1A1A] transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5 whitespace-nowrap"
+                          >
+                            <CheckCircle2 size={13} /> {settlingId === order.id ? 'Saving...' : 'Mark as Paid'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
                 })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Credit Bills History */}
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="flex items-center gap-2 px-4 py-3.5 border-b border-gray-200 bg-[#FBFAF6]">
+          <History size={15} className="text-gray-500" />
+          <div>
+            <h2 className="text-sm font-black text-[#0A0A0A]">Credit Bills History</h2>
+            <p className="text-[11px] font-semibold text-gray-500">Credit sales that have already been settled</p>
+          </div>
+        </div>
+        {filteredHistory.length === 0 ? (
+          <div className="p-16 text-center text-gray-400 font-bold text-xs">
+            {search ? 'No settled credit sales match your search.' : 'No credit sales have been settled yet.'}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[680px] text-left text-xs whitespace-nowrap">
+              <thead className="bg-[#FBFAF6] border-b border-gray-200 text-xs font-bold text-gray-700">
+                <tr>
+                  <th className="p-3.5">Invoice</th>
+                  <th className="p-3.5">Customer</th>
+                  <th className="p-3.5">Sale Date</th>
+                  <th className="p-3.5">Paid On</th>
+                  <th className="p-3.5 text-right">Amount</th>
+                  <th className="p-3.5 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredHistory.map((order) => (
+                  <tr key={order.id} className="hover:bg-[#FBFAF6] transition-colors">
+                    <td className="p-3.5 font-mono font-bold text-gray-800">{formatInvoiceNo(order.invoice_no)}</td>
+                    <td className="p-3.5">
+                      <div className="font-black text-gray-900">{order.customer_name}</div>
+                      <div className="text-[10px] text-gray-400 font-medium">{order.phone}</div>
+                    </td>
+                    <td className="p-3.5 text-gray-600 font-semibold">
+                      {new Date(order.created_at).toLocaleDateString('en-IN')}
+                    </td>
+                    <td className="p-3.5">
+                      <span className="inline-block px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {order.credit_paid_at ? new Date(order.credit_paid_at).toLocaleDateString('en-IN') : '—'}
+                      </span>
+                    </td>
+                    <td className="p-3.5 text-right font-black text-gray-900">{formatCurrency(order.total)}</td>
+                    <td className="p-3.5">
+                      <ActionButtons order={order} onView={onView} onPrint={onPrint} onDownload={onDownload} onShare={onShare} onDelete={onDelete} />
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

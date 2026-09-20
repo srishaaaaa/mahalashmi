@@ -74,7 +74,7 @@ import {
   Bar,
 } from 'recharts'
 
-type DashboardOrder = {
+export type DashboardOrder = {
   id: string; invoice_no: string; customer_name: string; phone: string; address: string
   created_at: string; total: number; status: string; order_mode: string; order_type: string; user_id: string | null; items: unknown
   coupon_code: string; discount_amount: number; manual_discount_amount: number; delivery_charge: number
@@ -894,7 +894,9 @@ export default function Dashboard() {
       shipping: order.delivery_charge || 0,
       couponDiscount: order.discount_amount || 0,
       totalGst: order.total_gst || 0,
-      total: order.total
+      total: order.total,
+      isCredit: order.credit_status === 'outstanding',
+      creditDueDate: order.credit_status === 'outstanding' ? order.credit_due_date : undefined,
     })
   }
 
@@ -929,6 +931,8 @@ export default function Dashboard() {
       gstAmount: order.total_gst,
       paymentMode: order.payment_mode,
       total: order.total,
+      isCredit: order.credit_status === 'outstanding',
+      creditDueDate: order.credit_status === 'outstanding' ? order.credit_due_date : undefined,
     })
     const url = URL.createObjectURL(file)
     if (mode === 'download') {
@@ -1225,6 +1229,28 @@ export default function Dashboard() {
     setSearchResults(prev => prev.map(o => o.id === orderId ? { ...o, credit_status: 'paid', credit_paid_at: paidAt } : o))
     refreshOutstandingCreditCount()
   }, [refreshOutstandingCreditCount])
+
+  const handleCreditDueDateChanged = useCallback((orderId: string, newDate: string) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, credit_due_date: newDate } : o))
+    setSearchResults(prev => prev.map(o => o.id === orderId ? { ...o, credit_due_date: newDate } : o))
+    refreshOutstandingCreditCount()
+  }, [refreshOutstandingCreditCount])
+
+  // Outstanding Credits reuses the same full order records (and the same
+  // view/print/download/share/delete actions) as Order History — it's just
+  // a different filter over the same data, not a separate fetch.
+  const outstandingCreditOrders = useMemo(
+    () => orders
+      .filter(o => o.credit_status === 'outstanding')
+      .sort((a, b) => (a.credit_due_date || '9999-99-99').localeCompare(b.credit_due_date || '9999-99-99')),
+    [orders]
+  )
+  const creditHistoryOrders = useMemo(
+    () => orders
+      .filter(o => o.credit_status === 'paid')
+      .sort((a, b) => (b.credit_paid_at || '').localeCompare(a.credit_paid_at || '')),
+    [orders]
+  )
 
   if (!isAdmin) return (
     <div className="min-h-screen bg-bgMain flex items-center justify-center p-4">
@@ -3023,7 +3049,12 @@ export default function Dashboard() {
                         <React.Fragment key={o.id}>
                         <tr key={o.id} className="hover:bg-[#F9FAFB] text-center">
                           <td className="whitespace-nowrap px-2 py-3 text-[11px] font-bold text-[#111111]">{formatInvoiceNo(o.invoice_no)}</td>
-                          <td className="max-w-[100px] break-words px-2 py-3 text-[11px] font-semibold text-[#111111]">{o.customer_name}</td>
+                          <td className="max-w-[100px] break-words px-2 py-3 text-[11px] font-semibold text-[#111111]">
+                            {o.customer_name}
+                            {o.credit_status === 'paid' && (
+                              <span className="mt-1 block w-fit rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-black uppercase text-amber-700 border border-amber-200">Credit Bill</span>
+                            )}
+                          </td>
                           <td className="whitespace-nowrap px-2 py-3 text-[11px] text-[#374151]">{o.phone}</td>
                           <td className="px-2 py-3"><span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase ${billTypeClass}`}>{billTypeLabel}</span></td>
                           <td className="px-2 py-3 text-[11px]">
@@ -3532,7 +3563,17 @@ export default function Dashboard() {
         )}
         {/* ── OUTSTANDING CREDITS TAB ── */}
         {tab === 'outstanding_credits' && (
-          <OutstandingCreditsView onSettled={handleCreditSettled} />
+          <OutstandingCreditsView
+            orders={outstandingCreditOrders}
+            historyOrders={creditHistoryOrders}
+            onSettled={handleCreditSettled}
+            onDueDateChanged={handleCreditDueDateChanged}
+            onView={(o) => setInvoicePreviewOrder(o)}
+            onPrint={(o) => handlePrintReceipt(o)}
+            onDownload={(o) => void openOrderInvoice(o, 'download')}
+            onShare={(o) => window.open(`/invoice/${o.id}`, '_blank')}
+            onDelete={(o) => void deleteOrder(o.id, o.invoice_no)}
+          />
         )}
         {/* ── STORE SETTINGS TAB ── */}
         {tab === 'settings' && (

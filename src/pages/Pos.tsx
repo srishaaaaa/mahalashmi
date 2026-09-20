@@ -918,6 +918,8 @@ export default function Pos(props: PosProps = {}) {
       manualDiscount: inv.manualDiscountAmount,
       totalGst: inv.gstAmount,
       total: inv.total,
+      isCredit: inv.isCredit,
+      creditDueDate: inv.creditDueDate,
     })
   }
 
