@@ -1038,6 +1038,8 @@ export default function Pos(props: PosProps = {}) {
             manualDiscountAmount={invoice.manualDiscountAmount || 0}
             gstAmount={invoice.gstAmount || 0}
             couponCode={invoice.couponCode}
+            isCredit={invoice.isCredit}
+            creditDueDate={invoice.creditDueDate}
           />
         </div>
       </div>

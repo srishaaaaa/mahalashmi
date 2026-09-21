@@ -29,6 +29,21 @@ export interface VariantInputRow {
   customBarcode?: string
 }
 
+const UNIT_OPTIONS: { value: string; label: string; unitType: 'unit' | 'weight' | 'volume' | 'bundle'; unit: string }[] = [
+  { value: 'pcs', label: 'Pcs (Pieces)', unitType: 'unit', unit: 'piece' },
+  { value: 'kg', label: 'Kg', unitType: 'weight', unit: 'kg' },
+  { value: 'gram', label: 'Gram', unitType: 'weight', unit: 'g' },
+  { value: 'litre', label: 'Litre', unitType: 'volume', unit: 'l' },
+  { value: 'ml', label: 'Milliliter (ml)', unitType: 'volume', unit: 'ml' },
+  { value: 'packet', label: 'Packet', unitType: 'bundle', unit: 'packet' },
+  { value: 'box', label: 'Box', unitType: 'bundle', unit: 'box' },
+]
+
+const findUnitOption = (unitType: string, unit: string) =>
+  UNIT_OPTIONS.find((o) => o.unitType === unitType && o.unit === unit)
+  || UNIT_OPTIONS.find((o) => o.unitType === unitType)
+  || UNIT_OPTIONS[0]
+
 export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ onStockUpdated }) => {
   const { products, fetchProducts } = useProductStore()
   const { play } = useSound()
@@ -43,6 +58,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
   const [categoryId, setCategoryId] = useState<number | ''>('')
   const [price, setPrice] = useState<string>('')
   const [purchasePrice, setPurchasePrice] = useState<string>('')
+  const [unitChoice, setUnitChoice] = useState<string>('pcs')
   const [stockQuantity, setStockQuantity] = useState<string>('0')
   const [lowStockAlert, setLowStockAlert] = useState<string>('5')
   const [expiryDate, setExpiryDate] = useState<string>('')
@@ -73,6 +89,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     setCategoryId('')
     setPrice('')
     setPurchasePrice('')
+    setUnitChoice('pcs')
     setStockQuantity('0')
     setLowStockAlert('5')
     setExpiryDate('')
@@ -96,6 +113,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     setCategoryId(p.categoryId ? Number(p.categoryId) : '')
     setPrice(String(p.price || ''))
     setPurchasePrice(String(p.purchasePrice || ''))
+    setUnitChoice(findUnitOption(p.unitType || 'unit', p.unitLabel || 'piece').value)
     setStockQuantity(String(p.stockQuantity ?? p.stock ?? 0))
     setLowStockAlert(p.lowStockAlert ? String(p.lowStockAlert) : '5')
     setExpiryDate(p.expiryDate || '')
@@ -212,6 +230,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     const selectedCat = categories.find((c) => Number(c.id) === Number(categoryId))
     const categoryName = selectedCat ? selectedCat.name_en : 'General'
     const alertThreshold = Number(lowStockAlert) > 0 ? Number(lowStockAlert) : 5
+    const selectedUnit = UNIT_OPTIONS.find((o) => o.value === unitChoice) || UNIT_OPTIONS[0]
 
     setLoading(true)
 
@@ -241,6 +260,9 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               price: priceNum,
               offer_price: priceNum,
               purchase_price: costNum,
+              unit_type: selectedUnit.unitType,
+              unit_label: selectedUnit.unit,
+              unit: selectedUnit.unit,
               low_stock_alert: alertThreshold,
               expiry_date: expiryDate || null,
               mfg_date: mfgDate || null,
@@ -382,6 +404,9 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               price: priceNum,
               offer_price: priceNum,
               purchase_price: costNum,
+              unit_type: selectedUnit.unitType,
+              unit_label: selectedUnit.unit,
+              unit: selectedUnit.unit,
               low_stock_alert: alertThreshold,
               expiry_date: expiryDate || null,
               mfg_date: mfgDate || null,
@@ -418,6 +443,9 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               price: priceNum,
               offer_price: priceNum,
               purchase_price: costNum,
+              unit_type: selectedUnit.unitType,
+              unit_label: selectedUnit.unit,
+              unit: selectedUnit.unit,
               low_stock_alert: alertThreshold,
               expiry_date: expiryDate || null,
               mfg_date: mfgDate || null,
@@ -489,6 +517,9 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               price: priceNum,
               offer_price: priceNum,
               purchase_price: costNum,
+              unit_type: selectedUnit.unitType,
+              unit_label: selectedUnit.unit,
+              unit: selectedUnit.unit,
               low_stock_alert: alertThreshold,
               expiry_date: expiryDate || null,
               mfg_date: mfgDate || null,
@@ -893,7 +924,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
 
             {/* Base Pricing & Received Stock (only if no variants) */}
             {!hasVariants && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-white border border-gray-200 rounded-xl items-start">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 bg-white border border-gray-200 rounded-xl items-start">
                 <div>
                   <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
                     Selling Price (₹) <span className="text-red-500 ml-0.5">*</span>
@@ -923,6 +954,21 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                     onChange={(e) => setPurchasePrice(e.target.value)}
                     className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
+                    Unit of Measure
+                  </label>
+                  <select
+                    value={unitChoice}
+                    onChange={(e) => setUnitChoice(e.target.value)}
+                    className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                  >
+                    {UNIT_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

@@ -857,8 +857,9 @@ export default function Dashboard() {
       couponDiscount: order.discount_amount,
       shipping: order.delivery_charge,
       total: order.total,
-      isCredit: order.credit_status === 'outstanding',
+      isCredit: order.credit_status === 'outstanding' || order.credit_status === 'paid',
       creditDueDate: order.credit_status === 'outstanding' ? order.credit_due_date : undefined,
+      creditPaidAt: order.credit_status === 'paid' ? order.credit_paid_at : undefined,
     })
     return { items, subtotal, message, fileName: `Invoice-${order.invoice_no || order.id}.pdf` }
   }
@@ -895,8 +896,9 @@ export default function Dashboard() {
       couponDiscount: order.discount_amount || 0,
       totalGst: order.total_gst || 0,
       total: order.total,
-      isCredit: order.credit_status === 'outstanding',
+      isCredit: order.credit_status === 'outstanding' || order.credit_status === 'paid',
       creditDueDate: order.credit_status === 'outstanding' ? order.credit_due_date : undefined,
+      creditPaidAt: order.credit_status === 'paid' ? order.credit_paid_at : undefined,
     })
   }
 
@@ -906,7 +908,10 @@ export default function Dashboard() {
       return
     }
 
-    if (order.invoice_pdf_url) {
+    // A credit sale's stored PDF was generated before payment (or before it was
+    // ever credit at all) — once settled, regenerate fresh instead of serving
+    // the stale "payment due" snapshot from checkout time.
+    if (order.invoice_pdf_url && order.credit_status !== 'paid') {
       const link = document.createElement('a')
       link.href = order.invoice_pdf_url
       if (mode === 'download') link.download = `Invoice-${order.invoice_no || order.id}.pdf`
@@ -931,8 +936,9 @@ export default function Dashboard() {
       gstAmount: order.total_gst,
       paymentMode: order.payment_mode,
       total: order.total,
-      isCredit: order.credit_status === 'outstanding',
+      isCredit: order.credit_status === 'outstanding' || order.credit_status === 'paid',
       creditDueDate: order.credit_status === 'outstanding' ? order.credit_due_date : undefined,
+      creditPaidAt: order.credit_status === 'paid' ? order.credit_paid_at : undefined,
     })
     const url = URL.createObjectURL(file)
     if (mode === 'download') {
@@ -3648,6 +3654,9 @@ export default function Dashboard() {
                     manualDiscountAmount={invoicePreviewOrder.manual_discount_amount}
                     gstAmount={invoicePreviewOrder.total_gst}
                     paymentMode={invoicePreviewOrder.payment_mode}
+                    isCredit={invoicePreviewOrder.credit_status === 'outstanding' || invoicePreviewOrder.credit_status === 'paid'}
+                    creditDueDate={invoicePreviewOrder.credit_status === 'outstanding' ? invoicePreviewOrder.credit_due_date : undefined}
+                    creditPaidAt={invoicePreviewOrder.credit_status === 'paid' ? invoicePreviewOrder.credit_paid_at : undefined}
                     total={invoicePreviewOrder.total}
                     status={invoicePreviewOrder.status}
                   />

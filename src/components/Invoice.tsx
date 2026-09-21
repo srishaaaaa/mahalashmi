@@ -41,6 +41,10 @@ export interface InvoiceProps {
   manualDiscountAmount?: number
   gstAmount?: number
   paymentMode?: string
+  isCredit?: boolean
+  creditDueDate?: string | null
+  /** Set once the credit sale has been settled — switches the credit banner from "payment due" to "paid/completed". */
+  creditPaidAt?: string | null
   onPrintReceipt?: () => void
 }
 
@@ -62,9 +66,27 @@ export const Invoice: React.FC<InvoiceProps> = ({
   manualDiscountAmount = 0,
   gstAmount = 0,
   paymentMode,
+  isCredit = false,
+  creditDueDate,
+  creditPaidAt,
   onPrintReceipt,
 }) => {
   const formattedInvoiceNo = formatInvoiceNo(invoiceNo)
+  const dueDateStr = creditDueDate
+    ? (() => {
+        try { return new Date(`${creditDueDate}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) }
+        catch { return creditDueDate }
+      })()
+    : ''
+  const paidDateStr = creditPaidAt
+    ? (() => {
+        try { return new Date(creditPaidAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) }
+        catch { return creditPaidAt }
+      })()
+    : ''
+  const isSettledCredit = Boolean(isCredit && creditPaidAt)
+  const isUnpaidCredit = Boolean(isCredit && !creditPaidAt)
+  const creditColor = isSettledCredit ? '#047857' : '#B91C1C'
   const dateStr = (() => {
     try { return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) }
     catch { return new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) }
@@ -90,10 +112,22 @@ export const Invoice: React.FC<InvoiceProps> = ({
     >
       {/* ── HEADER ────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
-        <div style={{ fontSize: 9, fontWeight: 800, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>Tax Invoice</div>
+        <div style={{ fontSize: 9, fontWeight: 800, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>{isCredit ? 'Credit Invoice' : 'Tax Invoice'}</div>
         <div style={{ fontSize: 12, fontWeight: 900, color: '#0A0A0A', textTransform: 'uppercase', letterSpacing: 0.5 }}>Invoice: #{formattedInvoiceNo}</div>
       </div>
       <div style={{ borderBottom: '1px solid #B7E1BE', marginTop: 8, marginBottom: 16 }} />
+
+      {isCredit && (
+        <div style={{
+          textAlign: 'center', fontWeight: 800, fontSize: 12, padding: '8px 0',
+          border: `1px dashed ${creditColor}`, background: isSettledCredit ? '#D1FAE5' : '#FEE2E2', color: creditColor,
+          borderRadius: 10, marginBottom: 16,
+        }}>
+          {isSettledCredit
+            ? `CREDIT BILL — PAID${paidDateStr ? ` ON ${paidDateStr}` : ''} (COMPLETED)`
+            : `CREDIT SALE — ${dueDateStr ? `PAYMENT DUE ON ${dueDateStr}` : 'PAYMENT PENDING'}`}
+        </div>
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', minWidth: 0 }}>
@@ -117,6 +151,8 @@ export const Invoice: React.FC<InvoiceProps> = ({
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontSize: 11, color: '#4b5563' }}>Date: {dateStr}</div>
           {paymentMode && <div style={{ fontSize: 11, color: '#4b5563', marginTop: 2 }}>Payment: {paymentMode}</div>}
+          {isUnpaidCredit && dueDateStr && <div style={{ fontSize: 11, color: '#B91C1C', fontWeight: 700, marginTop: 2 }}>Due: {dueDateStr}</div>}
+          {isSettledCredit && paidDateStr && <div style={{ fontSize: 11, color: '#047857', fontWeight: 700, marginTop: 2 }}>Paid: {paidDateStr}</div>}
           {userId && <div style={{ fontSize: 9, color: '#999', marginTop: 4, wordBreak: 'break-all', maxWidth: 180 }}>{userId}</div>}
           <div
             style={{
@@ -221,11 +257,11 @@ export const Invoice: React.FC<InvoiceProps> = ({
             <div
               style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                borderTop: '2px solid var(--accent)', paddingTop: 10, marginTop: 4,
+                borderTop: `2px solid ${isUnpaidCredit ? '#B91C1C' : 'var(--accent)'}`, paddingTop: 10, marginTop: 4,
               }}
             >
-              <span style={{ fontSize: 15, fontWeight: 900, color: '#0A0A0A', textTransform: 'uppercase', letterSpacing: 0.5 }}>Total</span>
-              <span style={{ fontSize: 20, fontWeight: 900, color: '#0A0A0A' }}>{formatCurrency(total)}</span>
+              <span style={{ fontSize: 15, fontWeight: 900, color: isUnpaidCredit ? '#B91C1C' : '#0A0A0A', textTransform: 'uppercase', letterSpacing: 0.5 }}>{isUnpaidCredit ? 'Amount Due' : 'Total'}</span>
+              <span style={{ fontSize: 20, fontWeight: 900, color: isUnpaidCredit ? '#B91C1C' : '#0A0A0A' }}>{formatCurrency(total)}</span>
             </div>
           </div>
         </div>
@@ -238,7 +274,13 @@ export const Invoice: React.FC<InvoiceProps> = ({
           display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
         }}
       >
-        <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Thank You For Shopping With Us</div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: isUnpaidCredit ? '#B91C1C' : isSettledCredit ? '#047857' : 'var(--accent)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          {isUnpaidCredit
+            ? `Credit Sale — Kindly Settle${dueDateStr ? ` By ${dueDateStr}` : ''}`
+            : isSettledCredit
+              ? `Credit Bill — Paid In Full${paidDateStr ? ` On ${paidDateStr}` : ''}`
+              : 'Thank You For Shopping With Us'}
+        </div>
         <div style={{ fontSize: 10, color: '#777', marginTop: 4 }}>Follow us on Instagram: @{shopInstagram}</div>
         {onPrintReceipt && (
           <button

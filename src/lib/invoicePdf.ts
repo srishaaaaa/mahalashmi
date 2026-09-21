@@ -23,6 +23,8 @@ export type InvoicePdfData = {
   paymentMode?: string
   isCredit?: boolean
   creditDueDate?: string | null
+  /** Set once the credit sale has been settled — switches the credit banner from "payment due" to "paid/completed". */
+  creditPaidAt?: string | null
 }
 
 // jsPDF's built-in Helvetica font has no ₹ (U+20B9) glyph — it renders as a
@@ -50,6 +52,12 @@ export function createInvoicePdf(data: InvoicePdfData): Blob {
   const dueDateLabel = data.creditDueDate
     ? new Date(`${data.creditDueDate}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
     : ''
+  const paidDateLabel = data.creditPaidAt
+    ? new Date(data.creditPaidAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : ''
+  const isSettledCredit = Boolean(data.isCredit && data.creditPaidAt)
+  const isUnpaidCredit = Boolean(data.isCredit && !data.creditPaidAt)
+  const creditColor = isSettledCredit ? '#047857' : '#B91C1C'
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8)
@@ -85,21 +93,28 @@ export function createInvoicePdf(data: InvoicePdfData): Blob {
   doc.text(`Phone: ${shopPhone}`, left + 24, y + 18)
   doc.text(`Date: ${new Date(data.date).toLocaleDateString('en-IN')}`, right, y + 2, { align: 'right' })
   doc.text(`Payment: ${data.paymentMode || 'POS'}`, right, y + 7, { align: 'right' })
-  if (data.isCredit && dueDateLabel) {
+  if (isUnpaidCredit && dueDateLabel) {
     doc.setTextColor('#B91C1C')
     doc.text(`Due: ${dueDateLabel}`, right, y + 12, { align: 'right' })
+    doc.setTextColor(muted)
+  }
+  if (isSettledCredit && paidDateLabel) {
+    doc.setTextColor('#047857')
+    doc.text(`Paid: ${paidDateLabel}`, right, y + 12, { align: 'right' })
     doc.setTextColor(muted)
   }
   y += 28
 
   if (data.isCredit) {
-    doc.setFillColor('#FEE2E2')
+    doc.setFillColor(isSettledCredit ? '#D1FAE5' : '#FEE2E2')
     doc.roundedRect(left, y, right - left, 10, 2, 2, 'F')
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(9)
-    doc.setTextColor('#B91C1C')
+    doc.setTextColor(creditColor)
     doc.text(
-      dueDateLabel ? `CREDIT SALE — PAYMENT DUE ON ${dueDateLabel}` : 'CREDIT SALE — PAYMENT PENDING',
+      isSettledCredit
+        ? (paidDateLabel ? `CREDIT BILL — PAID ON ${paidDateLabel} (COMPLETED)` : 'CREDIT BILL — PAID (COMPLETED)')
+        : (dueDateLabel ? `CREDIT SALE — PAYMENT DUE ON ${dueDateLabel}` : 'CREDIT SALE — PAYMENT PENDING'),
       left + (right - left) / 2,
       y + 6.5,
       { align: 'center' },
@@ -179,14 +194,14 @@ export function createInvoicePdf(data: InvoicePdfData): Blob {
   rows.push(['Delivery', (data.shipping || 0) > 0 ? money(data.shipping) : 'FREE', ink])
   doc.setFontSize(9)
   rows.forEach(([label, value, color]) => { doc.setFont('helvetica', 'normal'); doc.setTextColor(color); doc.text(label, 143, y, { align: 'right' }); doc.text(value, right - 4, y, { align: 'right' }); y += 7 })
-  const totalColor = data.isCredit ? '#B91C1C' : primaryColor
+  const totalColor = isUnpaidCredit ? '#B91C1C' : primaryColor
   doc.setDrawColor(totalColor)
   doc.setLineWidth(0.7)
   doc.line(118, y - 3, right, y - 3)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(14)
   doc.setTextColor(totalColor)
-  doc.text(data.isCredit ? 'AMOUNT DUE' : 'TOTAL', 143, y + 6, { align: 'right' })
+  doc.text(isUnpaidCredit ? 'AMOUNT DUE' : 'TOTAL', 143, y + 6, { align: 'right' })
   doc.text(money(data.total), right - 4, y + 6, { align: 'right' })
 
   y = 275
@@ -195,11 +210,13 @@ export function createInvoicePdf(data: InvoicePdfData): Blob {
   doc.line(left, y, right, y)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8)
-  doc.setTextColor(data.isCredit ? '#B91C1C' : primaryColor)
+  doc.setTextColor(isUnpaidCredit ? '#B91C1C' : isSettledCredit ? '#047857' : primaryColor)
   doc.text(
-    data.isCredit
+    isUnpaidCredit
       ? `CREDIT SALE — KINDLY SETTLE${dueDateLabel ? ` BY ${dueDateLabel}` : ''}. THANK YOU!`
-      : 'THANK YOU FOR SHOPPING WITH US',
+      : isSettledCredit
+        ? `CREDIT BILL — PAID IN FULL${paidDateLabel ? ` ON ${paidDateLabel}` : ''}. THANK YOU!`
+        : 'THANK YOU FOR SHOPPING WITH US',
     pageWidth / 2,
     y + 8,
     { align: 'center' },

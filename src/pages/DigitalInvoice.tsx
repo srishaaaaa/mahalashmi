@@ -122,6 +122,9 @@ export default function DigitalInvoice() {
   const invoiceItems = (Array.isArray(invoice.items) ? invoice.items : [])
     .map((item: Record<string, unknown>) => normalizeStructuredOrderItem(item))
   const subtotal = invoiceItems.reduce((sum: number, item: ReturnType<typeof normalizeStructuredOrderItem>) => sum + item.line_total, 0)
+  const isCredit = invoice.credit_status === 'outstanding' || invoice.credit_status === 'paid'
+  const creditDueDate: string | null = invoice.credit_status === 'outstanding' ? (invoice.credit_due_date || null) : null
+  const creditPaidAt: string | null = invoice.credit_status === 'paid' ? (invoice.credit_paid_at || null) : null
 
   const buildPdfData = () => ({
     invoiceNo: invoice.invoice_no,
@@ -138,6 +141,9 @@ export default function DigitalInvoice() {
     gstAmount: Number(invoice.total_gst || invoice.gst_amount || 0),
     couponCode: invoice.coupon_code || undefined,
     paymentMode: invoice.payment_mode || invoice.payment_method || undefined,
+    isCredit,
+    creditDueDate,
+    creditPaidAt,
   })
 
   const downloadPdf = async () => {
@@ -176,6 +182,9 @@ export default function DigitalInvoice() {
       gstAmount: invoice.total_gst || invoice.gst_amount || 0,
       total: invoice.total,
       paymentMode: invoice.payment_mode || invoice.payment_method,
+      isCredit,
+      creditDueDate,
+      creditPaidAt,
     })
 
     const file = invoicePdfFile(buildPdfData())
@@ -229,7 +238,10 @@ export default function DigitalInvoice() {
       shipping: invoice.delivery_charge || 0,
       couponDiscount: invoice.discount_amount || 0,
       totalGst: invoice.total_gst || invoice.gst_amount || 0,
-      total: invoice.total > 0 ? invoice.total : (subtotal + (invoice.delivery_charge || 0) + (invoice.total_gst || invoice.gst_amount || 0) - (invoice.discount_amount || 0) - (invoice.manual_discount_amount || 0))
+      total: invoice.total > 0 ? invoice.total : (subtotal + (invoice.delivery_charge || 0) + (invoice.total_gst || invoice.gst_amount || 0) - (invoice.discount_amount || 0) - (invoice.manual_discount_amount || 0)),
+      isCredit,
+      creditDueDate,
+      creditPaidAt,
     })
   }
 
@@ -274,6 +286,9 @@ export default function DigitalInvoice() {
             total={invoice.total > 0 ? invoice.total : (subtotal + (invoice.delivery_charge || 0) + (invoice.total_gst || invoice.gst_amount || 0) - (invoice.discount_amount || 0) - (invoice.manual_discount_amount || 0))}
             status={invoice.status}
             paymentMode={invoice.payment_mode || invoice.payment_method}
+            isCredit={isCredit}
+            creditDueDate={creditDueDate}
+            creditPaidAt={creditPaidAt}
             onPrintReceipt={printReceipt}
           />
         </div>

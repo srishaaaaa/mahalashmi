@@ -38,6 +38,7 @@ export type BuildWhatsAppMessageInput = {
   total?: number
   isCredit?: boolean
   creditDueDate?: string | null
+  creditPaidAt?: string | null
 }
 
 export type CreditReminderWhatsAppInput = {
@@ -82,8 +83,14 @@ export const buildProfessionalWhatsAppMessage = (input: BuildWhatsAppMessageInpu
   const dueDateText = input.creditDueDate
     ? new Date(`${input.creditDueDate}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
     : ''
+  const paidDateText = input.creditPaidAt
+    ? new Date(input.creditPaidAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : ''
+  const isSettledCredit = Boolean(input.isCredit && input.creditPaidAt)
   const creditBlock = input.isCredit
-    ? `\n🔴 *CREDIT SALE — PAYMENT PENDING*\n${dueDateText ? `📅 *Due Date:* ${dueDateText}\n` : ''}Kindly settle this amount by the due date. Thank you!\n`
+    ? isSettledCredit
+      ? `\n✅ *CREDIT BILL — PAID (COMPLETED)*\n${paidDateText ? `📅 *Paid On:* ${paidDateText}\n` : ''}\n`
+      : `\n🔴 *CREDIT SALE — PAYMENT PENDING*\n${dueDateText ? `📅 *Due Date:* ${dueDateText}\n` : ''}Kindly settle this amount by the due date. Thank you!\n`
     : ''
 
   return `✨ *${shop.name}* ✨

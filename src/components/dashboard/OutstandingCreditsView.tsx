@@ -63,6 +63,7 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
   const [settlingId, setSettlingId] = useState<string | null>(null)
   const [savingDueDateId, setSavingDueDateId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [activeTab, setActiveTab] = useState<'outstanding' | 'history'>('outstanding')
 
   const items = useMemo(
     () => orders.filter(o => matchesSearch(o, search)).map(o => ({ ...o, daysOverdue: toDaysOverdue(o.credit_due_date || null) })),
@@ -141,27 +142,41 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
         </div>
       </div>
 
-      {/* Toolbar + Search */}
-      <div className="bg-white border border-[#B7E1BE] rounded-2xl p-4 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-black text-[#0A0A0A]">Outstanding Credit Sales</h2>
-            <p className="text-xs font-semibold text-gray-500">Sales billed on credit that haven't been paid yet</p>
-          </div>
-          <div className="relative w-full sm:w-64">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search invoice, customer, phone..."
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 bg-[#FBFAF6] text-xs font-semibold text-gray-800 outline-none focus:border-[var(--accent)] transition-colors"
-            />
-          </div>
+      {/* Tab switcher + Search */}
+      <div className="flex flex-col gap-4 border-b border-[#E7E7E7] pb-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex gap-6">
+          {([
+            { id: 'outstanding' as const, label: 'OUTSTANDING', count: items.length },
+            { id: 'history' as const, label: 'HISTORY', count: filteredHistory.length },
+          ]).map(({ id, label, count }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setActiveTab(id)}
+              className={`pb-2 md:pb-4 text-left text-[13px] font-bold tracking-wide transition-colors relative whitespace-nowrap ${
+                activeTab === id ? 'text-[#0A0A0A]' : 'text-[#6B7280] hover:text-[#111111]'
+              }`}
+            >
+              {label} <span className="text-[11px] font-semibold text-gray-400">({count})</span>
+              {activeTab === id && <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#0A0A0A] rounded-t-md" />}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative w-full md:w-64">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search invoice, customer, phone..."
+            className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 bg-[#FBFAF6] text-xs font-semibold text-gray-800 outline-none focus:border-[var(--accent)] transition-colors"
+          />
         </div>
       </div>
 
       {/* Outstanding Table */}
+      {activeTab === 'outstanding' && (
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
         {items.length === 0 ? (
           <div className="p-16 text-center text-gray-400 font-bold text-xs">
@@ -238,8 +253,10 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
           </div>
         )}
       </div>
+      )}
 
       {/* Credit Bills History */}
+      {activeTab === 'history' && (
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
         <div className="flex items-center gap-2 px-4 py-3.5 border-b border-gray-200 bg-[#FBFAF6]">
           <History size={15} className="text-gray-500" />
@@ -292,6 +309,7 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }

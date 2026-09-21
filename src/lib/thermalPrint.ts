@@ -27,6 +27,7 @@ export interface ThermalReceiptData {
   storeEmail?: string
   isCredit?: boolean
   creditDueDate?: string | null
+  creditPaidAt?: string | null
 }
 
 export function printThermalReceipt(data: ThermalReceiptData) {
@@ -61,6 +62,14 @@ export function printThermalReceipt(data: ThermalReceiptData) {
         catch { return data.creditDueDate as string }
       })()
     : ''
+  const paidDateStr = data.creditPaidAt
+    ? (() => {
+        try { return new Date(data.creditPaidAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) }
+        catch { return data.creditPaidAt as string }
+      })()
+    : ''
+  const isSettledCredit = Boolean(data.isCredit && data.creditPaidAt)
+  const isUnpaidCredit = Boolean(data.isCredit && !data.creditPaidAt)
 
   const html = `
     <!DOCTYPE html>
@@ -116,8 +125,9 @@ export function printThermalReceipt(data: ThermalReceiptData) {
 
         ${data.isCredit ? `
           <div class="text-center border-bottom" style="font-size: 12px; font-weight: bold; padding: 3px 0; border: 1px dashed #000; margin-bottom: 4px;">
-            *** CREDIT BILL ***<br/>
-            ${dueDateStr ? `PAY BY: ${dueDateStr}` : 'PAYMENT PENDING'}
+            ${isSettledCredit
+              ? `*** CREDIT BILL — PAID (COMPLETED) ***<br/>${paidDateStr ? `PAID ON: ${paidDateStr}` : ''}`
+              : `*** CREDIT BILL ***<br/>${dueDateStr ? `PAY BY: ${dueDateStr}` : 'PAYMENT PENDING'}`}
           </div>
         ` : ''}
 
@@ -180,16 +190,18 @@ export function printThermalReceipt(data: ThermalReceiptData) {
               </tr>
             ` : ''}
             <tr class="font-bold" style="font-size: 14px;">
-              <td class="text-left">${data.isCredit ? 'Amount Due' : 'Total'}</td>
+              <td class="text-left">${isUnpaidCredit ? 'Amount Due' : 'Total'}</td>
               <td class="text-right">${formatCurrency(data.total)}</td>
             </tr>
           </table>
         </div>
 
         <div class="text-center mt-2" style="font-size: 11px;">
-          ${data.isCredit
+          ${isUnpaidCredit
             ? `<div class="font-bold">Credit sale — kindly settle${dueDateStr ? ` by ${dueDateStr}` : ''}. Thank you!</div>`
-            : `<div class="font-bold">Thank you for shopping at ${storeName}!</div>`}
+            : isSettledCredit
+              ? `<div class="font-bold">Credit bill — paid in full${paidDateStr ? ` on ${paidDateStr}` : ''}. Thank you!</div>`
+              : `<div class="font-bold">Thank you for shopping at ${storeName}!</div>`}
           <div>Follow us on Instagram: @${storeInstagram}</div>
         </div>
       </body>
