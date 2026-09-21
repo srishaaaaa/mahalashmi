@@ -183,7 +183,59 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
             {search ? 'No outstanding credit sales match your search.' : "No outstanding credit sales. Everything's settled!"}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile card list */}
+          <div className="md:hidden divide-y divide-gray-100">
+            {items.map((order) => {
+              const isOverdue = order.daysOverdue > 0
+              const isDueToday = order.daysOverdue === 0
+              return (
+                <div key={order.id} className="p-3.5 space-y-2.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-black text-gray-900 text-[13px]">{order.customer_name}</p>
+                      <p className="text-[11px] text-gray-400 font-medium mt-0.5">{formatInvoiceNo(order.invoice_no)} · {order.phone}</p>
+                    </div>
+                    <p className="font-black text-gray-900 text-[13px] shrink-0">{formatCurrency(order.total)}</p>
+                  </div>
+                  <div className="flex items-center flex-wrap gap-2">
+                    <span className="text-[10px] font-bold text-gray-500">Sale: {new Date(order.created_at).toLocaleDateString('en-IN')}</span>
+                    <input
+                      type="date"
+                      value={order.credit_due_date || ''}
+                      disabled={savingDueDateId === order.id}
+                      onChange={(e) => void handleDueDateChange(order, e.target.value)}
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-black border cursor-pointer outline-none disabled:opacity-50 ${
+                        isOverdue
+                          ? 'bg-red-50 text-red-700 border-red-200'
+                          : isDueToday
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-gray-50 text-gray-600 border-gray-200'
+                      }`}
+                    />
+                    {(isOverdue || isDueToday) && (
+                      <span className={`text-[10px] font-black ${isOverdue ? 'text-red-600' : 'text-amber-600'}`}>
+                        {isOverdue ? `${order.daysOverdue}d overdue` : 'due today'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <ActionButtons order={order} onView={onView} onPrint={onPrint} onDownload={onDownload} onShare={onShare} onDelete={onDelete} />
+                    <button
+                      type="button"
+                      onClick={() => void handleMarkAsPaid(order)}
+                      disabled={settlingId === order.id}
+                      className="px-3 py-1.5 rounded-lg bg-[#0A0A0A] border border-[var(--accent)] text-[var(--accent)] text-[11px] font-black hover:bg-[#1A1A1A] transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
+                    >
+                      <CheckCircle2 size={13} /> {settlingId === order.id ? 'Saving...' : 'Mark as Paid'}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-xs whitespace-nowrap">
               <thead className="bg-[#FBFAF6] border-b border-gray-200 text-xs font-bold text-gray-700">
                 <tr>
@@ -251,6 +303,7 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
       )}
@@ -270,7 +323,32 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
             {search ? 'No settled credit sales match your search.' : 'No credit sales have been settled yet.'}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile card list */}
+          <div className="md:hidden divide-y divide-gray-100">
+            {filteredHistory.map((order) => (
+              <div key={order.id} className="p-3.5 space-y-2.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-black text-gray-900 text-[13px]">{order.customer_name}</p>
+                    <p className="text-[11px] text-gray-400 font-medium mt-0.5">{formatInvoiceNo(order.invoice_no)} · {order.phone}</p>
+                  </div>
+                  <p className="font-black text-gray-900 text-[13px] shrink-0">{formatCurrency(order.total)}</p>
+                </div>
+                <div className="flex items-center flex-wrap gap-2">
+                  <span className="text-[10px] font-bold text-gray-500">Sale: {new Date(order.created_at).toLocaleDateString('en-IN')}</span>
+                  <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Paid {order.credit_paid_at ? new Date(order.credit_paid_at).toLocaleDateString('en-IN') : '—'}
+                  </span>
+                </div>
+                <div className="pt-1">
+                  <ActionButtons order={order} onView={onView} onPrint={onPrint} onDownload={onDownload} onShare={onShare} onDelete={onDelete} />
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full min-w-[680px] text-left text-xs whitespace-nowrap">
               <thead className="bg-[#FBFAF6] border-b border-gray-200 text-xs font-bold text-gray-700">
                 <tr>
@@ -307,6 +385,7 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
       )}
