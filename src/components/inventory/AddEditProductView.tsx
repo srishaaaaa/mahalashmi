@@ -21,23 +21,30 @@ import { normalizeBarcode } from '../../lib/barcode'
 
 export interface VariantInputRow {
   id: string
-  variantName: string
-  sizeLabel?: string
+  qty: string
   price: number
   costPrice: number
   stock: number
   customBarcode?: string
 }
 
-const UNIT_OPTIONS: { value: string; label: string; unitType: 'unit' | 'weight' | 'volume' | 'bundle'; unit: string }[] = [
-  { value: 'pcs', label: 'Pcs (Pieces)', unitType: 'unit', unit: 'piece' },
-  { value: 'kg', label: 'Kg', unitType: 'weight', unit: 'kg' },
-  { value: 'gram', label: 'Gram', unitType: 'weight', unit: 'g' },
-  { value: 'litre', label: 'Litre', unitType: 'volume', unit: 'l' },
-  { value: 'ml', label: 'Milliliter (ml)', unitType: 'volume', unit: 'ml' },
-  { value: 'packet', label: 'Packet', unitType: 'bundle', unit: 'packet' },
-  { value: 'box', label: 'Box', unitType: 'bundle', unit: 'box' },
+const UNIT_OPTIONS: { value: string; label: string; unitType: 'unit' | 'weight' | 'volume' | 'bundle'; unit: string; suffix: string }[] = [
+  { value: 'pcs', label: 'Pcs (Pieces)', unitType: 'unit', unit: 'piece', suffix: 'pcs' },
+  { value: 'kg', label: 'Kg', unitType: 'weight', unit: 'kg', suffix: 'kg' },
+  { value: 'gram', label: 'Gram (gm)', unitType: 'weight', unit: 'g', suffix: 'gm' },
+  { value: 'litre', label: 'Litre', unitType: 'volume', unit: 'l', suffix: 'L' },
+  { value: 'ml', label: 'Milliliter (ml)', unitType: 'volume', unit: 'ml', suffix: 'ml' },
+  { value: 'packet', label: 'Packet', unitType: 'bundle', unit: 'packet', suffix: 'packet' },
+  { value: 'box', label: 'Box', unitType: 'bundle', unit: 'box', suffix: 'box' },
 ]
+
+// Extracts the leading number from a stored size label (e.g. "20gm" -> "20") so
+// existing variant rows still show a sensible quantity when the product is reopened.
+const parseQtyFromLabel = (label?: string | null): string => {
+  if (!label) return ''
+  const match = label.match(/^(\d+(?:\.\d+)?)/)
+  return match ? match[1] : ''
+}
 
 const findUnitOption = (unitType: string, unit: string) =>
   UNIT_OPTIONS.find((o) => o.unitType === unitType && o.unit === unit)
@@ -133,8 +140,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
         setVariantRows(
           vars.map((v) => ({
             id: v.id,
-            variantName: v.variantName,
-            sizeLabel: v.sizeLabel || v.variantName,
+            qty: parseQtyFromLabel(v.sizeLabel || v.variantName),
             price: v.price,
             costPrice: v.purchasePrice || 0,
             stock: v.stock || 0,
@@ -156,8 +162,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
       ...prev,
       {
         id: `var_${Date.now()}_${Math.random()}`,
-        variantName: '',
-        sizeLabel: '',
+        qty: '',
         price: baseP,
         costPrice: baseC,
         stock: 0,
@@ -213,7 +218,10 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
       return
     }
 
-    const firstVariant = variantRows.find((v) => v.variantName.trim())
+    const selectedUnit = UNIT_OPTIONS.find((o) => o.value === unitChoice) || UNIT_OPTIONS[0]
+    const labelForQty = (qty: string) => `${qty.trim()}${selectedUnit.suffix}`
+
+    const firstVariant = variantRows.find((v) => v.qty.trim())
     const priceNum = hasVariants && firstVariant ? (Number(firstVariant.price) || 0) : (parseFloat(price) || 0)
     const costNum = hasVariants && firstVariant ? (Number(firstVariant.costPrice) || 0) : (parseFloat(purchasePrice) || 0)
 
@@ -222,15 +230,14 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
       return
     }
 
-    if (hasVariants && (!variantRows.length || variantRows.some((v) => !v.variantName.trim()))) {
-      setStatusMessage({ type: 'error', text: 'Please provide names for all added variants' })
+    if (hasVariants && (!variantRows.length || variantRows.some((v) => !v.qty.trim() || Number(v.qty) <= 0))) {
+      setStatusMessage({ type: 'error', text: 'Please provide a quantity for all added pack sizes' })
       return
     }
 
     const selectedCat = categories.find((c) => Number(c.id) === Number(categoryId))
     const categoryName = selectedCat ? selectedCat.name_en : 'General'
     const alertThreshold = Number(lowStockAlert) > 0 ? Number(lowStockAlert) : 5
-    const selectedUnit = UNIT_OPTIONS.find((o) => o.value === unitChoice) || UNIT_OPTIONS[0]
 
     setLoading(true)
 
@@ -316,7 +323,8 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
           // Multi-variant update
           let totalVariantStock = 0
           for (const v of variantRows) {
-            if (!v.variantName.trim()) continue
+            if (!v.qty.trim()) continue
+            const vLabel = labelForQty(v.qty)
             const vPrice = Number(v.price) > 0 ? Number(v.price) : priceNum
             const vCost = Number(v.costPrice) > 0 ? Number(v.costPrice) : costNum
             const vStock = Math.max(0, Number(v.stock) || 0)
@@ -328,8 +336,8 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                 .from('product_variants')
                 .insert({
                   product_id: selectedProductId,
-                  variant_name: v.variantName.trim(),
-                  size_label: v.sizeLabel?.trim() || v.variantName.trim(),
+                  variant_name: vLabel,
+                  size_label: vLabel,
                   price: vPrice,
                   purchase_price: vCost,
                   stock: vStock,
@@ -349,7 +357,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                   quantity_after: vStock,
                   unit_cost: vCost || null,
                   reference_type: 'PRODUCT_UPDATE',
-                  note: `Added variant ${v.variantName.trim()} with stock`,
+                  note: `Added pack size ${vLabel} with stock`,
                   created_by_name: 'Admin',
                 })
               }
@@ -367,8 +375,8 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               await supabase
                 .from('product_variants')
                 .update({
-                  variant_name: v.variantName.trim(),
-                  size_label: v.sizeLabel?.trim() || v.variantName.trim(),
+                  variant_name: vLabel,
+                  size_label: vLabel,
                   price: vPrice,
                   purchase_price: vCost,
                   stock: vStock,
@@ -386,7 +394,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                   quantity_after: vStock,
                   unit_cost: vCost || null,
                   reference_type: 'PRODUCT_UPDATE',
-                  note: `Stock updated for variant ${v.variantName.trim()}`,
+                  note: `Stock updated for pack size ${vLabel}`,
                   created_by_name: 'Admin',
                 })
               }
@@ -425,7 +433,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
           play('success')
           setStatusMessage({
             type: 'success',
-            text: `Product "${trimmedName}" updated with ${totalVariantStock} total variant stock units! Ready in POS Catalog.`,
+            text: `Product "${trimmedName}" updated with ${totalVariantStock} total stock units across all pack sizes! Ready in POS Catalog.`,
           })
         }
       } else {
@@ -499,10 +507,10 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
           })
           resetForm()
         } else {
-          // Multi-variant creation
+          // Multi pack-size creation
           let totalVariantStock = 0
           variantRows.forEach((v) => {
-            if (v.variantName.trim()) {
+            if (v.qty.trim()) {
               totalVariantStock += Math.max(0, Number(v.stock) || 0)
             }
           })
@@ -540,7 +548,8 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
           if (insErr || !newProd) throw insErr || new Error('Failed to create product')
 
           for (const v of variantRows) {
-            if (!v.variantName.trim()) continue
+            if (!v.qty.trim()) continue
+            const vLabel = labelForQty(v.qty)
             const vPrice = Number(v.price) > 0 ? Number(v.price) : priceNum
             const vCost = Number(v.costPrice) > 0 ? Number(v.costPrice) : costNum
             const vStock = Math.max(0, Number(v.stock) || 0)
@@ -549,8 +558,8 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               .from('product_variants')
               .insert({
                 product_id: newProd.id,
-                variant_name: v.variantName.trim(),
-                size_label: v.sizeLabel?.trim() || v.variantName.trim(),
+                variant_name: vLabel,
+                size_label: vLabel,
                 price: vPrice,
                 purchase_price: vCost,
                 stock: vStock,
@@ -582,7 +591,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                 quantity_after: vStock,
                 unit_cost: vCost || null,
                 reference_type: 'PRODUCT_CREATION',
-                note: `Initial stock for variant ${v.variantName.trim()}`,
+                note: `Initial stock for pack size ${vLabel}`,
                 created_by_name: 'Admin',
               })
             }
@@ -591,7 +600,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
           play('success')
           setStatusMessage({
             type: 'success',
-            text: `Multi-variant product "${trimmedName}" created with ${totalVariantStock} total units! Immediately ready in catalog & billing.`,
+            text: `Multi-pack product "${trimmedName}" created with ${totalVariantStock} total units! Immediately ready in catalog & billing.`,
           })
           resetForm()
         }
@@ -610,6 +619,8 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
       setLoading(false)
     }
   }
+
+  const selectedUnitOption = UNIT_OPTIONS.find((o) => o.value === unitChoice) || UNIT_OPTIONS[0]
 
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -691,7 +702,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                     <td className="max-w-[140px] whitespace-normal break-words px-3.5 py-2.5 align-top">
                       <div className="font-bold text-xs text-gray-900 break-words">{p.name}</div>
                       <div className="text-[10px] text-gray-400 font-medium">
-                        {p.category || 'General'} {p.hasVariants ? '• Multi-variant' : ''}
+                        {p.category || 'General'} {p.hasVariants ? '• Multiple pack sizes' : ''}
                       </div>
                     </td>
                     <td className="px-2 py-2.5 text-right align-top font-black text-xs text-gray-900 whitespace-nowrap">₹{p.price}</td>
@@ -832,6 +843,22 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               </div>
             </div>
 
+            {/* Unit of Measure */}
+            <div className="sm:max-w-xs">
+              <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
+                Unit
+              </label>
+              <select
+                value={unitChoice}
+                onChange={(e) => setUnitChoice(e.target.value)}
+                className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+              >
+                {UNIT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Category, Barcode, Storage Location, Low Stock Alert, Manufacture Date, and Expiry Date */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
               <div>
@@ -859,7 +886,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                 <input
                   type="text"
                   disabled={hasVariants}
-                  placeholder={hasVariants ? 'Defined at variant level' : 'e.g. 8901234567'}
+                  placeholder={hasVariants ? 'Defined per pack size' : 'e.g. 8901234567'}
                   value={barcode}
                   onChange={(e) => setBarcode(e.target.value)}
                   autoCapitalize="off"
@@ -924,7 +951,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
 
             {/* Base Pricing & Received Stock (only if no variants) */}
             {!hasVariants && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 bg-white border border-gray-200 rounded-xl items-start">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-white border border-gray-200 rounded-xl items-start">
                 <div>
                   <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
                     Selling Price (₹) <span className="text-red-500 ml-0.5">*</span>
@@ -954,21 +981,6 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                     onChange={(e) => setPurchasePrice(e.target.value)}
                     className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                    Unit of Measure
-                  </label>
-                  <select
-                    value={unitChoice}
-                    onChange={(e) => setUnitChoice(e.target.value)}
-                    className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-                  >
-                    {UNIT_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
                 </div>
 
                 <div>
@@ -1056,10 +1068,10 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xs font-black text-black flex items-center gap-1.5">
-                    <Tag size={14} className="text-[var(--accent)]" /> Multi-Variant Product (Sizes, Colors, SKUs)
+                    <Tag size={14} className="text-[var(--accent)]" /> Multiple Pack Sizes / Prices
                   </span>
                   <p className="text-[11px] text-gray-500 font-medium">
-                    Enable if this product comes in multiple sizes (e.g. S, M, L, XL) or colors
+                    Enable to sell this product in several quantities at different prices (e.g. 20{selectedUnitOption.suffix} ₹12, 50{selectedUnitOption.suffix} ₹45, 100{selectedUnitOption.suffix} ₹85)
                   </p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
@@ -1082,14 +1094,14 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                 <div className="space-y-3 pt-3 border-t border-gray-100">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-gray-700">
-                      Variant SKUs ({variantRows.length})
+                      Pack Sizes ({variantRows.length})
                     </span>
                     <button
                       type="button"
                       onClick={handleAddVariantRow}
                       className="px-3 py-1 rounded-lg bg-[#0A0A0A] text-[var(--accent)] text-xs font-black flex items-center gap-1 hover:bg-[#1A1A1A] cursor-pointer"
                     >
-                      <Plus size={12} /> Add Variant
+                      <Plus size={12} /> Add Pack Size
                     </button>
                   </div>
 
@@ -1101,14 +1113,16 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                       >
                         <div className="sm:col-span-3">
                           <label className="block text-[10px] font-bold text-gray-600 mb-0.5">
-                            Variant (e.g. Size M)
+                            Quantity ({selectedUnitOption.suffix})
                           </label>
                           <input
-                            type="text"
+                            type="number"
+                            min="0"
+                            step="0.01"
                             required
-                            placeholder="M, Red-38, etc."
-                            value={v.variantName}
-                            onChange={(e) => handleUpdateVariantRow(v.id, 'variantName', e.target.value)}
+                            placeholder={`e.g. 20`}
+                            value={v.qty}
+                            onChange={(e) => handleUpdateVariantRow(v.id, 'qty', e.target.value)}
                             className="w-full h-8 px-2.5 rounded-lg border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
                           />
                         </div>
@@ -1176,7 +1190,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                             type="button"
                             onClick={() => handleRemoveVariantRow(v.id)}
                             className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
-                            title="Remove variant"
+                            title="Remove pack size"
                           >
                             <Trash2 size={14} />
                           </button>
