@@ -51,6 +51,26 @@ const findUnitOption = (unitType: string, unit: string) =>
   || UNIT_OPTIONS.find((o) => o.unitType === unitType)
   || UNIT_OPTIONS[0]
 
+// The actual barcode_registry writes below use `.upsert(..., { onConflict: 'barcode_value' })`,
+// which silently reassigns a barcode to the new owner instead of raising a unique-constraint
+// error. This pre-flight check is the only thing that actually blocks reusing a barcode that
+// already belongs to a different product/variant.
+async function isBarcodeConflict(
+  normalizedValue: string,
+  owner: { productId: number | null; variantId?: string | null }
+): Promise<boolean> {
+  if (!normalizedValue) return false
+  const { data } = await supabase
+    .from('barcode_registry')
+    .select('product_id, variant_id')
+    .ilike('barcode_value', normalizedValue)
+    .eq('is_active', true)
+    .maybeSingle()
+  if (!data) return false
+  if (owner.variantId) return data.variant_id !== owner.variantId
+  return !(data.variant_id === null && data.product_id === owner.productId)
+}
+
 export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ onStockUpdated }) => {
   const { products, fetchProducts } = useProductStore()
   const { play } = useSound()
@@ -239,6 +259,31 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     const categoryName = selectedCat ? selectedCat.name_en : 'General'
     const alertThreshold = Number(lowStockAlert) > 0 ? Number(lowStockAlert) : 5
 
+    // Block reusing a barcode that already belongs to a different product/variant.
+    if (!hasVariants) {
+      const normalized = normalizeBarcode(barcode)
+      if (normalized && await isBarcodeConflict(normalized, { productId: selectedProductId })) {
+        setStatusMessage({ type: 'error', text: 'This barcode is already registered to another item.' })
+        return
+      }
+    } else {
+      const seen = new Set<string>()
+      for (const v of variantRows) {
+        const normalized = normalizeBarcode(v.customBarcode)
+        if (!normalized) continue
+        if (seen.has(normalized)) {
+          setStatusMessage({ type: 'error', text: `Barcode "${normalized}" is used more than once in this product's pack sizes.` })
+          return
+        }
+        seen.add(normalized)
+        const ownerVariantId = v.id.startsWith('var_') ? null : v.id
+        if (await isBarcodeConflict(normalized, { productId: selectedProductId, variantId: ownerVariantId })) {
+          setStatusMessage({ type: 'error', text: `Barcode "${normalized}" is already registered to another item.` })
+          return
+        }
+      }
+    }
+
     setLoading(true)
 
     try {
@@ -303,15 +348,26 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
           }
 
           if (normalizeBarcode(barcode)) {
-            await supabase.from('barcode_registry').upsert(
+            const newBarcodeValue = normalizeBarcode(barcode)
+            // Retire any old registry entry for this product under a different barcode
+            // value, so a since-changed sticker stops scanning and its old code can be reused.
+            await supabase.from('barcode_registry')
+              .update({ is_active: false })
+              .eq('product_id', selectedProductId)
+              .is('variant_id', null)
+              .neq('barcode_value', newBarcodeValue)
+
+            const { error: regErr } = await supabase.from('barcode_registry').upsert(
               {
-                barcode_value: normalizeBarcode(barcode),
+                barcode_value: newBarcodeValue,
+                entity_type: 'product',
                 product_id: selectedProductId,
                 variant_id: null,
                 is_active: true,
               },
               { onConflict: 'barcode_value' }
             )
+            if (regErr) console.error('[AddEditProductView] barcode_registry upsert failed:', regErr)
           }
 
           play('success')
@@ -347,19 +403,35 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                 .select()
                 .single()
 
-              if (!vErr && createdVar && vStock > 0) {
-                await supabase.from('inventory_movements').insert({
-                  product_id: selectedProductId,
-                  variant_id: createdVar.id,
-                  movement_type: 'RESTOCK',
-                  quantity_delta: vStock,
-                  quantity_before: 0,
-                  quantity_after: vStock,
-                  unit_cost: vCost || null,
-                  reference_type: 'PRODUCT_UPDATE',
-                  note: `Added pack size ${vLabel} with stock`,
-                  created_by_name: 'Admin',
-                })
+              if (!vErr && createdVar) {
+                if (normalizeBarcode(v.customBarcode)) {
+                  const { error: regErr } = await supabase.from('barcode_registry').upsert(
+                    {
+                      barcode_value: normalizeBarcode(v.customBarcode),
+                      entity_type: 'variant',
+                      product_id: selectedProductId,
+                      variant_id: createdVar.id,
+                      is_active: true,
+                    },
+                    { onConflict: 'barcode_value' }
+                  )
+                  if (regErr) console.error('[AddEditProductView] barcode_registry upsert failed:', regErr)
+                }
+
+                if (vStock > 0) {
+                  await supabase.from('inventory_movements').insert({
+                    product_id: selectedProductId,
+                    variant_id: createdVar.id,
+                    movement_type: 'RESTOCK',
+                    quantity_delta: vStock,
+                    quantity_before: 0,
+                    quantity_after: vStock,
+                    unit_cost: vCost || null,
+                    reference_type: 'PRODUCT_UPDATE',
+                    note: `Added pack size ${vLabel} with stock`,
+                    created_by_name: 'Admin',
+                  })
+                }
               }
             } else {
               // Update existing variant
@@ -383,6 +455,28 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                   barcode: v.customBarcode?.trim() || null,
                 })
                 .eq('id', v.id)
+
+              if (normalizeBarcode(v.customBarcode)) {
+                const newVariantBarcodeValue = normalizeBarcode(v.customBarcode)
+                // Retire any old registry entry for this pack size under a different barcode
+                // value, so a since-changed sticker stops scanning and its old code can be reused.
+                await supabase.from('barcode_registry')
+                  .update({ is_active: false })
+                  .eq('variant_id', v.id)
+                  .neq('barcode_value', newVariantBarcodeValue)
+
+                const { error: regErr } = await supabase.from('barcode_registry').upsert(
+                  {
+                    barcode_value: newVariantBarcodeValue,
+                    entity_type: 'variant',
+                    product_id: selectedProductId,
+                    variant_id: v.id,
+                    is_active: true,
+                  },
+                  { onConflict: 'barcode_value' }
+                )
+                if (regErr) console.error('[AddEditProductView] barcode_registry upsert failed:', regErr)
+              }
 
               if (varDelta !== 0) {
                 await supabase.from('inventory_movements').insert({
@@ -474,15 +568,17 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
           if (insErr || !newProd) throw insErr || new Error('Failed to create product')
 
           if (normalizeBarcode(barcode)) {
-            await supabase.from('barcode_registry').upsert(
+            const { error: regErr } = await supabase.from('barcode_registry').upsert(
               {
                 barcode_value: normalizeBarcode(barcode),
+                entity_type: 'product',
                 product_id: newProd.id,
                 variant_id: null,
                 is_active: true,
               },
               { onConflict: 'barcode_value' }
             )
+            if (regErr) console.error('[AddEditProductView] barcode_registry upsert failed:', regErr)
           }
 
           if (inputStock > 0) {
@@ -501,11 +597,11 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
           }
 
           play('success')
+          resetForm()
           setStatusMessage({
             type: 'success',
             text: `Product "${trimmedName}" created with ${inputStock} stock units! Immediately ready in catalog & billing.`,
           })
-          resetForm()
         } else {
           // Multi pack-size creation
           let totalVariantStock = 0
@@ -570,15 +666,17 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               .single()
 
             if (createdVar && normalizeBarcode(v.customBarcode)) {
-              await supabase.from('barcode_registry').upsert(
+              const { error: regErr } = await supabase.from('barcode_registry').upsert(
                 {
                   barcode_value: normalizeBarcode(v.customBarcode),
+                  entity_type: 'variant',
                   product_id: newProd.id,
                   variant_id: createdVar.id,
                   is_active: true,
                 },
                 { onConflict: 'barcode_value' }
               )
+              if (regErr) console.error('[AddEditProductView] barcode_registry upsert failed:', regErr)
             }
 
             if (createdVar && vStock > 0) {
@@ -598,11 +696,11 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
           }
 
           play('success')
+          resetForm()
           setStatusMessage({
             type: 'success',
             text: `Multi-pack product "${trimmedName}" created with ${totalVariantStock} total units! Immediately ready in catalog & billing.`,
           })
-          resetForm()
         }
       }
 
