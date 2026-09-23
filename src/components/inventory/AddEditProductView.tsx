@@ -10,6 +10,8 @@ import {
   ArrowLeft,
   Pencil,
   Layers,
+  Ruler,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useProductStore, type Product } from '../../store/store'
@@ -28,15 +30,34 @@ export interface VariantInputRow {
   customBarcode?: string
 }
 
-const UNIT_OPTIONS: { value: string; label: string; unitType: 'unit' | 'weight' | 'volume' | 'bundle'; unit: string; suffix: string }[] = [
-  { value: 'pcs', label: 'Pcs (Pieces)', unitType: 'unit', unit: 'piece', suffix: 'pcs' },
-  { value: 'kg', label: 'Kg', unitType: 'weight', unit: 'kg', suffix: 'kg' },
-  { value: 'gram', label: 'Gram (gm)', unitType: 'weight', unit: 'g', suffix: 'gm' },
-  { value: 'litre', label: 'Litre', unitType: 'volume', unit: 'l', suffix: 'L' },
-  { value: 'ml', label: 'Milliliter (ml)', unitType: 'volume', unit: 'ml', suffix: 'ml' },
-  { value: 'packet', label: 'Packet', unitType: 'bundle', unit: 'packet', suffix: 'packet' },
-  { value: 'box', label: 'Box', unitType: 'bundle', unit: 'box', suffix: 'box' },
+interface UnitOption {
+  value: string
+  label: string
+  group: string
+  unitType: 'unit' | 'weight' | 'volume' | 'bundle'
+  unit: string
+  suffix: string
+}
+
+// Grouped for the <optgroup> dropdown. Covers the units a typical kirana / provisional
+// store actually sells in; "Other" lets the owner type anything not listed here.
+const UNIT_OPTIONS: UnitOption[] = [
+  { value: 'kg', label: 'Kilogram (kg)', group: 'Weight', unitType: 'weight', unit: 'kg', suffix: 'kg' },
+  { value: 'gram', label: 'Gram (gm)', group: 'Weight', unitType: 'weight', unit: 'g', suffix: 'gm' },
+  { value: 'litre', label: 'Litre (L)', group: 'Volume', unitType: 'volume', unit: 'l', suffix: 'L' },
+  { value: 'ml', label: 'Millilitre (ml)', group: 'Volume', unitType: 'volume', unit: 'ml', suffix: 'ml' },
+  { value: 'pcs', label: 'Piece (pcs)', group: 'Count', unitType: 'unit', unit: 'piece', suffix: 'pcs' },
+  { value: 'dozen', label: 'Dozen (dz)', group: 'Count', unitType: 'unit', unit: 'dozen', suffix: 'dz' },
+  { value: 'packet', label: 'Packet', group: 'Packaging', unitType: 'bundle', unit: 'packet', suffix: 'packet' },
+  { value: 'box', label: 'Box', group: 'Packaging', unitType: 'bundle', unit: 'box', suffix: 'box' },
+  { value: 'bag', label: 'Bag', group: 'Packaging', unitType: 'bundle', unit: 'bag', suffix: 'bag' },
+  { value: 'bundle', label: 'Bundle', group: 'Packaging', unitType: 'bundle', unit: 'bundle', suffix: 'bundle' },
+  { value: 'bottle', label: 'Bottle', group: 'Packaging', unitType: 'bundle', unit: 'bottle', suffix: 'bottle' },
+  { value: 'tin', label: 'Tin / Can', group: 'Packaging', unitType: 'bundle', unit: 'tin', suffix: 'tin' },
+  { value: 'pouch', label: 'Pouch / Sachet', group: 'Packaging', unitType: 'bundle', unit: 'pouch', suffix: 'pouch' },
+  { value: 'custom', label: 'Other (type your own)', group: 'Other', unitType: 'unit', unit: 'custom', suffix: '' },
 ]
+const UNIT_GROUPS = ['Weight', 'Volume', 'Count', 'Packaging', 'Other']
 
 // Extracts the leading number from a stored size label (e.g. "20gm" -> "20") so
 // existing variant rows still show a sensible quantity when the product is reopened.
@@ -46,10 +67,10 @@ const parseQtyFromLabel = (label?: string | null): string => {
   return match ? match[1] : ''
 }
 
-const findUnitOption = (unitType: string, unit: string) =>
-  UNIT_OPTIONS.find((o) => o.unitType === unitType && o.unit === unit)
-  || UNIT_OPTIONS.find((o) => o.unitType === unitType)
-  || UNIT_OPTIONS[0]
+// Returns null (rather than a fallback guess) when nothing matches, so the caller can
+// fall back to the "Other" custom-unit input instead of silently picking the wrong unit.
+const findUnitOption = (unitType: string, unit: string): UnitOption | null =>
+  UNIT_OPTIONS.find((o) => o.value !== 'custom' && o.unitType === unitType && o.unit === unit) || null
 
 // The actual barcode_registry writes below use `.upsert(..., { onConflict: 'barcode_value' })`,
 // which silently reassigns a barcode to the new owner instead of raising a unique-constraint
@@ -86,6 +107,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
   const [price, setPrice] = useState<string>('')
   const [purchasePrice, setPurchasePrice] = useState<string>('')
   const [unitChoice, setUnitChoice] = useState<string>('pcs')
+  const [customUnitLabel, setCustomUnitLabel] = useState<string>('')
   const [stockQuantity, setStockQuantity] = useState<string>('0')
   const [lowStockAlert, setLowStockAlert] = useState<string>('5')
   const [expiryDate, setExpiryDate] = useState<string>('')
@@ -104,6 +126,17 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
   const [loading, setLoading] = useState(false)
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  // Resolves the active unit choice to concrete DB fields + a short display suffix
+  // (e.g. "gm", "kg"), handling the custom "Other" unit the owner typed in themselves.
+  const getSelectedUnitInfo = () => {
+    const preset = UNIT_OPTIONS.find((o) => o.value === unitChoice) || UNIT_OPTIONS[0]
+    if (unitChoice === 'custom') {
+      const custom = customUnitLabel.trim() || 'unit'
+      return { unitType: 'unit' as const, unit: custom.toLowerCase(), suffix: custom }
+    }
+    return { unitType: preset.unitType, unit: preset.unit, suffix: preset.suffix }
+  }
+
   useEffect(() => {
     void fetchProducts()
     inventoryService.fetchCategories().then(setCategories).catch(console.error)
@@ -117,6 +150,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     setPrice('')
     setPurchasePrice('')
     setUnitChoice('pcs')
+    setCustomUnitLabel('')
     setStockQuantity('0')
     setLowStockAlert('5')
     setExpiryDate('')
@@ -140,7 +174,14 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     setCategoryId(p.categoryId ? Number(p.categoryId) : '')
     setPrice(String(p.price || ''))
     setPurchasePrice(String(p.purchasePrice || ''))
-    setUnitChoice(findUnitOption(p.unitType || 'unit', p.unitLabel || 'piece').value)
+    const matchedUnit = findUnitOption(p.unitType || 'unit', p.unitLabel || 'piece')
+    if (matchedUnit) {
+      setUnitChoice(matchedUnit.value)
+      setCustomUnitLabel('')
+    } else {
+      setUnitChoice('custom')
+      setCustomUnitLabel(p.unitLabel || '')
+    }
     setStockQuantity(String(p.stockQuantity ?? p.stock ?? 0))
     setLowStockAlert(p.lowStockAlert ? String(p.lowStockAlert) : '5')
     setExpiryDate(p.expiryDate || '')
@@ -238,7 +279,12 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
       return
     }
 
-    const selectedUnit = UNIT_OPTIONS.find((o) => o.value === unitChoice) || UNIT_OPTIONS[0]
+    if (unitChoice === 'custom' && !customUnitLabel.trim()) {
+      setStatusMessage({ type: 'error', text: 'Please type the custom unit name, or pick one from the list.' })
+      return
+    }
+
+    const selectedUnit = getSelectedUnitInfo()
     const labelForQty = (qty: string) => `${qty.trim()}${selectedUnit.suffix}`
 
     const firstVariant = variantRows.find((v) => v.qty.trim())
@@ -718,7 +764,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     }
   }
 
-  const selectedUnitOption = UNIT_OPTIONS.find((o) => o.value === unitChoice) || UNIT_OPTIONS[0]
+  const selectedUnitInfo = getSelectedUnitInfo()
 
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -860,7 +906,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                 {selectedProductId ? 'Edit Product & Stock Details' : 'Add New Product to Catalog'}
               </h3>
               <p className="text-[11px] text-gray-500 font-semibold truncate">
-                Receive stock, configure pricing &amp; categories (Barcode is optional)
+                {selectedProductId ? "Update pricing, stock & categories" : "Start with the name — we'll ask for units & pricing next"}
               </p>
             </div>
           </div>
@@ -911,16 +957,17 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               </div>
             )}
 
-            {/* Name Fields */}
+            {/* Step 1: Name Fields */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                  Product Name (English) <span className="text-red-500 ml-0.5">*</span>
+                  1. What's the product? <span className="text-red-500 ml-0.5">*</span>
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Linen Cotton Shirt"
+                  autoFocus={!selectedProductId}
+                  placeholder="e.g. Tata Salt, Parle-G Biscuit, Amul Milk"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
@@ -933,7 +980,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. காட்டன் சட்டை"
+                  placeholder="e.g. உப்பு, அரிசி, பால்"
                   value={nameTa}
                   onChange={(e) => setNameTa(e.target.value)}
                   className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
@@ -941,364 +988,407 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               </div>
             </div>
 
-            {/* Unit of Measure */}
-            <div className="sm:max-w-xs">
-              <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                Unit
-              </label>
-              <select
-                value={unitChoice}
-                onChange={(e) => setUnitChoice(e.target.value)}
-                className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-              >
-                {UNIT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Category, Barcode, Storage Location, Low Stock Alert, Manufacture Date, and Expiry Date */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                  Category
-                </label>
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : '')}
-                  className="w-full h-10 px-3 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-                >
-                  <option value="">-- Select Category --</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name_en}
-                    </option>
-                  ))}
-                </select>
+            {!name.trim() ? (
+              <div className="flex items-center gap-2 text-[11px] text-gray-400 font-semibold px-1 py-2">
+                <Ruler size={13} /> Type a product name above — unit &amp; pricing questions will appear next.
               </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                  Barcode <span className="text-gray-400 font-normal ml-1">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  disabled={hasVariants}
-                  placeholder={hasVariants ? 'Defined per pack size' : 'e.g. 8901234567'}
-                  value={barcode}
-                  onChange={(e) => setBarcode(e.target.value)}
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  autoComplete="off"
-                  spellCheck={false}
-                  className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A] disabled:bg-gray-100 disabled:text-gray-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                  Storage Location <span className="text-gray-400 font-normal ml-1">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Rack 3, Row 2"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                  Low Stock Alert Threshold
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  placeholder="5"
-                  value={lowStockAlert}
-                  onChange={(e) => setLowStockAlert(e.target.value)}
-                  className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                  Mfg Date <span className="text-gray-400 font-normal ml-1">(Optional)</span>
-                </label>
-                <input
-                  type="date"
-                  value={mfgDate}
-                  onChange={(e) => setMfgDate(e.target.value)}
-                  className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                  Expiry Date <span className="text-gray-400 font-normal ml-1">(Optional)</span>
-                </label>
-                <input
-                  type="date"
-                  value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
-                  className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-                />
-              </div>
-            </div>
-
-            {/* Base Pricing & Received Stock (only if no variants) */}
-            {!hasVariants && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-white border border-gray-200 rounded-xl items-start">
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                    Selling Price (₹) <span className="text-red-500 ml-0.5">*</span>
+            ) : (
+              <>
+                {/* Step 2: Unit of Measure */}
+                <div className="p-3.5 bg-white border border-gray-200 rounded-xl space-y-2.5">
+                  <label className="block text-[11px] font-black uppercase tracking-wide text-gray-700 flex items-center gap-1.5">
+                    <Ruler size={13} className="text-[var(--accent)]" /> 2. What unit is it sold in?
                   </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    required={!hasVariants}
-                    placeholder="0.00"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                    Purchase / Cost Price (₹)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={purchasePrice}
-                    onChange={(e) => setPurchasePrice(e.target.value)}
-                    className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-emerald-800 mb-1.5 h-4 flex items-center gap-1">
-                    <Boxes size={13} className="text-emerald-600 shrink-0" />
-                    <span>Received / Current Stock</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={stockQuantity}
-                    onChange={(e) => setStockQuantity(e.target.value)}
-                    className="w-full h-10 px-3.5 rounded-xl border border-emerald-300 bg-emerald-50/50 text-xs font-bold text-emerald-950 outline-none focus:border-emerald-600 focus:bg-white"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Description */}
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                Description / Notes <span className="text-gray-400 font-normal ml-1">(Optional)</span>
-              </label>
-              <textarea
-                rows={2}
-                placeholder="Product material, care instructions, or rack location notes..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[#0A0A0A] resize-none"
-              />
-            </div>
-
-            {/* Special Offer / Free Gift */}
-            <div className="border border-gray-200 rounded-2xl p-4 bg-white space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-black text-black flex items-center gap-1.5">
-                    🎁 Special Offer / Free Gift
-                  </span>
-                  <p className="text-[11px] text-gray-500 font-medium">
-                    Flag this product so staff see it in billing and can note what's included.
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={hasSpecialOffer}
-                    onChange={(e) => setHasSpecialOffer(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--accent)]" />
-                </label>
-              </div>
-              {hasSpecialOffer && (
-                <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-3">
-                  <div>
-                    <label className="block text-[10px] font-black uppercase tracking-wide text-gray-500 mb-1">Offer / Gift Note</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Buy 1 Get 1 Free, or Free sample gift with purchase"
-                      value={specialOfferNote}
-                      onChange={(e) => setSpecialOfferNote(e.target.value)}
-                      className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[var(--accent)]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black uppercase tracking-wide text-gray-500 mb-1">Gift Cost (₹)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0"
-                      value={specialOfferCost}
-                      onChange={(e) => setSpecialOfferCost(e.target.value)}
-                      className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[var(--accent)]"
-                    />
+                  <div className="flex flex-col sm:flex-row gap-2.5">
+                    <select
+                      value={unitChoice}
+                      onChange={(e) => setUnitChoice(e.target.value)}
+                      className="w-full sm:max-w-xs h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                    >
+                      {UNIT_GROUPS.map((group) => (
+                        <optgroup key={group} label={group}>
+                          {UNIT_OPTIONS.filter((o) => o.group === group).map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    {unitChoice === 'custom' && (
+                      <input
+                        type="text"
+                        required
+                        placeholder="Type your unit, e.g. Sack, Roll, Set"
+                        value={customUnitLabel}
+                        onChange={(e) => setCustomUnitLabel(e.target.value)}
+                        className="w-full sm:max-w-xs h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                      />
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* Variant Switch & Matrix */}
-            <div className="border border-gray-200 rounded-2xl p-4 bg-white space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-black text-black flex items-center gap-1.5">
-                    <Tag size={14} className="text-[var(--accent)]" /> Multiple Pack Sizes / Prices
-                  </span>
-                  <p className="text-[11px] text-gray-500 font-medium">
-                    Enable to sell this product in several quantities at different prices (e.g. 20{selectedUnitOption.suffix} ₹12, 50{selectedUnitOption.suffix} ₹45, 100{selectedUnitOption.suffix} ₹85)
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={hasVariants}
-                    onChange={(e) => {
-                      setHasVariants(e.target.checked)
-                      if (e.target.checked && variantRows.length === 0) {
-                        handleAddVariantRow()
-                      }
-                    }}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0A0A0A]" />
-                </label>
-              </div>
-
-              {hasVariants && (
-                <div className="space-y-3 pt-3 border-t border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-gray-700">
-                      Pack Sizes ({variantRows.length})
-                    </span>
+                {/* Step 3: Single price vs multiple pack sizes */}
+                <div className="p-3.5 bg-white border border-gray-200 rounded-xl space-y-2.5">
+                  <label className="block text-[11px] font-black uppercase tracking-wide text-gray-700 flex items-center gap-1.5">
+                    <Tag size={13} className="text-[var(--accent)]" /> 3. How is it priced?
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <button
                       type="button"
-                      onClick={handleAddVariantRow}
-                      className="px-3 py-1 rounded-lg bg-[#0A0A0A] text-[var(--accent)] text-xs font-black flex items-center gap-1 hover:bg-[#1A1A1A] cursor-pointer"
+                      onClick={() => setHasVariants(false)}
+                      className={`text-left p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                        !hasVariants ? 'border-[#0A0A0A] bg-[#FFF9E6]' : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
                     >
-                      <Plus size={12} /> Add Pack Size
+                      <span className="block text-xs font-black text-gray-900">Single Price</span>
+                      <span className="block text-[11px] text-gray-500 font-medium mt-0.5">
+                        One fixed price, e.g. a bar of soap at ₹45
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHasVariants(true)
+                        if (variantRows.length === 0) handleAddVariantRow()
+                      }}
+                      className={`text-left p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                        hasVariants ? 'border-[#0A0A0A] bg-[#FFF9E6]' : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <span className="block text-xs font-black text-gray-900">Multiple Pack Sizes</span>
+                      <span className="block text-[11px] text-gray-500 font-medium mt-0.5">
+                        Different prices per quantity, e.g. 20{selectedUnitInfo.suffix} ₹12, 50{selectedUnitInfo.suffix} ₹45, 100{selectedUnitInfo.suffix} ₹85
+                      </span>
                     </button>
                   </div>
+                </div>
 
-                  <div className="space-y-2.5">
-                    {variantRows.map((v) => (
-                      <div
-                        key={v.id}
-                        className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 p-3 rounded-xl bg-[#FBFAF6] border border-gray-200 items-center"
+                {/* Single Price & Received Stock */}
+                {!hasVariants && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-white border border-gray-200 rounded-xl items-start">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
+                        Selling Price (₹) <span className="text-red-500 ml-0.5">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        required={!hasVariants}
+                        placeholder="0.00"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
+                        Purchase / Cost Price (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={purchasePrice}
+                        onChange={(e) => setPurchasePrice(e.target.value)}
+                        className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-emerald-800 mb-1.5 h-4 flex items-center gap-1">
+                        <Boxes size={13} className="text-emerald-600 shrink-0" />
+                        <span>Received / Current Stock</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={stockQuantity}
+                        onChange={(e) => setStockQuantity(e.target.value)}
+                        className="w-full h-10 px-3.5 rounded-xl border border-emerald-300 bg-emerald-50/50 text-xs font-bold text-emerald-950 outline-none focus:border-emerald-600 focus:bg-white"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Pack Size Repeater */}
+                {hasVariants && (
+                  <div className="border border-gray-200 rounded-xl p-3.5 bg-white space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-gray-700">
+                        Pack Sizes ({variantRows.length})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAddVariantRow}
+                        className="px-3 py-1 rounded-lg bg-[#0A0A0A] text-[var(--accent)] text-xs font-black flex items-center gap-1 hover:bg-[#1A1A1A] cursor-pointer"
                       >
-                        <div className="sm:col-span-3">
-                          <label className="block text-[10px] font-bold text-gray-600 mb-0.5">
-                            Quantity ({selectedUnitOption.suffix})
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            required
-                            placeholder={`e.g. 20`}
-                            value={v.qty}
-                            onChange={(e) => handleUpdateVariantRow(v.id, 'qty', e.target.value)}
-                            className="w-full h-8 px-2.5 rounded-lg border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-                          />
-                        </div>
+                        <Plus size={12} /> Add Pack Size
+                      </button>
+                    </div>
 
-                        <div className="sm:col-span-2">
-                          <label className="block text-[10px] font-bold text-gray-600 mb-0.5">
-                            Price (₹)
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            required
-                            placeholder="0.00"
-                            value={v.price || ''}
-                            onChange={(e) => handleUpdateVariantRow(v.id, 'price', parseFloat(e.target.value) || 0)}
-                            className="w-full h-8 px-2.5 rounded-lg border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-                          />
-                        </div>
+                    <div className="space-y-2.5">
+                      {variantRows.map((v) => (
+                        <div
+                          key={v.id}
+                          className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 p-3 rounded-xl bg-[#FBFAF6] border border-gray-200 items-center"
+                        >
+                          <div className="sm:col-span-3">
+                            <label className="block text-[10px] font-bold text-gray-600 mb-0.5">
+                              Quantity ({selectedUnitInfo.suffix})
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              required
+                              placeholder="e.g. 20"
+                              value={v.qty}
+                              onChange={(e) => handleUpdateVariantRow(v.id, 'qty', e.target.value)}
+                              className="w-full h-8 px-2.5 rounded-lg border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                            />
+                          </div>
 
-                        <div className="sm:col-span-2">
-                          <label className="block text-[10px] font-bold text-gray-600 mb-0.5">
-                            Cost (₹)
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={v.costPrice || ''}
-                            onChange={(e) => handleUpdateVariantRow(v.id, 'costPrice', parseFloat(e.target.value) || 0)}
-                            className="w-full h-8 px-2.5 rounded-lg border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-                          />
-                        </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[10px] font-bold text-gray-600 mb-0.5">
+                              Price (₹)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              required
+                              placeholder="0.00"
+                              value={v.price || ''}
+                              onChange={(e) => handleUpdateVariantRow(v.id, 'price', parseFloat(e.target.value) || 0)}
+                              className="w-full h-8 px-2.5 rounded-lg border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                            />
+                          </div>
 
-                        <div className="sm:col-span-2">
-                          <label className="block text-[10px] font-bold text-emerald-800 mb-0.5">
-                            Received Stock
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder="0"
-                            value={v.stock || ''}
-                            onChange={(e) => handleUpdateVariantRow(v.id, 'stock', parseInt(e.target.value) || 0)}
-                            className="w-full h-8 px-2.5 rounded-lg border border-emerald-300 bg-emerald-50/40 text-xs font-black text-emerald-950 outline-none focus:border-emerald-600"
-                          />
-                        </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[10px] font-bold text-gray-600 mb-0.5">
+                              Cost (₹)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={v.costPrice || ''}
+                              onChange={(e) => handleUpdateVariantRow(v.id, 'costPrice', parseFloat(e.target.value) || 0)}
+                              className="w-full h-8 px-2.5 rounded-lg border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                            />
+                          </div>
 
-                        <div className="sm:col-span-2">
-                          <label className="block text-[10px] font-bold text-gray-600 mb-0.5">
-                            Barcode (Opt)
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Optional"
-                            value={v.customBarcode || ''}
-                            onChange={(e) => handleUpdateVariantRow(v.id, 'customBarcode', e.target.value)}
-                            className="w-full h-8 px-2.5 rounded-lg border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-                          />
-                        </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[10px] font-bold text-emerald-800 mb-0.5">
+                              Received Stock
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              value={v.stock || ''}
+                              onChange={(e) => handleUpdateVariantRow(v.id, 'stock', parseInt(e.target.value) || 0)}
+                              className="w-full h-8 px-2.5 rounded-lg border border-emerald-300 bg-emerald-50/40 text-xs font-black text-emerald-950 outline-none focus:border-emerald-600"
+                            />
+                          </div>
 
-                        <div className="sm:col-span-1 flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveVariantRow(v.id)}
-                            className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
-                            title="Remove pack size"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[10px] font-bold text-gray-600 mb-0.5">
+                              Barcode (Opt)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Optional"
+                              value={v.customBarcode || ''}
+                              onChange={(e) => handleUpdateVariantRow(v.id, 'customBarcode', e.target.value)}
+                              className="w-full h-8 px-2.5 rounded-lg border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-1 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveVariantRow(v.id)}
+                              className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                              title="Remove pack size"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Additional Details (secondary, always reachable, no extra clicks) */}
+                <div className="pt-1">
+                  <div className="flex items-center gap-2 mb-2.5 px-0.5">
+                    <SlidersHorizontal size={13} className="text-gray-400" />
+                    <span className="text-[11px] font-black uppercase tracking-wide text-gray-500">Additional Details (Optional)</span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Category, Barcode, Storage Location, Low Stock Alert, Manufacture Date, and Expiry Date */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
+                          Category
+                        </label>
+                        <select
+                          value={categoryId}
+                          onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : '')}
+                          className="w-full h-10 px-3 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                        >
+                          <option value="">-- Select Category --</option>
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name_en}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    ))}
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
+                          Barcode <span className="text-gray-400 font-normal ml-1">(Optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          disabled={hasVariants}
+                          placeholder={hasVariants ? 'Defined per pack size' : 'e.g. 8901234567'}
+                          value={barcode}
+                          onChange={(e) => setBarcode(e.target.value)}
+                          autoCapitalize="off"
+                          autoCorrect="off"
+                          autoComplete="off"
+                          spellCheck={false}
+                          className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A] disabled:bg-gray-100 disabled:text-gray-400"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
+                          Storage Location <span className="text-gray-400 font-normal ml-1">(Optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Rack 3, Row 2"
+                          value={location}
+                          onChange={(e) => setLocation(e.target.value)}
+                          className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
+                          Low Stock Alert Threshold
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          placeholder="5"
+                          value={lowStockAlert}
+                          onChange={(e) => setLowStockAlert(e.target.value)}
+                          className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
+                          Mfg Date <span className="text-gray-400 font-normal ml-1">(Optional)</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={mfgDate}
+                          onChange={(e) => setMfgDate(e.target.value)}
+                          className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
+                          Expiry Date <span className="text-gray-400 font-normal ml-1">(Optional)</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={expiryDate}
+                          onChange={(e) => setExpiryDate(e.target.value)}
+                          className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
+                        Description / Notes <span className="text-gray-400 font-normal ml-1">(Optional)</span>
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder="Product material, care instructions, or rack location notes..."
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[#0A0A0A] resize-none"
+                      />
+                    </div>
+
+                    {/* Special Offer / Free Gift */}
+                    <div className="border border-gray-200 rounded-2xl p-4 bg-white space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-black text-black flex items-center gap-1.5">
+                            🎁 Special Offer / Free Gift
+                          </span>
+                          <p className="text-[11px] text-gray-500 font-medium">
+                            Flag this product so staff see it in billing and can note what's included.
+                          </p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={hasSpecialOffer}
+                            onChange={(e) => setHasSpecialOffer(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--accent)]" />
+                        </label>
+                      </div>
+                      {hasSpecialOffer && (
+                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-3">
+                          <div>
+                            <label className="block text-[10px] font-black uppercase tracking-wide text-gray-500 mb-1">Offer / Gift Note</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Buy 1 Get 1 Free, or Free sample gift with purchase"
+                              value={specialOfferNote}
+                              onChange={(e) => setSpecialOfferNote(e.target.value)}
+                              className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[var(--accent)]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-black uppercase tracking-wide text-gray-500 mb-1">Gift Cost (₹)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0"
+                              value={specialOfferCost}
+                              onChange={(e) => setSpecialOfferCost(e.target.value)}
+                              className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[var(--accent)]"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
 
           {/* Pinned Bottom Actions */}
