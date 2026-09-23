@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Gift, Heart, Volume2, VolumeX, MessageCircle } from 'lucide-react'
+import { Check, Gift, Heart, Volume2, VolumeX, MessageCircle } from 'lucide-react'
 import { customerService, type CustomerEvent } from '../../services/customerService'
 import { toWhatsAppUrl } from '../../lib/phone'
 import { BRAND_EN } from '../../lib/brand'
@@ -14,6 +14,7 @@ import { useAlarmQueueStore } from '../../store/alarmQueueStore'
 export default function CustomerEventAlarmModal({ triggerKey }: { triggerKey?: string | number }) {
   const { soundEnabled } = useSound()
   const [events, setEvents] = useState<CustomerEvent[] | null>(null)
+  const [ackingId, setAckingId] = useState<string | null>(null)
   const intervalRef = useRef<number | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const hasCheckedOnMount = useRef(false)
@@ -93,10 +94,44 @@ export default function CustomerEventAlarmModal({ triggerKey }: { triggerKey?: s
     dequeueAlarm('customerEvent')
   }
 
+  // Removes one event from the popup, persisting the dismissal so it won't
+  // re-fire again today. Closes the popup once nothing is left.
+  const clearEvent = async (event: CustomerEvent) => {
+    setAckingId(event.id)
+    try {
+      await customerService.acknowledgeEvent(event.customerId, event.type)
+      setEvents(prev => {
+        const next = (prev || []).filter(e => e.id !== event.id)
+        if (next.length === 0) {
+          if (intervalRef.current) window.clearInterval(intervalRef.current)
+          dequeueAlarm('customerEvent')
+          return null
+        }
+        return next
+      })
+    } catch (err) {
+      console.error('Failed to acknowledge customer event', err)
+    } finally {
+      setAckingId(null)
+    }
+  }
+
   const sendWishes = (event: CustomerEvent) => {
     const occasion = event.type === 'birthday' ? 'Happy Birthday' : 'Happy Anniversary'
     const message = `${occasion}, ${event.name}! 🎉 Wishing you a wonderful day from all of us at ${BRAND_EN}. Thank you for being our valued customer!`
     window.open(toWhatsAppUrl(event.phone, message), '_blank', 'noopener,noreferrer')
+    void clearEvent(event)
+  }
+
+  const acknowledgeAll = async () => {
+    if (!events) return
+    const toClear = events
+    acknowledge()
+    try {
+      await Promise.all(toClear.map(e => customerService.acknowledgeEvent(e.customerId, e.type)))
+    } catch (err) {
+      console.error('Failed to acknowledge all customer events', err)
+    }
   }
 
   if (!events || events.length === 0 || !isFront) return null
@@ -144,16 +179,28 @@ export default function CustomerEventAlarmModal({ triggerKey }: { triggerKey?: s
                     <p className="text-[11px] text-[#6B7280] truncate">{e.phone}</p>
                   </div>
                 </div>
-                <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                  <span className="inline-block text-[10px] font-black px-2 py-0.5 rounded-full whitespace-nowrap bg-pink-100 text-pink-700">
-                    {e.type === 'birthday' ? 'BIRTHDAY' : 'ANNIVERSARY'}
-                  </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="inline-block text-[10px] font-black px-2 py-0.5 rounded-full whitespace-nowrap bg-pink-100 text-pink-700">
+                      {e.type === 'birthday' ? 'BIRTHDAY' : 'ANNIVERSARY'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => sendWishes(e)}
+                      disabled={ackingId === e.id}
+                      className="flex items-center gap-1 text-[10px] font-black text-emerald-700 hover:text-emerald-900 cursor-pointer disabled:opacity-50"
+                    >
+                      <MessageCircle size={11} /> Send Wishes
+                    </button>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => sendWishes(e)}
-                    className="flex items-center gap-1 text-[10px] font-black text-emerald-700 hover:text-emerald-900 cursor-pointer"
+                    onClick={() => void clearEvent(e)}
+                    disabled={ackingId === e.id}
+                    title="Mark as done — won't show again today"
+                    className="w-7 h-7 rounded-full bg-white border border-pink-200 text-pink-600 hover:bg-pink-600 hover:text-white hover:border-pink-600 flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50 shrink-0"
                   >
-                    <MessageCircle size={11} /> Send Wishes
+                    <Check size={14} />
                   </button>
                 </div>
               </div>
@@ -161,10 +208,10 @@ export default function CustomerEventAlarmModal({ triggerKey }: { triggerKey?: s
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 pt-1">
-            <p className="text-[11px] text-[#9CA3AF] font-bold sm:max-w-[140px] shrink-0 order-2 sm:order-1">Will show again on next login or Order History visit.</p>
-            <button onClick={acknowledge}
-              className="flex-1 flex items-center justify-center gap-2 bg-pink-600 hover:bg-pink-700 text-white font-black text-sm py-3 rounded-xl order-1 sm:order-2">
-              <VolumeX size={16} /> Silence &amp; Acknowledge
+            <p className="text-[11px] text-[#9CA3AF] font-bold sm:max-w-[150px] shrink-0 order-2 sm:order-1">Tick ✓ or send a wish to clear just one — this clears all for today.</p>
+            <button onClick={() => void acknowledgeAll()}
+              className="flex-1 flex items-center justify-center gap-2 bg-pink-600 hover:bg-pink-700 text-white font-black text-sm py-3 rounded-xl order-1 sm:order-2 cursor-pointer">
+              <VolumeX size={16} /> Silence &amp; Acknowledge All
             </button>
           </div>
         </div>

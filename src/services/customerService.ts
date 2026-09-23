@@ -11,6 +11,7 @@ export interface CustomerRecord {
 
 export interface CustomerEvent {
   id: string
+  customerId: string
   name: string
   phone: string
   type: 'birthday' | 'anniversary'
@@ -21,6 +22,13 @@ function isTodayMonthDay(dateStr: string | null): boolean {
   const today = new Date()
   const d = new Date(`${dateStr}T00:00:00`)
   return d.getMonth() === today.getMonth() && d.getDate() === today.getDate()
+}
+
+/** Local (not UTC) yyyy-mm-dd for "today", to match what a DATE column stores. */
+function todayIso(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 export const customerService = {
@@ -70,12 +78,13 @@ export const customerService = {
 
   /**
    * Fetch every customer whose birthday or anniversary falls today
-   * (year-independent), for the reminder alarm.
+   * (year-independent), for the reminder alarm. Skips an occasion already
+   * ticked/wished today, so it doesn't re-fire on every login.
    */
   async fetchTodaysEvents(): Promise<CustomerEvent[]> {
     const { data, error } = await supabase
       .from('customers')
-      .select('id, name, phone, birthday, anniversary')
+      .select('id, name, phone, birthday, anniversary, birthday_wish_sent_on, anniversary_wish_sent_on')
       .or('birthday.not.is.null,anniversary.not.is.null')
 
     if (error) {
@@ -83,16 +92,35 @@ export const customerService = {
       return []
     }
 
+    const today = todayIso()
     const events: CustomerEvent[] = []
     for (const row of data || []) {
-      if (isTodayMonthDay(row.birthday)) {
-        events.push({ id: `${row.id}-birthday`, name: row.name || 'Customer', phone: row.phone, type: 'birthday' })
+      if (isTodayMonthDay(row.birthday) && row.birthday_wish_sent_on !== today) {
+        events.push({ id: `${row.id}-birthday`, customerId: row.id, name: row.name || 'Customer', phone: row.phone, type: 'birthday' })
       }
-      if (isTodayMonthDay(row.anniversary)) {
-        events.push({ id: `${row.id}-anniversary`, name: row.name || 'Customer', phone: row.phone, type: 'anniversary' })
+      if (isTodayMonthDay(row.anniversary) && row.anniversary_wish_sent_on !== today) {
+        events.push({ id: `${row.id}-anniversary`, customerId: row.id, name: row.name || 'Customer', phone: row.phone, type: 'anniversary' })
       }
     }
     return events
+  },
+
+  /**
+   * Marks a birthday/anniversary notification as dismissed for today —
+   * ticked directly, or implied by sending the WhatsApp wish. Won't re-fire
+   * again until the same occasion comes around next year.
+   */
+  async acknowledgeEvent(customerId: string, type: 'birthday' | 'anniversary'): Promise<void> {
+    const column = type === 'birthday' ? 'birthday_wish_sent_on' : 'anniversary_wish_sent_on'
+    const { error } = await supabase
+      .from('customers')
+      .update({ [column]: todayIso() })
+      .eq('id', customerId)
+
+    if (error) {
+      console.error('[customerService.acknowledgeEvent] Error:', error)
+      throw error
+    }
   },
 
   /**

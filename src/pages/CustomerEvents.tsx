@@ -159,6 +159,8 @@ export default function CustomerEvents() {
     const line = occasion === 'birthday' ? 'Happy Birthday' : 'Happy Anniversary'
     const message = `${line}, ${c.name}! 🎉 Wishing you a wonderful day from all of us at ${BRAND_EN}. Thank you for being our valued customer!`
     window.open(toWhatsAppUrl(c.phone, message), '_blank', 'noopener,noreferrer')
+    // Also counts as dismissing today's login popup for this occasion.
+    customerService.acknowledgeEvent(c.id, occasion).catch((err) => console.error('Failed to acknowledge customer event', err))
   }
 
   const cards = [

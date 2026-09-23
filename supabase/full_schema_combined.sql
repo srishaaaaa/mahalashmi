@@ -398,6 +398,10 @@ CREATE TABLE IF NOT EXISTS public.customers (
   address TEXT NOT NULL DEFAULT '',
   birthday DATE,
   anniversary DATE,
+  -- Last date this occasion's notification was dismissed (ticked or wished),
+  -- so it doesn't re-fire again the same day on every login.
+  birthday_wish_sent_on DATE,
+  anniversary_wish_sent_on DATE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
