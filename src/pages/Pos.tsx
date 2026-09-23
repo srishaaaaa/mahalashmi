@@ -27,6 +27,7 @@ import {
   formatCurrency,
   formatQuantityDisplay,
   formatInvoiceNo,
+  roundTo,
 } from '../lib/retail'
 import { buildProfessionalWhatsAppMessage, buildAdvanceDepositWhatsAppMessage, publicInvoiceUrl } from '../lib/whatsappMessage'
 import { normalizePhone, toWhatsAppUrl } from '../lib/phone'
@@ -92,9 +93,14 @@ const toProductId = (v: string | number): string | null => {
   return null
 }
 
+// Products explicitly marked "sold loose by weight" (allowDecimalQuantity) accept an exact
+// weighed amount like 2.3 (kg); everything else stays whole-pack, same as before.
+const normalizeQty = (qty: number, allowDecimal: boolean): number =>
+  allowDecimal ? Math.max(0.001, roundTo(qty, 3)) : Math.max(1, Math.round(qty))
+
 const makePosItem = (p: Product, qty?: number): PosItem => {
   const basePrice = p.offerPrice || p.price
-  const q = Math.max(1, Math.round(qty ?? 1))
+  const q = normalizeQty(qty ?? 1, p.allowDecimalQuantity)
   const packLabel = p.predefinedOptions[0]?.label ?? p.unitLabel
   const isUnregistered = p.category === 'Unregistered'
   return {
@@ -110,7 +116,7 @@ const makePosItem = (p: Product, qty?: number): PosItem => {
 }
 
 const recalc = (item: PosItem, nextQty: number): PosItem => {
-  const q = Math.max(1, Math.round(nextQty))
+  const q = normalizeQty(nextQty, item.allowDecimalQuantity)
   return { ...item, qty: q, lineTotal: calculateLineTotal(q, item.unitType, item.baseQuantity, item.basePrice) }
 }
 
@@ -473,9 +479,14 @@ export default function Pos(props: PosProps = {}) {
     price: number
     quantity: number
     note?: string
+    unit?: string
+    unitType?: 'unit' | 'weight' | 'volume' | 'bundle'
   }) => {
     try {
       const product = await getOrCreateUnregisteredProduct(input.name, input.price)
+      const unitType = input.unitType || 'unit'
+      const unitLabel = input.unit || 'piece'
+      const allowDecimal = unitType === 'weight' || unitType === 'volume'
       const newItem: PosItem = {
         id: product.id,
         name: input.name,
@@ -489,24 +500,24 @@ export default function Pos(props: PosProps = {}) {
         stock: 999999,
         stockQuantity: 999999,
         hasVariants: false,
-        unitType: 'unit',
-        unitLabel: 'piece',
+        unitType,
+        unitLabel,
         baseQuantity: 1,
-        stockUnit: 'piece',
-        allowDecimalQuantity: false,
+        stockUnit: unitLabel,
+        allowDecimalQuantity: allowDecimal,
         predefinedOptions: [],
         isActive: true,
         sortOrder: 999,
-        unit: 'piece',
+        unit: unitLabel,
         rating: 5,
         description: '',
         benefits: '',
         image: '/product-placeholder.svg',
         imageUrl: '/product-placeholder.svg',
         qty: input.quantity,
-        selectedUnit: 'piece',
+        selectedUnit: unitLabel,
         basePrice: input.price,
-        lineTotal: calculateLineTotal(input.quantity, 'unit', 1, input.price),
+        lineTotal: calculateLineTotal(input.quantity, unitType, 1, input.price),
         source: 'manual',
         note: input.note || null,
       }
@@ -521,7 +532,7 @@ export default function Pos(props: PosProps = {}) {
               ...i,
               qty: updatedQty,
               basePrice: input.price,
-              lineTotal: calculateLineTotal(updatedQty, 'unit', 1, input.price),
+              lineTotal: calculateLineTotal(updatedQty, unitType, 1, input.price),
               note: input.note || i.note,
             }
           }
@@ -543,7 +554,9 @@ export default function Pos(props: PosProps = {}) {
       if (field === 'basePrice') {
         safeVal = Math.max(0, Number(value) || 0)
       } else if (field === 'qty') {
-        safeVal = Math.max(1, Number(value) || 1)
+        safeVal = item.allowDecimalQuantity
+          ? Math.max(0.001, Number(value) || 0.001)
+          : Math.max(1, Number(value) || 1)
       }
       const nextItem = { ...item, [field]: safeVal } as PosItem
       return field === 'basePrice' || field === 'qty' ? recalc(nextItem, nextItem.qty) : nextItem
@@ -1341,15 +1354,29 @@ export default function Pos(props: PosProps = {}) {
                     </div>
 
                     <div>
-                      <p className="text-[13px] font-black uppercase tracking-wider text-[#374151] mb-1">Quantity</p>
+                      <p className="text-[13px] font-black uppercase tracking-wider text-[#374151] mb-1">
+                        Quantity {item.allowDecimalQuantity ? `(${item.unitLabel})` : ''}
+                      </p>
                       <div className="grid grid-cols-[48px_1fr_48px] items-center gap-2 border border-gray-200 rounded-xl px-2 py-2 bg-white">
                         <button
-                          onClick={() => bumpQty(item.id, -1)}
+                          onClick={() => bumpQty(item.id, item.allowDecimalQuantity ? -0.1 : -1)}
                           className="w-11 h-11 rounded-xl hover:bg-[#FAFAFA] flex items-center justify-center text-[#374151] font-bold text-[20px]"
                         >-</button>
-                        <span className="text-[18px] font-black text-[#111111] text-center">{item.qty}</span>
+                        {item.allowDecimalQuantity ? (
+                          <input
+                            type="number"
+                            min="0.001"
+                            step="0.001"
+                            inputMode="decimal"
+                            value={item.qty}
+                            onChange={e => updateItem(item.id, 'qty', e.target.value)}
+                            className="w-full text-[18px] font-black text-[#111111] text-center bg-transparent outline-none"
+                          />
+                        ) : (
+                          <span className="text-[18px] font-black text-[#111111] text-center">{item.qty}</span>
+                        )}
                         <button
-                          onClick={() => bumpQty(item.id, 1)}
+                          onClick={() => bumpQty(item.id, item.allowDecimalQuantity ? 0.1 : 1)}
                           className="w-11 h-11 rounded-xl hover:bg-[#FAFAFA] flex items-center justify-center text-[#374151] font-bold text-[20px]"
                         >+</button>
                       </div>
@@ -1437,12 +1464,25 @@ export default function Pos(props: PosProps = {}) {
                     {/* Quantity Controls */}
                     <div className="flex items-center justify-between border border-gray-200 rounded-lg px-2 py-1 bg-white">
                       <button
-                        onClick={() => bumpQty(item.id, -1)}
+                        onClick={() => bumpQty(item.id, item.allowDecimalQuantity ? -0.1 : -1)}
                         className="w-6 h-6 rounded-md hover:bg-[#FAFAFA] flex items-center justify-center text-[#374151] font-bold"
                       >-</button>
-                      <span className="text-[13px] font-black text-[#111111] min-w-[20px] text-center">{item.qty}</span>
+                      {item.allowDecimalQuantity ? (
+                        <input
+                          type="number"
+                          min="0.001"
+                          step="0.001"
+                          inputMode="decimal"
+                          value={item.qty}
+                          onChange={e => updateItem(item.id, 'qty', e.target.value)}
+                          title={`Quantity in ${item.unitLabel}`}
+                          className="w-14 text-[13px] font-black text-[#111111] text-center bg-transparent outline-none"
+                        />
+                      ) : (
+                        <span className="text-[13px] font-black text-[#111111] min-w-[20px] text-center">{item.qty}</span>
+                      )}
                       <button
-                        onClick={() => bumpQty(item.id, 1)}
+                        onClick={() => bumpQty(item.id, item.allowDecimalQuantity ? 0.1 : 1)}
                         className="w-6 h-6 rounded-md hover:bg-[#FAFAFA] flex items-center justify-center text-[#374151] font-bold"
                       >+</button>
                     </div>

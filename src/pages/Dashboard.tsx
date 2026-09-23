@@ -3,7 +3,7 @@ import {
   BarChart2, Trash2, Edit2, List, ShoppingCart, LayoutDashboard,
   Box, AlertCircle, Power, Download, TrendingUp, TrendingDown,
   Package, Search, RefreshCw, ShieldCheck, ShieldOff, Trophy,
-  MessageCircle, ChevronDown, Eye, FileText, Printer, X, Layers, Receipt, Settings, Bell, Wallet,
+  MessageCircle, ChevronDown, Eye, FileText, Printer, X, Layers, Receipt, Settings, Bell, Wallet, Gift,
 } from 'lucide-react'
 
 // Custom Malaysian Ringgit icon — replaces the generic dollar-sign icon
@@ -47,6 +47,7 @@ import { invoicePdfFile } from '../lib/invoicePdf'
 import Pos from './Pos'
 import AdvanceOrders from './AdvanceOrders'
 import ExpiryAlerts from './ExpiryAlerts'
+import CustomerEvents from './CustomerEvents'
 import type { AdvanceOrder } from '../services/advanceOrderService'
 import { InventoryTable } from '../components/inventory/InventoryTable'
 import { ExpensesView } from '../components/expenses/ExpensesView'
@@ -92,7 +93,7 @@ type DashboardCoupon = {
   usage_count: number
   min_order_value: number
 }
-type TabKey = 'overview' | 'whatsapp' | 'pos_analytics' | 'billing' | 'advance_orders' | 'inventory' | 'expiry_alerts' | 'expenses' | 'coupons' | 'users' | 'history' | 'settings' | 'outstanding_credits'
+type TabKey = 'overview' | 'whatsapp' | 'pos_analytics' | 'billing' | 'advance_orders' | 'inventory' | 'expiry_alerts' | 'expenses' | 'coupons' | 'users' | 'history' | 'settings' | 'outstanding_credits' | 'customer_events'
 type PosAnalyticsTab = 'revenue' | 'today' | 'products' | 'categories' | 'coupons'
 type ProfileUser = { id: string; email: string; name: string; mobile: string; role: string; created_at: string }
 
@@ -249,7 +250,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (role === 'staff') {
-      const staffAllowedTabs: TabKey[] = ['billing', 'inventory', 'advance_orders', 'expiry_alerts', 'history']
+      const staffAllowedTabs: TabKey[] = ['billing', 'inventory', 'advance_orders', 'expiry_alerts', 'history', 'customer_events']
       if (!staffAllowedTabs.includes(tab)) {
         setTab('billing')
         navigate('/dashboard', { replace: true })
@@ -259,7 +260,7 @@ export default function Dashboard() {
 
   const handleTabClick = (tabKey: TabKey) => {
     if (role === 'staff') {
-      const staffAllowedTabs: TabKey[] = ['billing', 'inventory', 'advance_orders', 'expiry_alerts', 'history']
+      const staffAllowedTabs: TabKey[] = ['billing', 'inventory', 'advance_orders', 'expiry_alerts', 'history', 'customer_events']
       if (!staffAllowedTabs.includes(tabKey)) return
     }
     setTab(tabKey)
@@ -1274,6 +1275,7 @@ export default function Dashboard() {
         { id: 'inventory',      icon: <Layers size={18} />,       label: 'Inventory' },
         { id: 'advance_orders', icon: <FileText size={18} />,     label: 'Advance Orders' },
         { id: 'expiry_alerts',  icon: <Bell size={18} />,         label: 'Expiry Alerts', badge: expiryAlertCount },
+        { id: 'customer_events', icon: <Gift size={18} />,        label: 'Birthdays & Anniversaries' },
         { id: 'history',        icon: <List size={18} />,         label: 'Order History' },
       ]
     : [
@@ -1281,6 +1283,7 @@ export default function Dashboard() {
         { id: 'inventory',      icon: <Layers size={18} />,       label: 'Inventory & Barcodes' },
         { id: 'advance_orders', icon: <FileText size={18} />,     label: 'Advance Orders' },
         { id: 'expiry_alerts',  icon: <Bell size={18} />,         label: 'Expiry Alerts', badge: expiryAlertCount },
+        { id: 'customer_events', icon: <Gift size={18} />,        label: 'Birthdays & Anniversaries' },
         { id: 'expenses',       icon: <Receipt size={18} />,      label: 'Expenses' },
         { id: 'outstanding_credits', icon: <Wallet size={18} />, label: 'Outstanding Credits', badge: outstandingCreditCount },
         { id: 'history',        icon: <List size={18} />,         label: 'Order History' },
@@ -2891,6 +2894,7 @@ export default function Dashboard() {
         )}
 
         {tab === 'expiry_alerts' && <ExpiryAlerts />}
+        {tab === 'customer_events' && <CustomerEvents />}
 
         {/* ── ORDER MANAGEMENT ── */}
         {tab === 'history' && (

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { X, PlusCircle, AlertCircle } from 'lucide-react'
 import { useLangStore } from '../../store/langStore'
 import { getErrorMessage } from '../../lib/errorMessage'
+import { UNIT_OPTIONS, UNIT_GROUPS } from '../../lib/units'
 
 interface Props {
   isOpen: boolean
@@ -11,6 +12,8 @@ interface Props {
     price: number
     quantity: number
     note?: string
+    unit?: string
+    unitType?: 'unit' | 'weight' | 'volume' | 'bundle'
   }) => Promise<void>
 }
 
@@ -20,10 +23,17 @@ export const AddUnregisteredItemModal: React.FC<Props> = ({ isOpen, onClose, onS
 
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
+  const [unitChoice, setUnitChoice] = useState('pcs')
+  const [customUnitLabel, setCustomUnitLabel] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const selectedUnit = UNIT_OPTIONS.find((o) => o.value === unitChoice) || UNIT_OPTIONS[0]
+  // For a one-off ad-hoc item, any weight/volume unit is decimal-billable immediately —
+  // there's no persisted catalog entry to misconfigure, unlike a real saved product.
+  const isDecimalUnit = selectedUnit.unitType === 'weight' || selectedUnit.unitType === 'volume'
 
   if (!isOpen) return null
 
@@ -42,11 +52,21 @@ export const AddUnregisteredItemModal: React.FC<Props> = ({ isOpen, onClose, onS
       return
     }
 
-    const numQty = Number(quantity)
-    if (isNaN(numQty) || numQty <= 0) {
-      setError(l('Quantity must be at least 1', 'எண்ணிக்கை குறைந்தது 1 ஆக இருக்க வேண்டும்'))
+    if (unitChoice === 'custom' && !customUnitLabel.trim()) {
+      setError(l('Type the custom unit name, or pick one from the list', 'தனிப்பயன் அளவை உள்ளிடவும்'))
       return
     }
+
+    const numQty = Number(quantity)
+    const minQty = isDecimalUnit ? 0.001 : 1
+    if (isNaN(numQty) || numQty < minQty) {
+      setError(isDecimalUnit
+        ? l('Enter a valid quantity', 'சரியான எண்ணிக்கையை உள்ளிடவும்')
+        : l('Quantity must be at least 1', 'எண்ணிக்கை குறைந்தது 1 ஆக இருக்க வேண்டும்'))
+      return
+    }
+
+    const unitLabel = unitChoice === 'custom' ? (customUnitLabel.trim() || 'unit') : selectedUnit.suffix
 
     try {
       setIsSubmitting(true)
@@ -55,9 +75,13 @@ export const AddUnregisteredItemModal: React.FC<Props> = ({ isOpen, onClose, onS
         price: numPrice,
         quantity: numQty,
         note: note.trim() || undefined,
+        unit: unitLabel,
+        unitType: unitChoice === 'custom' ? 'unit' : selectedUnit.unitType,
       })
       setName('')
       setPrice('')
+      setUnitChoice('pcs')
+      setCustomUnitLabel('')
       setQuantity('1')
       setNote('')
       setError('')
@@ -122,6 +146,37 @@ export const AddUnregisteredItemModal: React.FC<Props> = ({ isOpen, onClose, onS
             />
           </div>
 
+          <div>
+            <label className="block font-bold text-[#374151] mb-1">
+              {l('Unit', 'அளவு வகை')}
+            </label>
+            <div className="flex gap-2">
+              <select
+                value={unitChoice}
+                onChange={(e) => setUnitChoice(e.target.value)}
+                className="w-full px-3 py-2 bg-[#FBFAF6] border border-gray-200 rounded-xl text-xs font-bold text-[#111111] focus:outline-none focus:border-[#0A0A0A] focus:bg-white transition-colors"
+              >
+                {UNIT_GROUPS.map((group) => (
+                  <optgroup key={group} label={group}>
+                    {UNIT_OPTIONS.filter((o) => o.group === group).map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              {unitChoice === 'custom' && (
+                <input
+                  type="text"
+                  required
+                  placeholder={l('e.g. Sack', 'எ.கா. சாக்கு')}
+                  value={customUnitLabel}
+                  onChange={(e) => setCustomUnitLabel(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#FBFAF6] border border-gray-200 rounded-xl text-xs font-bold text-[#111111] focus:outline-none focus:border-[#0A0A0A] focus:bg-white transition-colors"
+                />
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block font-bold text-[#374151] mb-1">
@@ -140,11 +195,12 @@ export const AddUnregisteredItemModal: React.FC<Props> = ({ isOpen, onClose, onS
             </div>
             <div>
               <label className="block font-bold text-[#374151] mb-1">
-                {l('Quantity *', 'எண்ணிக்கை *')}
+                {l('Quantity *', 'எண்ணிக்கை *')} {isDecimalUnit ? `(${selectedUnit.suffix})` : ''}
               </label>
               <input
                 type="number"
-                min="1"
+                min={isDecimalUnit ? '0.001' : '1'}
+                step={isDecimalUnit ? '0.001' : '1'}
                 required
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}

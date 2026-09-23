@@ -319,18 +319,24 @@ export const normalizeSelectedQuantity = (
   return Math.max(0.001, roundTo(parsed, 3))
 }
 
-// qty = number of packs/units the customer is buying.
-// basePrice is the admin-entered price for ONE pack/unit — the exact selling price.
-// weight/volume labels (g, ml, kg, l) are display metadata only; they never enter this formula.
+// qty = number of packs/units the customer is buying (or, for a product explicitly marked
+// "sold loose by weight/volume", the exact weighed amount — e.g. 2.3 for 2.3kg of rice).
+// basePrice is the admin-entered price for ONE pack/unit (or one kg/L for a loose item).
+// Rounding to a whole pack only applies to 'unit'/'bundle' items — the same rule
+// normalizeSelectedQuantity and buildStructuredOrderItem already use, so a quantity that
+// was allowed through as a decimal upstream isn't silently floored back to an integer here.
 export const calculateLineTotal = (
   quantity: number | string,
-  _unitType: UnitType,
+  unitType: UnitType,
   _baseQuantity: number | string,
   basePrice: number | string,
 ) => {
   const safeQuantity = toNumber(quantity, 0)
   const safePrice = clampTo(toNumber(basePrice, 0), 0)
-  return roundTo(safePrice * Math.max(0, Math.round(safeQuantity)), 2)
+  const qty = unitType === 'unit' || unitType === 'bundle'
+    ? Math.max(0, Math.round(safeQuantity))
+    : Math.max(0, roundTo(safeQuantity, 3))
+  return roundTo(safePrice * qty, 2)
 }
 
 // Single source of truth for variant product pricing.

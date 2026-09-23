@@ -20,6 +20,8 @@ import { inventoryService, type CategoryRecord } from '../../services/inventoryS
 import { useSound } from '../../context/SoundContext'
 import { getErrorMessage } from '../../lib/errorMessage'
 import { normalizeBarcode } from '../../lib/barcode'
+import { roundTo } from '../../lib/retail'
+import { UNIT_OPTIONS, UNIT_GROUPS, findUnitOption } from '../../lib/units'
 
 export interface VariantInputRow {
   id: string
@@ -30,35 +32,6 @@ export interface VariantInputRow {
   customBarcode?: string
 }
 
-interface UnitOption {
-  value: string
-  label: string
-  group: string
-  unitType: 'unit' | 'weight' | 'volume' | 'bundle'
-  unit: string
-  suffix: string
-}
-
-// Grouped for the <optgroup> dropdown. Covers the units a typical kirana / provisional
-// store actually sells in; "Other" lets the owner type anything not listed here.
-const UNIT_OPTIONS: UnitOption[] = [
-  { value: 'kg', label: 'Kilogram (kg)', group: 'Weight', unitType: 'weight', unit: 'kg', suffix: 'kg' },
-  { value: 'gram', label: 'Gram (gm)', group: 'Weight', unitType: 'weight', unit: 'g', suffix: 'gm' },
-  { value: 'litre', label: 'Litre (L)', group: 'Volume', unitType: 'volume', unit: 'l', suffix: 'L' },
-  { value: 'ml', label: 'Millilitre (ml)', group: 'Volume', unitType: 'volume', unit: 'ml', suffix: 'ml' },
-  { value: 'pcs', label: 'Piece (pcs)', group: 'Count', unitType: 'unit', unit: 'piece', suffix: 'pcs' },
-  { value: 'dozen', label: 'Dozen (dz)', group: 'Count', unitType: 'unit', unit: 'dozen', suffix: 'dz' },
-  { value: 'packet', label: 'Packet', group: 'Packaging', unitType: 'bundle', unit: 'packet', suffix: 'packet' },
-  { value: 'box', label: 'Box', group: 'Packaging', unitType: 'bundle', unit: 'box', suffix: 'box' },
-  { value: 'bag', label: 'Bag', group: 'Packaging', unitType: 'bundle', unit: 'bag', suffix: 'bag' },
-  { value: 'bundle', label: 'Bundle', group: 'Packaging', unitType: 'bundle', unit: 'bundle', suffix: 'bundle' },
-  { value: 'bottle', label: 'Bottle', group: 'Packaging', unitType: 'bundle', unit: 'bottle', suffix: 'bottle' },
-  { value: 'tin', label: 'Tin / Can', group: 'Packaging', unitType: 'bundle', unit: 'tin', suffix: 'tin' },
-  { value: 'pouch', label: 'Pouch / Sachet', group: 'Packaging', unitType: 'bundle', unit: 'pouch', suffix: 'pouch' },
-  { value: 'custom', label: 'Other (type your own)', group: 'Other', unitType: 'unit', unit: 'custom', suffix: '' },
-]
-const UNIT_GROUPS = ['Weight', 'Volume', 'Count', 'Packaging', 'Other']
-
 // Extracts the leading number from a stored size label (e.g. "20gm" -> "20") so
 // existing variant rows still show a sensible quantity when the product is reopened.
 const parseQtyFromLabel = (label?: string | null): string => {
@@ -66,11 +39,6 @@ const parseQtyFromLabel = (label?: string | null): string => {
   const match = label.match(/^(\d+(?:\.\d+)?)/)
   return match ? match[1] : ''
 }
-
-// Returns null (rather than a fallback guess) when nothing matches, so the caller can
-// fall back to the "Other" custom-unit input instead of silently picking the wrong unit.
-const findUnitOption = (unitType: string, unit: string): UnitOption | null =>
-  UNIT_OPTIONS.find((o) => o.value !== 'custom' && o.unitType === unitType && o.unit === unit) || null
 
 // The actual barcode_registry writes below use `.upsert(..., { onConflict: 'barcode_value' })`,
 // which silently reassigns a barcode to the new owner instead of raising a unique-constraint
@@ -116,6 +84,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
   const [barcode, setBarcode] = useState<string>('')
   const [description, setDescription] = useState<string>('')
   const [hasVariants, setHasVariants] = useState<boolean>(false)
+  const [soldByWeight, setSoldByWeight] = useState<boolean>(false)
   const [hasSpecialOffer, setHasSpecialOffer] = useState<boolean>(false)
   const [specialOfferNote, setSpecialOfferNote] = useState<string>('')
   const [specialOfferCost, setSpecialOfferCost] = useState<string>('')
@@ -159,6 +128,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     setBarcode('')
     setDescription('')
     setHasVariants(false)
+    setSoldByWeight(false)
     setHasSpecialOffer(false)
     setSpecialOfferNote('')
     setSpecialOfferCost('')
@@ -190,6 +160,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     setBarcode(p.barcode || '')
     setDescription(p.description || '')
     setHasVariants(Boolean(p.hasVariants))
+    setSoldByWeight(Boolean(p.allowDecimalQuantity))
     setHasSpecialOffer(Boolean(p.hasSpecialOffer))
     setSpecialOfferNote(p.specialOfferNote || '')
     setSpecialOfferCost(p.specialOfferCost != null ? String(p.specialOfferCost) : '')
@@ -336,7 +307,9 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
       if (selectedProductId) {
         // UPDATE EXISTING PRODUCT
         if (!hasVariants) {
-          const inputStock = Math.max(0, parseInt(stockQuantity) || 0)
+          const inputStock = soldByWeight
+            ? Math.max(0, roundTo(parseFloat(stockQuantity) || 0, 3))
+            : Math.max(0, parseInt(stockQuantity) || 0)
 
           // Check previous stock
           const { data: currentProd } = await supabase
@@ -368,11 +341,12 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               barcode: barcode.trim() || null,
               description: description.trim() || '',
               has_variants: false,
+              allow_decimal_quantity: soldByWeight,
               has_special_offer: hasSpecialOffer,
               special_offer_note: specialOfferNote.trim(),
               special_offer_cost: hasSpecialOffer ? (Number(specialOfferCost) || 0) : 0,
               stock_quantity: inputStock,
-              stock: inputStock,
+              stock: Math.floor(inputStock),
             })
             .eq('id', selectedProductId)
 
@@ -562,6 +536,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               barcode: null,
               description: description.trim() || '',
               has_variants: true,
+              allow_decimal_quantity: false,
               has_special_offer: hasSpecialOffer,
               special_offer_note: specialOfferNote.trim(),
               special_offer_cost: hasSpecialOffer ? (Number(specialOfferCost) || 0) : 0,
@@ -579,7 +554,9 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
       } else {
         // CREATE NEW PRODUCT
         if (!hasVariants) {
-          const inputStock = Math.max(0, parseInt(stockQuantity) || 0)
+          const inputStock = soldByWeight
+            ? Math.max(0, roundTo(parseFloat(stockQuantity) || 0, 3))
+            : Math.max(0, parseInt(stockQuantity) || 0)
 
           const { data: newProd, error: insErr } = await supabase
             .from('products')
@@ -601,11 +578,12 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               barcode: barcode.trim() || null,
               description: description.trim() || '',
               has_variants: false,
+              allow_decimal_quantity: soldByWeight,
               has_special_offer: hasSpecialOffer,
               special_offer_note: specialOfferNote.trim(),
               special_offer_cost: hasSpecialOffer ? (Number(specialOfferCost) || 0) : 0,
               stock_quantity: inputStock,
-              stock: inputStock,
+              stock: Math.floor(inputStock),
               is_active: true,
             })
             .select('id, name')
@@ -677,6 +655,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
               barcode: null,
               description: description.trim() || '',
               has_variants: true,
+              allow_decimal_quantity: false,
               has_special_offer: hasSpecialOffer,
               special_offer_note: specialOfferNote.trim(),
               special_offer_cost: hasSpecialOffer ? (Number(specialOfferCost) || 0) : 0,
@@ -1002,7 +981,13 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                   <div className="flex flex-col sm:flex-row gap-2.5">
                     <select
                       value={unitChoice}
-                      onChange={(e) => setUnitChoice(e.target.value)}
+                      onChange={(e) => {
+                        const nextUnit = UNIT_OPTIONS.find((o) => o.value === e.target.value)
+                        setUnitChoice(e.target.value)
+                        if (nextUnit && nextUnit.unitType !== 'weight' && nextUnit.unitType !== 'volume') {
+                          setSoldByWeight(false)
+                        }
+                      }}
                       className="w-full sm:max-w-xs h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
                     >
                       {UNIT_GROUPS.map((group) => (
@@ -1048,6 +1033,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                       type="button"
                       onClick={() => {
                         setHasVariants(true)
+                        setSoldByWeight(false)
                         if (variantRows.length === 0) handleAddVariantRow()
                       }}
                       className={`text-left p-3 rounded-xl border-2 transition-all cursor-pointer ${
@@ -1062,12 +1048,35 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                   </div>
                 </div>
 
+                {/* Sold loose by weight/volume — only makes sense for a single-price kg/gm/L/ml product */}
+                {!hasVariants && (selectedUnitInfo.unitType === 'weight' || selectedUnitInfo.unitType === 'volume') && (
+                  <div className="p-3.5 bg-white border border-gray-200 rounded-xl">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <span className="block text-xs font-black text-gray-900">Sold Loose By Weight</span>
+                        <p className="text-[11px] text-gray-500 font-medium mt-0.5">
+                          Turn on for items weighed at the counter (e.g. loose rice, oil). Price becomes per {selectedUnitInfo.suffix}, and billing lets you enter any amount like 2.3{selectedUnitInfo.suffix}.
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={soldByWeight}
+                          onChange={(e) => setSoldByWeight(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--accent)]" />
+                      </label>
+                    </div>
+                  </div>
+                )}
+
                 {/* Single Price & Received Stock */}
                 {!hasVariants && (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-white border border-gray-200 rounded-xl items-start">
                     <div>
                       <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                        Selling Price (₹) <span className="text-red-500 ml-0.5">*</span>
+                        {soldByWeight ? `Price per ${selectedUnitInfo.suffix} (₹)` : 'Selling Price (₹)'} <span className="text-red-500 ml-0.5">*</span>
                       </label>
                       <input
                         type="number"
@@ -1083,7 +1092,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
 
                     <div>
                       <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                        Purchase / Cost Price (₹)
+                        {soldByWeight ? `Cost per ${selectedUnitInfo.suffix} (₹)` : 'Purchase / Cost Price (₹)'}
                       </label>
                       <input
                         type="number"
@@ -1099,11 +1108,12 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                     <div>
                       <label className="block text-[11px] font-bold text-emerald-800 mb-1.5 h-4 flex items-center gap-1">
                         <Boxes size={13} className="text-emerald-600 shrink-0" />
-                        <span>Received / Current Stock</span>
+                        <span>Received / Current Stock {soldByWeight ? `(${selectedUnitInfo.suffix})` : ''}</span>
                       </label>
                       <input
                         type="number"
                         min="0"
+                        step={soldByWeight ? '0.001' : '1'}
                         placeholder="0"
                         value={stockQuantity}
                         onChange={(e) => setStockQuantity(e.target.value)}

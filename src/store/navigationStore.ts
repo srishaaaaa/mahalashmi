@@ -17,6 +17,7 @@ export type DashboardTab =
   | 'overview'
   | 'settings'
   | 'outstanding_credits'
+  | 'customer_events'
 
 interface NavigationState {
   currentTab: DashboardTab

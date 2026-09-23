@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CalendarClock, CalendarPlus, CalendarX2, Check, ChevronDown, ChevronUp, Download, RefreshCw, Save, Search } from 'lucide-react'
+import { CalendarClock, CalendarPlus, CalendarX2, Check, ChevronDown, ChevronUp, Download, Pencil, RefreshCw, Save, Search, Trash2, X } from 'lucide-react'
 import { useAdminAuthStore, useProductStore, useSettingsStore } from '../store/store'
 import { formatCurrency } from '../lib/retail'
 import { supabase } from '../lib/supabase'
 import { getErrorMessage } from '../lib/errorMessage'
+import { inventoryService } from '../services/inventoryService'
 
 type StatusFilter = 'expired' | 'soon' | 'all'
 
@@ -22,6 +23,11 @@ export default function ExpiryAlerts() {
   const [pendingExpiryDates, setPendingExpiryDates] = useState<Record<string, string>>({})
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
   const [bulkError, setBulkError] = useState('')
+  const [editingRowId, setEditingRowId] = useState<string | null>(null)
+  const [rowEditMfg, setRowEditMfg] = useState('')
+  const [rowEditExpiry, setRowEditExpiry] = useState('')
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
+  const [rowError, setRowError] = useState('')
 
   // Force a fresh fetch every time this screen is opened — products get their
   // expiry/mfg dates edited elsewhere (Inventory, the bulk panel below), and
@@ -74,6 +80,44 @@ export default function ExpiryAlerts() {
       Array.from(ids).map(id => saveDates(id, { mfg: pendingMfgDates[id], expiry: pendingExpiryDates[id] }))
     )
     await fetchProducts(true)
+  }
+
+  const startEditRow = (productId: string | number, mfgDate: string, expiryDate: string) => {
+    setRowError('')
+    setEditingRowId(String(productId))
+    setRowEditMfg(mfgDate || '')
+    setRowEditExpiry(expiryDate || '')
+  }
+
+  const cancelEditRow = () => {
+    setEditingRowId(null)
+    setRowEditMfg('')
+    setRowEditExpiry('')
+  }
+
+  const saveEditRow = async (productId: string | number) => {
+    if (!rowEditExpiry) {
+      setRowError('Expiry date is required')
+      return
+    }
+    await saveDates(productId, { mfg: rowEditMfg, expiry: rowEditExpiry })
+    cancelEditRow()
+    await fetchProducts(true)
+  }
+
+  const deleteProduct = async (productId: string | number, name: string) => {
+    if (!window.confirm(`Delete "${name}" from the catalog & inventory? This can't be undone.`)) return
+    const key = String(productId)
+    setRowError('')
+    setDeletingIds(prev => new Set(prev).add(key))
+    try {
+      await inventoryService.deleteInventoryItem(Number(productId))
+      await fetchProducts(true)
+    } catch (err) {
+      setRowError(getErrorMessage(err, 'Failed to delete product'))
+    } finally {
+      setDeletingIds(prev => { const next = new Set(prev); next.delete(key); return next })
+    }
   }
 
   const tracked = useMemo(() => {
@@ -306,12 +350,16 @@ export default function ExpiryAlerts() {
         </div>
       </div>
 
+      {rowError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{rowError}</div>
+      )}
+
       <div className="overflow-hidden rounded-2xl border border-[#ECE9E2] bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-[#F8F7F4] text-[10px] font-black uppercase tracking-wider text-[#737B72]">
               <tr>
-                {['#', 'Product', 'Category', 'Stock', 'Price', 'Mfg Date', 'Expiry Date', 'Status'].map(h => (
+                {['#', 'Product', 'Category', 'Stock', 'Price', 'Mfg Date', 'Expiry Date', 'Status', 'Actions'].map(h => (
                   <th key={h} className="px-4 py-3.5 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -319,7 +367,7 @@ export default function ExpiryAlerts() {
             <tbody className="divide-y divide-[#F0EEE9]">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-[#6B7280]">
+                  <td colSpan={9} className="px-4 py-12 text-center text-[#6B7280]">
                     {tracked.length === 0 ? (
                       <>
                         No products have an expiry date set yet.{' '}
@@ -334,6 +382,10 @@ export default function ExpiryAlerts() {
                 filtered.map((p, idx) => {
                   const isExpired = p.daysLeft < 0
                   const isSoon = !isExpired && p.daysLeft <= alertDays
+                  const rowKey = String(p.id)
+                  const isEditing = editingRowId === rowKey
+                  const isSavingRow = savingIds.has(rowKey)
+                  const isDeleting = deletingIds.has(rowKey)
                   return (
                     <tr key={p.id} className="hover:bg-emerald-50/30 transition-colors">
                       <td className="px-4 py-3.5 align-middle text-[#9CA3AF]">{idx + 1}</td>
@@ -341,16 +393,85 @@ export default function ExpiryAlerts() {
                       <td className="px-4 py-3.5 align-middle text-[#6B7280] whitespace-nowrap">{p.category || 'General'}</td>
                       <td className="px-4 py-3.5 align-middle whitespace-nowrap">{p.stockQuantity ?? p.stock ?? 0}</td>
                       <td className="px-4 py-3.5 align-middle whitespace-nowrap">{formatCurrency(p.price || 0)}</td>
-                      <td className="px-4 py-3.5 align-middle text-[#6B7280] whitespace-nowrap">
-                        {p.mfgDate ? new Date(`${p.mfgDate}T00:00:00`).toLocaleDateString('en-IN') : '—'}
-                      </td>
-                      <td className="px-4 py-3.5 align-middle whitespace-nowrap">{new Date(`${p.expiryDate}T00:00:00`).toLocaleDateString('en-IN')}</td>
+                      {isEditing ? (
+                        <>
+                          <td className="px-4 py-2 align-middle whitespace-nowrap">
+                            <input
+                              type="date"
+                              value={rowEditMfg}
+                              onChange={e => setRowEditMfg(e.target.value)}
+                              className="h-9 rounded-lg border border-[#E5E7EB] bg-white px-2.5 text-xs font-bold text-[#273126] outline-none focus:border-[var(--accent)]"
+                            />
+                          </td>
+                          <td className="px-4 py-2 align-middle whitespace-nowrap">
+                            <input
+                              type="date"
+                              value={rowEditExpiry}
+                              onChange={e => setRowEditExpiry(e.target.value)}
+                              className="h-9 rounded-lg border border-[#E5E7EB] bg-white px-2.5 text-xs font-bold text-[#273126] outline-none focus:border-[var(--accent)]"
+                            />
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-4 py-3.5 align-middle text-[#6B7280] whitespace-nowrap">
+                            {p.mfgDate ? new Date(`${p.mfgDate}T00:00:00`).toLocaleDateString('en-IN') : '—'}
+                          </td>
+                          <td className="px-4 py-3.5 align-middle whitespace-nowrap">{new Date(`${p.expiryDate}T00:00:00`).toLocaleDateString('en-IN')}</td>
+                        </>
+                      )}
                       <td className="px-4 py-3.5 align-middle whitespace-nowrap">
                         <span className={`inline-block rounded-full px-2.5 py-1 text-[10px] font-black ${
                           isExpired ? 'bg-red-100 text-red-700' : isSoon ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
                         }`}>
                           {isExpired ? `Expired ${Math.abs(p.daysLeft)}d ago` : `Expires in ${p.daysLeft}d`}
                         </span>
+                      </td>
+                      <td className="px-4 py-3.5 align-middle whitespace-nowrap">
+                        {isEditing ? (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => void saveEditRow(p.id)}
+                              disabled={isSavingRow}
+                              className="flex items-center gap-1 rounded-lg bg-[var(--accent)] px-2.5 py-1.5 text-[11px] font-black text-white disabled:opacity-50 cursor-pointer"
+                              title="Save"
+                            >
+                              {isSavingRow ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelEditRow}
+                              disabled={isSavingRow}
+                              className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[11px] font-black text-gray-500 hover:bg-gray-50 cursor-pointer"
+                              title="Cancel"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => startEditRow(p.id, p.mfgDate || '', p.expiryDate || '')}
+                              className="flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:text-[var(--accent)] hover:border-[var(--accent)] hover:bg-[#EAF6EC] transition-all cursor-pointer"
+                              title={`Edit "${p.name}"`}
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => void deleteProduct(p.id, p.name)}
+                                disabled={isDeleting}
+                                className="flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer disabled:opacity-50"
+                                title={`Delete "${p.name}"`}
+                              >
+                                {isDeleting ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )

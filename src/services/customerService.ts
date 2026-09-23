@@ -94,4 +94,76 @@ export const customerService = {
     }
     return events
   },
+
+  /**
+   * Fetch every customer that has at least a name or phone (used by the
+   * Birthdays & Anniversaries management screen).
+   */
+  async fetchAll(): Promise<CustomerRecord[]> {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('id, phone, name, address, birthday, anniversary')
+      .order('name', { ascending: true })
+
+    if (error) {
+      console.error('[customerService.fetchAll] Error:', error)
+      return []
+    }
+    return data || []
+  },
+
+  /**
+   * Create a new customer record from the management screen. Throws a
+   * friendly error if the phone number is already registered.
+   */
+  async create(input: { phone: string; name: string; address?: string; birthday?: string | null; anniversary?: string | null }): Promise<CustomerRecord> {
+    const phone = input.phone.trim()
+    const { data, error } = await supabase
+      .from('customers')
+      .insert({
+        phone,
+        name: input.name.trim(),
+        address: input.address?.trim() || '',
+        birthday: input.birthday || null,
+        anniversary: input.anniversary || null,
+      })
+      .select('id, phone, name, address, birthday, anniversary')
+      .single()
+
+    if (error) {
+      if (error.code === '23505') throw new Error('This phone number is already registered to another customer.')
+      throw error
+    }
+    return data
+  },
+
+  /**
+   * Update an existing customer record from the management screen.
+   */
+  async update(id: string, input: { phone: string; name: string; address?: string; birthday?: string | null; anniversary?: string | null }): Promise<void> {
+    const { error } = await supabase
+      .from('customers')
+      .update({
+        phone: input.phone.trim(),
+        name: input.name.trim(),
+        address: input.address?.trim() || '',
+        birthday: input.birthday || null,
+        anniversary: input.anniversary || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+
+    if (error) {
+      if (error.code === '23505') throw new Error('This phone number is already registered to another customer.')
+      throw error
+    }
+  },
+
+  /**
+   * Delete a customer record from the management screen.
+   */
+  async remove(id: string): Promise<void> {
+    const { error } = await supabase.from('customers').delete().eq('id', id)
+    if (error) throw error
+  },
 }
