@@ -167,7 +167,7 @@ export default function LowStockAlarmModal({ triggerKey }: { triggerKey?: string
                       <Package size={15} />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-black text-sm text-[#111111] truncate">{p.name}</p>
+                      <p className="font-black text-sm text-[#111111] break-words">{p.name}</p>
                       <p className="text-[11px] text-[#6B7280] truncate">{p.category || '—'}</p>
                     </div>
                   </div>

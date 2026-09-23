@@ -905,8 +905,8 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                 <Package size={16} className="text-[var(--accent)] shrink-0" />
                 {selectedProductId ? 'Edit Product & Stock Details' : 'Add New Product to Catalog'}
               </h3>
-              <p className="text-[11px] text-gray-500 font-semibold truncate">
-                {selectedProductId ? "Update pricing, stock & categories" : "Start with the name — we'll ask for units & pricing next"}
+              <p className="text-[11px] text-gray-500 font-semibold">
+                {selectedProductId ? "Update pricing, stock & categories" : "Start with the name below"}
               </p>
             </div>
           </div>

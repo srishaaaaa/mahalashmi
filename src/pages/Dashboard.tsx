@@ -1312,7 +1312,7 @@ export default function Dashboard() {
             {!sidebarCollapsed && (
               <div className="flex flex-col min-w-0">
                 <h1 className="text-[12.5px] font-black text-white leading-tight tracking-wide break-words">{shopName}</h1>
-                <span className={`text-[8.5px] font-black uppercase tracking-widest px-1.5 py-0.2 rounded w-fit ${role === 'admin' ? 'bg-[var(--accent-a20)] text-[var(--accent)] border border-[var(--accent-a40)]' : 'bg-gray-800 text-gray-300 border border-gray-700'}`}>
+                <span className={`text-[10px] font-black uppercase tracking-widest px-1.5 py-0.2 rounded w-fit ${role === 'admin' ? 'bg-[var(--accent-a20)] text-[var(--accent)] border border-[var(--accent-a40)]' : 'bg-gray-800 text-gray-300 border border-gray-700'}`}>
                   {role === 'admin' ? 'ADMIN' : 'STAFF'}
                 </span>
               </div>
@@ -1336,7 +1336,7 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[15px] font-black text-white tracking-wider truncate">{shopName}</span>
-              <span className={`text-[8.5px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${role === 'admin' ? 'bg-[var(--accent-a20)] text-[var(--accent)] border border-[var(--accent-a40)]' : 'bg-gray-800 text-gray-300 border border-gray-700'}`}>
+              <span className={`text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${role === 'admin' ? 'bg-[var(--accent-a20)] text-[var(--accent)] border border-[var(--accent-a40)]' : 'bg-gray-800 text-gray-300 border border-gray-700'}`}>
                 {role === 'admin' ? 'ADMIN' : 'STAFF'}
               </span>
             </div>
@@ -2375,12 +2375,12 @@ export default function Dashboard() {
                       <h3 className="text-[16px] font-bold text-[#111111] mb-4">Top Items by Revenue</h3>
                       <div className="space-y-3">
                         {analytics.topProducts.slice(0, 3).map((p, i) => (
-                          <div key={i} className="flex items-center justify-between text-[13px]">
-                            <div className="flex items-center gap-3">
-                              <span className="font-bold text-[#6B7280] w-4">{i + 1}</span>
-                              <span className="font-bold text-[#111111] truncate max-w-[140px]">{p.name}</span>
+                          <div key={i} className="flex items-center justify-between gap-3 text-[13px]">
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <span className="font-bold text-[#6B7280] w-4 shrink-0">{i + 1}</span>
+                              <span className="font-bold text-[#111111] truncate" title={p.name}>{p.name}</span>
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4 shrink-0">
                               <span className="font-bold text-[#0A0A0A]">{formatCurrency(p.revenue)}</span>
                               <span className="text-[#6B7280] text-[11px] w-8 text-right">{Math.round(p.qty)} pcs</span>
                             </div>

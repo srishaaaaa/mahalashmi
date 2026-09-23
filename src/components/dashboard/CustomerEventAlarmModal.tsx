@@ -140,7 +140,7 @@ export default function CustomerEventAlarmModal({ triggerKey }: { triggerKey?: s
                     {e.type === 'birthday' ? <Gift size={15} /> : <Heart size={15} />}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-black text-sm text-[#111111] truncate">{e.name}</p>
+                    <p className="font-black text-sm text-[#111111] break-words">{e.name}</p>
                     <p className="text-[11px] text-[#6B7280] truncate">{e.phone}</p>
                   </div>
                 </div>

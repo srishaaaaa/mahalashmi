@@ -159,7 +159,7 @@ export default function CreditDueAlarmModal({ triggerKey }: { triggerKey?: strin
                       <Wallet size={15} />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-black text-sm text-[#111111] truncate">{o.customer_name}</p>
+                      <p className="font-black text-sm text-[#111111] break-words">{o.customer_name}</p>
                       <p className="text-[11px] text-[#6B7280] truncate">{o.invoice_no} • {formatCurrency(o.total)}</p>
                     </div>
                   </div>

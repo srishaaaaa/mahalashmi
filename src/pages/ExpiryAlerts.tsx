@@ -224,7 +224,7 @@ export default function ExpiryAlerts() {
                 return (
                   <div key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-[#273126] truncate">{p.name}</p>
+                      <p className="text-xs font-bold text-[#273126] break-words">{p.name}</p>
                       <p className="text-[10px] text-[#9CA3AF]">{p.category || 'General'}</p>
                     </div>
                     <div>

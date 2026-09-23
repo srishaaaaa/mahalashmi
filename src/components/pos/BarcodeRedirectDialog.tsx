@@ -46,7 +46,7 @@ export const BarcodeRedirectDialog: React.FC<BarcodeRedirectDialogProps> = ({
               <h3 className="text-sm font-black text-white tracking-wide">
                 Barcode Scanned
               </h3>
-              <p className="text-[11px] font-mono font-bold text-[#D4AF37] truncate mt-0.5">
+              <p className="text-[11px] font-mono font-bold text-[#D4AF37] break-all mt-0.5">
                 {pendingBarcode}
               </p>
             </div>

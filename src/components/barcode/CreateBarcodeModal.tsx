@@ -764,7 +764,7 @@ export const CreateBarcodeModal: React.FC<CreateBarcodeModalProps> = ({
                                   >
                                     <div className="min-w-0 pr-2">
                                       <div className="flex items-center gap-1.5 flex-wrap">
-                                        <p className="font-bold text-gray-900 truncate">
+                                        <p className="font-bold text-gray-900 break-words">
                                           {p.name}
                                         </p>
                                         {p.has_variants ? (
