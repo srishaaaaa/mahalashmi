@@ -3,6 +3,7 @@ import { Wallet, CheckCircle2, AlertTriangle, IndianRupee, Eye, Printer, Downloa
 import { creditService, toDaysOverdue } from '../../services/creditService'
 import { formatCurrency, formatInvoiceNo } from '../../lib/retail'
 import { useSound } from '../../context/SoundContext'
+import { formatDateDDMMYYYY } from '../../lib/dateFormat'
 import type { DashboardOrder } from '../../pages/Dashboard'
 
 export interface OutstandingCreditsViewProps {
@@ -199,7 +200,7 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
                     <p className="font-black text-gray-900 text-[13px] shrink-0">{formatCurrency(order.total)}</p>
                   </div>
                   <div className="flex items-center flex-wrap gap-2">
-                    <span className="text-[10px] font-bold text-gray-500">Sale: {new Date(order.created_at).toLocaleDateString('en-IN')}</span>
+                    <span className="text-[10px] font-bold text-gray-500">Sale: {formatDateDDMMYYYY(order.created_at)}</span>
                     <input
                       type="date"
                       value={order.credit_due_date || ''}
@@ -259,7 +260,7 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
                         <div className="text-[10px] text-gray-400 font-medium">{order.phone}</div>
                       </td>
                       <td className="p-3.5 text-gray-600 font-semibold">
-                        {new Date(order.created_at).toLocaleDateString('en-IN')}
+                        {formatDateDDMMYYYY(order.created_at)}
                       </td>
                       <td className="p-3.5">
                         <div className="flex items-center gap-2">
@@ -336,9 +337,9 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
                   <p className="font-black text-gray-900 text-[13px] shrink-0">{formatCurrency(order.total)}</p>
                 </div>
                 <div className="flex items-center flex-wrap gap-2">
-                  <span className="text-[10px] font-bold text-gray-500">Sale: {new Date(order.created_at).toLocaleDateString('en-IN')}</span>
+                  <span className="text-[10px] font-bold text-gray-500">Sale: {formatDateDDMMYYYY(order.created_at)}</span>
                   <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    Paid {order.credit_paid_at ? new Date(order.credit_paid_at).toLocaleDateString('en-IN') : '—'}
+                    Paid {order.credit_paid_at ? formatDateDDMMYYYY(order.credit_paid_at) : '—'}
                   </span>
                 </div>
                 <div className="pt-1">
@@ -369,11 +370,11 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
                       <div className="text-[10px] text-gray-400 font-medium">{order.phone}</div>
                     </td>
                     <td className="p-3.5 text-gray-600 font-semibold">
-                      {new Date(order.created_at).toLocaleDateString('en-IN')}
+                      {formatDateDDMMYYYY(order.created_at)}
                     </td>
                     <td className="p-3.5">
                       <span className="inline-block px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        {order.credit_paid_at ? new Date(order.credit_paid_at).toLocaleDateString('en-IN') : '—'}
+                        {order.credit_paid_at ? formatDateDDMMYYYY(order.credit_paid_at) : '—'}
                       </span>
                     </td>
                     <td className="p-3.5 text-right font-black text-gray-900">{formatCurrency(order.total)}</td>

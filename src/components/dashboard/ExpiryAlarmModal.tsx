@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useSound } from '../../context/SoundContext'
 import { useSettingsStore } from '../../store/store'
 import { useAlarmQueueStore } from '../../store/alarmQueueStore'
+import { formatDateDDMMYYYY } from '../../lib/dateFormat'
 
 interface ExpiringItem {
   id: string | number
@@ -183,7 +184,7 @@ export default function ExpiryAlarmModal({ triggerKey }: { triggerKey?: string |
                     <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-full whitespace-nowrap ${isExpired ? 'bg-red-600 text-white' : 'bg-amber-100 text-amber-700'}`}>
                       {isExpired ? `EXPIRED ${Math.abs(p.daysLeft)}D AGO` : `EXPIRES IN ${p.daysLeft}D`}
                     </span>
-                    <p className="text-[10px] text-[#9CA3AF] mt-0.5">{new Date(`${p.expiry_date}T00:00:00`).toLocaleDateString('en-IN')}</p>
+                    <p className="text-[10px] text-[#9CA3AF] mt-0.5">{formatDateDDMMYYYY(p.expiry_date)}</p>
                   </div>
                 </div>
               )

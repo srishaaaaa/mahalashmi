@@ -22,6 +22,7 @@ import { getErrorMessage } from '../../lib/errorMessage'
 import { normalizeBarcode } from '../../lib/barcode'
 import { roundTo } from '../../lib/retail'
 import { UNIT_OPTIONS, UNIT_GROUPS, findUnitOption } from '../../lib/units'
+import { formatDateDDMMYYYY } from '../../lib/dateFormat'
 
 export interface VariantInputRow {
   id: string
@@ -76,6 +77,8 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
   const [purchasePrice, setPurchasePrice] = useState<string>('')
   const [unitChoice, setUnitChoice] = useState<string>('pcs')
   const [customUnitLabel, setCustomUnitLabel] = useState<string>('')
+  const [contentSize, setContentSize] = useState<string>('') // e.g. "200ml", "500g" for packets
+  const [contentUnit, setContentUnit] = useState<string>('') // e.g. "ml", "g"
   const [stockQuantity, setStockQuantity] = useState<string>('0')
   const [lowStockAlert, setLowStockAlert] = useState<string>('5')
   const [expiryDate, setExpiryDate] = useState<string>('')
@@ -120,6 +123,8 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     setPurchasePrice('')
     setUnitChoice('pcs')
     setCustomUnitLabel('')
+    setContentSize('')
+    setContentUnit('')
     setStockQuantity('0')
     setLowStockAlert('5')
     setExpiryDate('')
@@ -1009,6 +1014,40 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                       />
                     )}
                   </div>
+
+                  {/* For packaging units (packet, box, bag, etc.), ask what's inside */}
+                  {['packet', 'box', 'bag', 'bundle', 'bottle', 'tin', 'pouch'].includes(unitChoice) && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-[10px] font-bold text-blue-700 mb-2.5">What's inside each {UNIT_OPTIONS.find(o => o.value === unitChoice)?.suffix}?</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          placeholder="Size (e.g. 200)"
+                          value={contentSize}
+                          onChange={(e) => setContentSize(e.target.value)}
+                          className="flex-1 h-9 px-3 rounded-lg border border-blue-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-blue-600"
+                        />
+                        <select
+                          value={contentUnit}
+                          onChange={(e) => setContentUnit(e.target.value)}
+                          className="h-9 px-3 rounded-lg border border-blue-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-blue-600"
+                        >
+                          <option value="">Unit</option>
+                          <option value="ml">ml</option>
+                          <option value="l">Litre</option>
+                          <option value="g">gm</option>
+                          <option value="kg">kg</option>
+                          <option value="pcs">pcs</option>
+                          <option value="piece">piece</option>
+                        </select>
+                      </div>
+                      {contentSize && contentUnit && (
+                        <p className="text-[10px] text-blue-600 font-medium mt-2">
+                          ✓ Each {UNIT_OPTIONS.find(o => o.value === unitChoice)?.suffix} contains {contentSize}{contentUnit}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Step 3: Single price vs multiple pack sizes */}
@@ -1208,14 +1247,15 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
 
                           <div className="sm:col-span-2">
                             <label className="block text-[10px] font-bold text-gray-600 mb-0.5">
-                              Barcode (Opt)
+                              Barcode / SKU
                             </label>
                             <input
                               type="text"
-                              placeholder="Optional"
+                              placeholder="e.g. 8901234567"
                               value={v.customBarcode || ''}
                               onChange={(e) => handleUpdateVariantRow(v.id, 'customBarcode', e.target.value)}
                               className="w-full h-8 px-2.5 rounded-lg border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                              title="Product barcode for this pack size (optional)"
                             />
                           </div>
 
@@ -1265,12 +1305,12 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
 
                       <div>
                         <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                          Barcode <span className="text-gray-400 font-normal ml-1">(Optional)</span>
+                          Barcode / SKU <span className="text-gray-400 font-normal ml-1">(Optional)</span>
                         </label>
                         <input
                           type="text"
                           disabled={hasVariants}
-                          placeholder={hasVariants ? 'Defined per pack size' : 'e.g. 8901234567'}
+                          placeholder={hasVariants ? 'Define per pack size →' : 'e.g. 8901234567'}
                           value={barcode}
                           onChange={(e) => setBarcode(e.target.value)}
                           autoCapitalize="off"
@@ -1278,7 +1318,13 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                           autoComplete="off"
                           spellCheck={false}
                           className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A] disabled:bg-gray-100 disabled:text-gray-400"
+                          title="Enter the product barcode (EAN/UPC code printed on the package). Used for quick scanning in billing."
                         />
+                        <p className="text-[10px] text-gray-500 font-medium mt-1">
+                          {hasVariants
+                            ? '👉 Enter barcode for each pack size below'
+                            : '💡 Scan in billing to quickly add this product. Leave empty if product has no barcode.'}
+                        </p>
                       </div>
 
                       <div>
@@ -1310,25 +1356,27 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
 
                       <div>
                         <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                          Mfg Date <span className="text-gray-400 font-normal ml-1">(Optional)</span>
+                          Mfg Date <span className="text-gray-400 font-normal ml-1">(DD-MM-YYYY)</span>
                         </label>
                         <input
                           type="date"
                           value={mfgDate}
                           onChange={(e) => setMfgDate(e.target.value)}
                           className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                          title="Enter manufacture date in DD-MM-YYYY format"
                         />
                       </div>
 
                       <div>
                         <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                          Expiry Date <span className="text-gray-400 font-normal ml-1">(Optional)</span>
+                          Expiry Date <span className="text-gray-400 font-normal ml-1">(DD-MM-YYYY)</span>
                         </label>
                         <input
                           type="date"
                           value={expiryDate}
                           onChange={(e) => setExpiryDate(e.target.value)}
                           className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                          title="Enter expiry date in DD-MM-YYYY format"
                         />
                       </div>
                     </div>
