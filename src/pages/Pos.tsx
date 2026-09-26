@@ -439,6 +439,7 @@ export default function Pos(props: PosProps = {}) {
       }
       const prod = record.product
       const varnt = record.variant
+      if (!prod.name) throw new Error('Product missing name field')
       const effectiveStock = varnt ? (Number(varnt.stock) || 0) : 999
       const price = varnt?.price ? Number(varnt.price) : Number(prod.price)
 
@@ -456,9 +457,10 @@ export default function Pos(props: PosProps = {}) {
         category: prod.category,
       }
       handleScannedItem(payload)
-    } catch (err) {
-      console.error('Failed to process incoming barcode:', err)
-      setError('Failed to scan barcode')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err || 'Unknown error')
+      console.error('Failed to process barcode:', msg)
+      setError(`Barcode error: ${msg}`)
     }
   }, [])
 
