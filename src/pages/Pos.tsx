@@ -215,15 +215,15 @@ export default function Pos(props: PosProps = {}) {
       .subscribe()
 
     // Load active categories in sort_order
-    supabase.from('categories').select('name_en').eq('is_active', true).order('sort_order')
-      .then(({ data, error }) => {
-        if (error) {
-          console.error('Failed to load categories:', error.message)
-          return
-        }
-        if (data) setDbCategories(data.map(c => c.name_en as string))
-      })
-      .catch(err => console.error('Category query error:', err))
+    const loadCategories = async () => {
+      const { data, error } = await supabase.from('categories').select('name_en').eq('is_active', true).order('sort_order')
+      if (error) {
+        console.error('Failed to load categories:', error.message)
+        return
+      }
+      if (data) setDbCategories(data.map(c => c.name_en as string))
+    }
+    void loadCategories()
 
     return () => { void supabase.removeChannel(productChannel) }
   }, [fetchProducts, fetchVariants])
