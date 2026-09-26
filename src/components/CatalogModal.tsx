@@ -224,7 +224,6 @@ export default function CatalogModal({ isOpen, onClose, onAdd }: CatalogModalPro
                       <div className="flex items-start justify-between gap-3">
                         <div onClick={() => onAdd(product)} className="cursor-pointer flex-1 min-w-0">
                           <h4 className="text-[15px] font-black text-[#111111] leading-tight break-words group-hover:text-[var(--accent)] transition-colors">{product.name}</h4>
-                          {product.nameTa && <p className="text-[11px] font-bold text-[#374151] mt-0.5 break-words">{product.nameTa}</p>}
                           {product.location && (
                             <p className="flex items-center gap-1 text-[10px] font-bold text-[var(--accent)] mt-1">
                               <MapPin size={11} /> {product.location}
