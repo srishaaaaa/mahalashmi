@@ -9,12 +9,32 @@ import { BRAND_EN } from '../lib/brand'
 import { DateInputDDMMYYYY } from '../components/DateInputDDMMYYYY'
 
 type FilterKey = 'all' | 'birthday' | 'anniversary' | 'today'
+type DatePreset = 'thisMonth' | 'thisYear' | 'all' | 'custom'
 
 function isTodayMonthDay(dateStr: string | null): boolean {
   if (!dateStr) return false
   const today = new Date()
   const d = new Date(`${dateStr}T00:00:00`)
   return d.getMonth() === today.getMonth() && d.getDate() === today.getDate()
+}
+
+function isInMonthDay(dateStr: string | null, fromMonth: number | null, fromDay: number | null, toMonth: number | null, toDay: number | null): boolean {
+  if (!dateStr) return false
+  if (fromMonth === null || toMonth === null) return true
+  const d = new Date(`${dateStr}T00:00:00`)
+  const month = d.getMonth()
+  const day = d.getDate()
+
+  if (fromMonth <= toMonth) {
+    if (month < fromMonth || month > toMonth) return false
+    if (month === fromMonth && fromDay !== null && day < fromDay) return false
+    if (month === toMonth && toDay !== null && day > toDay) return false
+  } else {
+    if (month < fromMonth && month > toMonth) return false
+    if (month === fromMonth && fromDay !== null && day < fromDay) return false
+    if (month === toMonth && toDay !== null && day > toDay) return false
+  }
+  return true
 }
 
 function isThisMonth(dateStr: string | null): boolean {
@@ -37,6 +57,11 @@ export default function CustomerEvents() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<FilterKey>('all')
+  const [datePreset, setDatePreset] = useState<DatePreset>('all')
+  const [fromMonth, setFromMonth] = useState<number | null>(null)
+  const [fromDay, setFromDay] = useState<number | null>(null)
+  const [toMonth, setToMonth] = useState<number | null>(null)
+  const [toDay, setToDay] = useState<number | null>(null)
 
   const [modalMode, setModalMode] = useState<'add' | 'edit' | 'view' | null>(null)
   const [activeCustomer, setActiveCustomer] = useState<CustomerRecord | null>(null)
@@ -60,6 +85,31 @@ export default function CustomerEvents() {
 
   useEffect(() => { void load() }, [])
 
+  const applyDatePreset = (preset: DatePreset) => {
+    const today = new Date()
+    switch (preset) {
+      case 'thisMonth':
+        const month = today.getMonth()
+        setFromMonth(month)
+        setFromDay(1)
+        setToMonth(month)
+        setToDay(31)
+        break
+      case 'thisYear':
+        setFromMonth(0)
+        setFromDay(1)
+        setToMonth(11)
+        setToDay(31)
+        break
+      default:
+        setFromMonth(null)
+        setFromDay(null)
+        setToMonth(null)
+        setToDay(null)
+    }
+    setDatePreset(preset)
+  }
+
   const tracked = useMemo(() => customers.filter(c => c.birthday || c.anniversary), [customers])
 
   const stats = useMemo(() => {
@@ -81,7 +131,12 @@ export default function CustomerEvents() {
         c.name.toLowerCase().includes(search.toLowerCase()) ||
         c.phone.toLowerCase().includes(search.toLowerCase())
       )
-  }, [tracked, filter, search])
+      .filter(c => {
+        const birthMatches = !c.birthday || isInMonthDay(c.birthday, fromMonth, fromDay, toMonth, toDay)
+        const annivMatches = !c.anniversary || isInMonthDay(c.anniversary, fromMonth, fromDay, toMonth, toDay)
+        return birthMatches && annivMatches
+      })
+  }, [tracked, filter, search, fromMonth, fromDay, toMonth, toDay])
 
   const openAdd = () => {
     setActiveCustomer(null)
@@ -212,7 +267,7 @@ export default function CustomerEvents() {
         ))}
       </div>
 
-      <div className="rounded-2xl border border-[#ECE9E2] bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-[#ECE9E2] bg-white p-4 shadow-sm space-y-3">
         <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
           <label className="relative">
             <Search className="absolute left-3 top-3 text-[#9CA3AF]" size={17} />
@@ -238,6 +293,57 @@ export default function CustomerEvents() {
                 {label}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className="border-t border-[#E5E7EB] pt-3">
+          <p className="text-xs font-bold text-[#6B7280] mb-2">Filter by Date</p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {([
+              ['thisMonth', 'This Month'],
+              ['thisYear', 'This Year'],
+              ['all', 'All Months'],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => applyDatePreset(value)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${datePreset === value ? 'bg-pink-100 text-pink-700' : 'bg-[#F5F3F7] text-[#626B61] hover:bg-[#E5E3ED]'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div>
+              <label className="block text-[10px] font-bold text-[#6B7280] mb-1">From Month</label>
+              <select
+                value={fromMonth ?? ''}
+                onChange={e => { setFromMonth(e.target.value === '' ? null : parseInt(e.target.value)); setDatePreset('custom') }}
+                className="w-full h-9 rounded-lg border border-[#E5E7EB] bg-white px-3 text-xs font-semibold text-[#273126] outline-none focus:border-[var(--accent)]"
+              >
+                <option value="">All Months</option>
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i} value={i}>
+                    {new Date(2024, i, 1).toLocaleDateString('en-IN', { month: 'long' })}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-[#6B7280] mb-1">To Month</label>
+              <select
+                value={toMonth ?? ''}
+                onChange={e => { setToMonth(e.target.value === '' ? null : parseInt(e.target.value)); setDatePreset('custom') }}
+                className="w-full h-9 rounded-lg border border-[#E5E7EB] bg-white px-3 text-xs font-semibold text-[#273126] outline-none focus:border-[var(--accent)]"
+              >
+                <option value="">All Months</option>
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i} value={i}>
+                    {new Date(2024, i, 1).toLocaleDateString('en-IN', { month: 'long' })}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </div>
