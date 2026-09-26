@@ -680,6 +680,385 @@ END;
 $$;
 
 -- ============================================================================
+-- MISSING RPC FUNCTIONS (Order, Barcode, Advance Order, Inventory)
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.complete_pos_sale_with_inventory(
+  p_customer_name TEXT, p_phone TEXT, p_address TEXT, p_items JSONB,
+  p_shipping NUMERIC, p_status TEXT, p_order_mode TEXT, p_order_type TEXT,
+  p_delivery_charge NUMERIC, p_discount_amount NUMERIC,
+  p_manual_discount_amount NUMERIC, p_manual_discount_type TEXT,
+  p_manual_discount_value NUMERIC, p_coupon_code TEXT, p_coupon_percentage NUMERIC,
+  p_total_gst NUMERIC DEFAULT 0, p_gst_enabled BOOLEAN DEFAULT FALSE,
+  p_payment_method TEXT DEFAULT 'cash', p_split_details JSONB DEFAULT '{}',
+  p_credit_due_date TEXT DEFAULT NULL, p_is_credit BOOLEAN DEFAULT FALSE
+)
+RETURNS JSON AS $$
+DECLARE
+  v_order_id UUID;
+  v_invoice_no TEXT;
+  v_order_created_at TIMESTAMP;
+  v_item JSONB;
+BEGIN
+  v_order_id := gen_random_uuid();
+  v_order_created_at := NOW();
+  v_invoice_no := 'INV' || LPAD(CAST(EXTRACT(EPOCH FROM v_order_created_at) * 1000 AS TEXT), 15, '0');
+
+  INSERT INTO public.orders (
+    id, invoice_no, customer_name, phone, address, items, shipping,
+    status, order_mode, order_type, delivery_charge, discount_amount,
+    manual_discount_amount, manual_discount_type, manual_discount_value,
+    coupon_code, coupon_percentage, total_gst, gst_enabled, payment_method,
+    split_details, is_credit, credit_due_date, created_at, updated_at
+  ) VALUES (
+    v_order_id, v_invoice_no, p_customer_name, p_phone, p_address, p_items,
+    COALESCE(p_shipping, 0), COALESCE(p_status, 'pending'), COALESCE(p_order_mode, 'online'),
+    COALESCE(p_order_type, 'pos_sale'), COALESCE(p_delivery_charge, 0), COALESCE(p_discount_amount, 0),
+    COALESCE(p_manual_discount_amount, 0), COALESCE(p_manual_discount_type, 'flat'),
+    COALESCE(p_manual_discount_value, 0), p_coupon_code, COALESCE(p_coupon_percentage, 0),
+    COALESCE(p_total_gst, 0), COALESCE(p_gst_enabled, FALSE), COALESCE(p_payment_method, 'cash'),
+    COALESCE(p_split_details, '{}'), COALESCE(p_is_credit, FALSE),
+    CASE WHEN p_credit_due_date IS NOT NULL THEN p_credit_due_date::DATE ELSE NULL END,
+    v_order_created_at, v_order_created_at
+  );
+
+  RETURN json_build_object(
+    'order_id', v_order_id::TEXT,
+    'invoice_no', v_invoice_no,
+    'created_at', v_order_created_at
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION public.create_order_with_stock(
+  p_customer_name TEXT, p_phone TEXT, p_address TEXT, p_items JSONB,
+  p_shipping NUMERIC, p_status TEXT, p_order_mode TEXT, p_order_type TEXT,
+  p_delivery_charge NUMERIC, p_discount_amount NUMERIC,
+  p_manual_discount_amount NUMERIC, p_manual_discount_type TEXT,
+  p_manual_discount_value NUMERIC, p_coupon_code TEXT, p_coupon_percentage NUMERIC,
+  p_total_gst NUMERIC DEFAULT 0, p_gst_enabled BOOLEAN DEFAULT FALSE,
+  p_payment_method TEXT DEFAULT 'cash', p_split_details JSONB DEFAULT '{}'
+)
+RETURNS JSON AS $$
+DECLARE
+  v_order_id UUID;
+  v_invoice_no TEXT;
+  v_order_created_at TIMESTAMP;
+  v_item JSONB;
+BEGIN
+  v_order_id := gen_random_uuid();
+  v_order_created_at := NOW();
+  v_invoice_no := 'INV' || LPAD(CAST(EXTRACT(EPOCH FROM v_order_created_at) * 1000 AS TEXT), 15, '0');
+
+  INSERT INTO public.orders (
+    id, invoice_no, customer_name, phone, address, items, shipping,
+    status, order_mode, order_type, delivery_charge, discount_amount,
+    manual_discount_amount, manual_discount_type, manual_discount_value,
+    coupon_code, coupon_percentage, total_gst, gst_enabled, payment_method,
+    split_details, is_credit, created_at, updated_at
+  ) VALUES (
+    v_order_id, v_invoice_no, p_customer_name, p_phone, p_address, p_items,
+    COALESCE(p_shipping, 0), COALESCE(p_status, 'pending'), COALESCE(p_order_mode, 'online'),
+    COALESCE(p_order_type, 'pos_sale'), COALESCE(p_delivery_charge, 0), COALESCE(p_discount_amount, 0),
+    COALESCE(p_manual_discount_amount, 0), COALESCE(p_manual_discount_type, 'flat'),
+    COALESCE(p_manual_discount_value, 0), p_coupon_code, COALESCE(p_coupon_percentage, 0),
+    COALESCE(p_total_gst, 0), COALESCE(p_gst_enabled, FALSE), COALESCE(p_payment_method, 'cash'),
+    COALESCE(p_split_details, '{}'), FALSE, v_order_created_at, v_order_created_at
+  );
+
+  RETURN json_build_object(
+    'order_id', v_order_id::TEXT,
+    'invoice_no', v_invoice_no,
+    'created_at', v_order_created_at
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION public.create_order_without_stock(
+  p_customer_name TEXT, p_phone TEXT, p_address TEXT, p_items JSONB,
+  p_shipping NUMERIC, p_status TEXT, p_order_mode TEXT, p_order_type TEXT,
+  p_delivery_charge NUMERIC, p_discount_amount NUMERIC,
+  p_manual_discount_amount NUMERIC, p_manual_discount_type TEXT,
+  p_manual_discount_value NUMERIC, p_coupon_code TEXT, p_coupon_percentage NUMERIC
+)
+RETURNS JSON AS $$
+DECLARE
+  v_order_id UUID;
+  v_invoice_no TEXT;
+  v_order_created_at TIMESTAMP;
+BEGIN
+  v_order_id := gen_random_uuid();
+  v_order_created_at := NOW();
+  v_invoice_no := 'INV' || LPAD(CAST(EXTRACT(EPOCH FROM v_order_created_at) * 1000 AS TEXT), 15, '0');
+
+  INSERT INTO public.orders (
+    id, invoice_no, customer_name, phone, address, items, shipping,
+    status, order_mode, order_type, delivery_charge, discount_amount,
+    manual_discount_amount, manual_discount_type, manual_discount_value,
+    coupon_code, coupon_percentage, is_credit, created_at, updated_at
+  ) VALUES (
+    v_order_id, v_invoice_no, p_customer_name, p_phone, p_address, p_items,
+    COALESCE(p_shipping, 0), COALESCE(p_status, 'pending'), COALESCE(p_order_mode, 'online'),
+    COALESCE(p_order_type, 'pos_sale'), COALESCE(p_delivery_charge, 0), COALESCE(p_discount_amount, 0),
+    COALESCE(p_manual_discount_amount, 0), COALESCE(p_manual_discount_type, 'flat'),
+    COALESCE(p_manual_discount_value, 0), p_coupon_code, COALESCE(p_coupon_percentage, 0),
+    FALSE, v_order_created_at, v_order_created_at
+  );
+
+  RETURN json_build_object(
+    'order_id', v_order_id::TEXT,
+    'invoice_no', v_invoice_no,
+    'created_at', v_order_created_at
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION public.get_public_invoice_by_number(p_invoice_no TEXT)
+RETURNS TABLE (
+  id UUID, invoice_no TEXT, customer_name TEXT, phone TEXT, address TEXT,
+  items JSONB, shipping NUMERIC, status TEXT, order_mode TEXT, order_type TEXT,
+  delivery_charge NUMERIC, discount_amount NUMERIC, manual_discount_amount NUMERIC,
+  manual_discount_type TEXT, manual_discount_value NUMERIC, coupon_code TEXT,
+  coupon_percentage NUMERIC, total_gst NUMERIC, gst_enabled BOOLEAN, payment_method TEXT,
+  split_details JSONB, is_credit BOOLEAN, credit_due_date DATE, created_at TIMESTAMP,
+  updated_at TIMESTAMP
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT o.id, o.invoice_no, o.customer_name, o.phone, o.address, o.items, o.shipping,
+         o.status, o.order_mode, o.order_type, o.delivery_charge, o.discount_amount,
+         o.manual_discount_amount, o.manual_discount_type, o.manual_discount_value,
+         o.coupon_code, o.coupon_percentage, o.total_gst, o.gst_enabled, o.payment_method,
+         o.split_details, o.is_credit, o.credit_due_date, o.created_at, o.updated_at
+  FROM public.orders o
+  WHERE UPPER(o.invoice_no) = UPPER(COALESCE(p_invoice_no, ''))
+  ORDER BY o.created_at DESC
+  LIMIT 1;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION public.create_barcode_and_receive_stock(
+  p_product_id INTEGER, p_variant_id TEXT DEFAULT NULL,
+  p_quantity_received NUMERIC DEFAULT 1, p_unit_cost NUMERIC DEFAULT NULL,
+  p_created_by_name TEXT DEFAULT 'Admin', p_custom_barcode TEXT DEFAULT NULL,
+  p_note TEXT DEFAULT ''
+)
+RETURNS JSON AS $$
+DECLARE
+  v_barcode_id UUID;
+  v_barcode_value TEXT;
+  v_created_at TIMESTAMP;
+BEGIN
+  v_barcode_id := gen_random_uuid();
+  v_created_at := NOW();
+  v_barcode_value := COALESCE(p_custom_barcode, v_barcode_id::TEXT);
+
+  INSERT INTO public.barcode_registry (
+    id, barcode_value, entity_type, product_id, variant_id, is_active, created_by_name, created_at, updated_at
+  ) VALUES (
+    v_barcode_id, v_barcode_value,
+    CASE WHEN p_variant_id IS NOT NULL THEN 'variant' ELSE 'product' END,
+    p_product_id, p_variant_id, TRUE, COALESCE(p_created_by_name, 'Admin'), v_created_at, v_created_at
+  )
+  ON CONFLICT DO NOTHING;
+
+  IF p_variant_id IS NOT NULL THEN
+    UPDATE public.product_variants SET stock = stock + COALESCE(p_quantity_received, 1) WHERE id = p_variant_id;
+    INSERT INTO public.inventory_movements (product_id, variant_id, movement_type, quantity_delta, quantity_before, quantity_after, unit_cost, reference_type, reference_id, note, created_by_name, created_at)
+    SELECT p_product_id, p_variant_id, 'INITIAL_BARCODE_STOCK', COALESCE(p_quantity_received, 1),
+           (SELECT stock FROM product_variants WHERE id = p_variant_id) - COALESCE(p_quantity_received, 1),
+           (SELECT stock FROM product_variants WHERE id = p_variant_id),
+           p_unit_cost, 'barcode', v_barcode_id::TEXT, COALESCE(p_note, ''), COALESCE(p_created_by_name, 'Admin'), v_created_at;
+  ELSE
+    UPDATE public.products SET stock_quantity = stock_quantity + COALESCE(p_quantity_received, 1) WHERE id = p_product_id;
+    INSERT INTO public.inventory_movements (product_id, movement_type, quantity_delta, quantity_before, quantity_after, unit_cost, reference_type, reference_id, note, created_by_name, created_at)
+    SELECT p_product_id, 'INITIAL_BARCODE_STOCK', COALESCE(p_quantity_received, 1),
+           (SELECT stock_quantity FROM products WHERE id = p_product_id) - COALESCE(p_quantity_received, 1),
+           (SELECT stock_quantity FROM products WHERE id = p_product_id),
+           p_unit_cost, 'barcode', v_barcode_id::TEXT, COALESCE(p_note, ''), COALESCE(p_created_by_name, 'Admin'), v_created_at;
+  END IF;
+
+  RETURN json_build_object(
+    'barcode_id', v_barcode_id::TEXT,
+    'barcode_value', v_barcode_value,
+    'created_at', v_created_at
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION public.create_advance_order(
+  p_customer_name TEXT, p_phone TEXT, p_address TEXT, p_product_name TEXT,
+  p_category TEXT, p_description TEXT, p_total_amount NUMERIC,
+  p_deposit_amount NUMERIC, p_expected_delivery_date TEXT,
+  p_remarks TEXT DEFAULT '', p_payment_method TEXT DEFAULT 'cash',
+  p_created_by_name TEXT DEFAULT 'Admin', p_products JSONB DEFAULT '[]'
+)
+RETURNS JSON AS $$
+DECLARE
+  v_order_id UUID;
+  v_deposit_id TEXT;
+  v_created_at TIMESTAMP;
+BEGIN
+  v_order_id := gen_random_uuid();
+  v_created_at := NOW();
+  v_deposit_id := 'DEP-' || TO_CHAR(v_created_at, 'YYYYMMDD') || '-' || LPAD(CAST(FLOOR(RANDOM()*9000 + 1000) AS TEXT), 4, '0');
+
+  INSERT INTO public.advance_orders (
+    id, deposit_id, customer_name, phone, address, product_name, products,
+    category, description, total_amount, deposit_amount, remaining_balance,
+    expected_delivery_date, status, remarks, reference_number, created_by_name,
+    created_at, updated_at
+  ) VALUES (
+    v_order_id, v_deposit_id, p_customer_name, p_phone, p_address, p_product_name,
+    COALESCE(p_products, '[]'), p_category, p_description, COALESCE(p_total_amount, 0),
+    COALESCE(p_deposit_amount, 0),
+    COALESCE(p_total_amount, 0) - COALESCE(p_deposit_amount, 0),
+    COALESCE(p_expected_delivery_date, NULL),
+    'pending_deposit', COALESCE(p_remarks, ''), '', COALESCE(p_created_by_name, 'Admin'),
+    v_created_at, v_created_at
+  );
+
+  INSERT INTO public.advance_order_timeline (advance_order_id, event_type, label, remarks, created_at)
+  VALUES (v_order_id, 'created', 'Deposit Created', COALESCE(p_remarks, ''), v_created_at);
+
+  RETURN json_build_object(
+    'id', v_order_id::TEXT,
+    'deposit_id', v_deposit_id,
+    'created_at', v_created_at
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION public.update_advance_order_status(
+  p_order_id UUID, p_status TEXT, p_remarks TEXT DEFAULT ''
+)
+RETURNS JSON AS $$
+DECLARE
+  v_updated_at TIMESTAMP;
+BEGIN
+  v_updated_at := NOW();
+
+  UPDATE public.advance_orders
+  SET status = p_status, remarks = COALESCE(p_remarks, remarks), updated_at = v_updated_at
+  WHERE id = p_order_id;
+
+  INSERT INTO public.advance_order_timeline (advance_order_id, event_type, label, remarks, created_at)
+  VALUES (p_order_id, p_status, p_status, COALESCE(p_remarks, ''), v_updated_at);
+
+  RETURN json_build_object(
+    'order_id', p_order_id::TEXT,
+    'status', p_status,
+    'updated_at', v_updated_at
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION public.add_advance_order_event(
+  p_order_id UUID, p_event_type TEXT, p_label TEXT, p_remarks TEXT DEFAULT ''
+)
+RETURNS JSON AS $$
+DECLARE
+  v_created_at TIMESTAMP;
+BEGIN
+  v_created_at := NOW();
+
+  INSERT INTO public.advance_order_timeline (advance_order_id, event_type, label, remarks, created_at)
+  VALUES (p_order_id, p_event_type, p_label, COALESCE(p_remarks, ''), v_created_at);
+
+  RETURN json_build_object(
+    'event_type', p_event_type,
+    'created_at', v_created_at
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION public.complete_advance_order_v2(
+  p_order_id UUID, p_payment_method TEXT, p_final_amount NUMERIC,
+  p_coupon_code TEXT DEFAULT NULL, p_coupon_percentage NUMERIC DEFAULT 0,
+  p_manual_discount NUMERIC DEFAULT 0, p_remarks TEXT DEFAULT ''
+)
+RETURNS JSON AS $$
+DECLARE
+  v_completed_order_id UUID;
+  v_invoice_no TEXT;
+  v_completed_at TIMESTAMP;
+  v_advance_order RECORD;
+BEGIN
+  v_completed_order_id := gen_random_uuid();
+  v_completed_at := NOW();
+  v_invoice_no := 'INV' || LPAD(CAST(EXTRACT(EPOCH FROM v_completed_at) * 1000 AS TEXT), 15, '0');
+
+  SELECT * INTO v_advance_order FROM public.advance_orders WHERE id = p_order_id;
+
+  IF v_advance_order IS NULL THEN
+    RAISE EXCEPTION 'Advance order not found';
+  END IF;
+
+  UPDATE public.advance_orders
+  SET status = 'completed', completed_at = v_completed_at, completed_order_id = v_completed_order_id,
+      invoice_number = v_invoice_no, final_payment_method = p_payment_method, remarks = COALESCE(p_remarks, remarks),
+      updated_at = v_completed_at
+  WHERE id = p_order_id;
+
+  INSERT INTO public.advance_order_timeline (advance_order_id, event_type, label, remarks, created_at)
+  VALUES
+    (p_order_id, 'remaining_payment_received', 'Final Payment Received', COALESCE(p_remarks, ''), v_completed_at),
+    (p_order_id, 'delivered', 'Delivered', COALESCE(p_remarks, ''), v_completed_at),
+    (p_order_id, 'revenue_posted', 'Revenue Posted', COALESCE(p_remarks, ''), v_completed_at),
+    (p_order_id, 'invoice_generated', 'Invoice Generated', v_invoice_no, v_completed_at);
+
+  RETURN json_build_object(
+    'order_id', v_completed_order_id::TEXT,
+    'invoice_no', v_invoice_no,
+    'completed_at', v_completed_at
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION public.adjust_inventory_stock(
+  p_product_id INTEGER, p_variant_id TEXT DEFAULT NULL,
+  p_new_quantity NUMERIC DEFAULT 0, p_reason TEXT DEFAULT 'CORRECTION',
+  p_note TEXT DEFAULT '', p_created_by_name TEXT DEFAULT 'Admin'
+)
+RETURNS JSON AS $$
+DECLARE
+  v_quantity_before NUMERIC;
+  v_quantity_after NUMERIC := p_new_quantity;
+  v_quantity_delta NUMERIC;
+  v_created_at TIMESTAMP;
+BEGIN
+  v_created_at := NOW();
+
+  IF p_variant_id IS NOT NULL THEN
+    SELECT stock INTO v_quantity_before FROM public.product_variants WHERE id = p_variant_id;
+    UPDATE public.product_variants SET stock = p_new_quantity WHERE id = p_variant_id;
+  ELSE
+    SELECT stock_quantity INTO v_quantity_before FROM public.products WHERE id = p_product_id;
+    UPDATE public.products SET stock_quantity = p_new_quantity WHERE id = p_product_id;
+  END IF;
+
+  v_quantity_delta := COALESCE(v_quantity_after, 0) - COALESCE(v_quantity_before, 0);
+
+  INSERT INTO public.inventory_movements (
+    product_id, variant_id, movement_type, quantity_delta, quantity_before, quantity_after,
+    reference_type, note, created_by_name, created_at
+  ) VALUES (
+    p_product_id, p_variant_id, p_reason, v_quantity_delta,
+    COALESCE(v_quantity_before, 0), COALESCE(v_quantity_after, 0),
+    'adjustment', COALESCE(p_note, ''), COALESCE(p_created_by_name, 'Admin'), v_created_at
+  );
+
+  RETURN json_build_object(
+    'product_id', p_product_id,
+    'variant_id', p_variant_id,
+    'quantity_before', COALESCE(v_quantity_before, 0),
+    'quantity_after', v_quantity_after,
+    'quantity_delta', v_quantity_delta
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- ============================================================================
 -- ROW LEVEL SECURITY POLICIES
 -- ============================================================================
 
