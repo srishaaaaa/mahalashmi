@@ -155,7 +155,7 @@ export const QuickAddScannedProductModal: React.FC<QuickAddScannedProductModalPr
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full h-11 px-3 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:border-[var(--accent)]"
+                className="w-full h-11 px-3 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-900 outline-none focus:border-[var(--accent)] touch-manipulation appearance-none relative z-20"
               >
                 {categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>

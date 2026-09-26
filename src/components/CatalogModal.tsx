@@ -147,11 +147,11 @@ export default function CatalogModal({ isOpen, onClose, onAdd }: CatalogModalPro
                   className="w-full px-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl focus:outline-none focus:border-[var(--accent)] text-[13px] font-bold" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
+                <div className="relative z-50">
                   <label className="block text-[10px] font-black text-[#374151] tracking-wider uppercase mb-1.5">Category</label>
                   <select value={editForm.category}
                     onChange={e => setEditForm({...editForm, category: e.target.value})}
-                    className="w-full min-w-0 h-12 px-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl focus:outline-none focus:border-[var(--accent)] text-[13px] font-bold touch-manipulation">
+                    className="w-full min-w-0 h-12 px-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB]/60 rounded-xl focus:outline-none focus:border-[var(--accent)] text-[13px] font-bold touch-manipulation appearance-none">
                     <option value="">Select category</option>
                     {allCategoryOptions.map(category => <option key={category.id} value={category.name_en}>{category.name_en}</option>)}
                     {!allCategoryOptions.some(category => category.name_en === editForm.category) && editForm.category && (

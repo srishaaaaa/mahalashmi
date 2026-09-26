@@ -109,6 +109,23 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     return { unitType: preset.unitType, unit: preset.unit, suffix: preset.suffix }
   }
 
+  const generateRandomDates = () => {
+    const today = new Date()
+
+    const mfgDaysAgo = Math.floor(Math.random() * 30) + 1
+    const mfgDate = new Date(today)
+    mfgDate.setDate(mfgDate.getDate() - mfgDaysAgo)
+    const mfgFormatted = `${String(mfgDate.getDate()).padStart(2, '0')}/${String(mfgDate.getMonth() + 1).padStart(2, '0')}/${mfgDate.getFullYear()}`
+
+    const expiryDaysFromToday = Math.floor(Math.random() * 335) + 30
+    const expiryDate = new Date(today)
+    expiryDate.setDate(expiryDate.getDate() + expiryDaysFromToday)
+    const expiryFormatted = `${String(expiryDate.getDate()).padStart(2, '0')}/${String(expiryDate.getMonth() + 1).padStart(2, '0')}/${expiryDate.getFullYear()}`
+
+    setMfgDate(mfgFormatted)
+    setExpiryDate(expiryFormatted)
+  }
+
   useEffect(() => {
     void fetchProducts()
     inventoryService.fetchCategories().then(setCategories).catch(console.error)
@@ -993,7 +1010,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                           setSoldByWeight(false)
                         }
                       }}
-                      className="w-full sm:max-w-xs h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                      className="w-full sm:max-w-xs h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A] touch-manipulation appearance-none relative z-20"
                     >
                       {UNIT_GROUPS.map((group) => (
                         <optgroup key={group} label={group}>
@@ -1030,7 +1047,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                         <select
                           value={contentUnit}
                           onChange={(e) => setContentUnit(e.target.value)}
-                          className="h-9 px-3 rounded-lg border border-blue-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-blue-600"
+                          className="h-9 px-3 rounded-lg border border-blue-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-blue-600 touch-manipulation appearance-none relative z-20"
                         >
                           <option value="">Unit</option>
                           <option value="ml">ml</option>
@@ -1292,7 +1309,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                         <select
                           value={categoryId}
                           onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : '')}
-                          className="w-full h-10 px-3 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                          className="w-full h-10 px-3 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A] touch-manipulation appearance-none relative z-20"
                         >
                           <option value="">-- Select Category --</option>
                           {categories.map((c) => (
@@ -1354,13 +1371,25 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                         />
                       </div>
 
-                      <DateInputDDMMYYYY
-                        label="Mfg Date"
-                        value={mfgDate}
-                        onChange={setMfgDate}
-                        placeholder="DD/MM/YYYY"
-                        className="h-10 px-3.5 text-xs"
-                      />
+                      <div className="flex gap-2 items-end">
+                        <div className="flex-1">
+                          <DateInputDDMMYYYY
+                            label="Mfg Date"
+                            value={mfgDate}
+                            onChange={setMfgDate}
+                            placeholder="DD/MM/YYYY"
+                            className="h-10 px-3.5 text-xs"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={generateRandomDates}
+                          title="Generate random manufacture and expiry dates"
+                          className="h-10 px-3 rounded-lg bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-700 text-xs font-bold transition-colors shrink-0"
+                        >
+                          🎲
+                        </button>
+                      </div>
 
                       <DateInputDDMMYYYY
                         label="Expiry Date"

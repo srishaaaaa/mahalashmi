@@ -154,7 +154,7 @@ export const AddUnregisteredItemModal: React.FC<Props> = ({ isOpen, onClose, onS
               <select
                 value={unitChoice}
                 onChange={(e) => setUnitChoice(e.target.value)}
-                className="w-full px-3 py-2 bg-[#FBFAF6] border border-gray-200 rounded-xl text-xs font-bold text-[#111111] focus:outline-none focus:border-[#0A0A0A] focus:bg-white transition-colors"
+                className="w-full px-3 py-2 bg-[#FBFAF6] border border-gray-200 rounded-xl text-xs font-bold text-[#111111] focus:outline-none focus:border-[#0A0A0A] focus:bg-white transition-colors touch-manipulation appearance-none relative z-20"
               >
                 {UNIT_GROUPS.map((group) => (
                   <optgroup key={group} label={group}>

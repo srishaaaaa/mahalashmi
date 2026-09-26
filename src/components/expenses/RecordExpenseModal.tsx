@@ -135,7 +135,7 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full h-11 px-3 rounded-xl border border-gray-300 bg-[#FAFAFA] text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A] focus:bg-white cursor-pointer transition-all"
+              className="w-full h-11 px-3 rounded-xl border border-gray-300 bg-[#FAFAFA] text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A] focus:bg-white cursor-pointer transition-all touch-manipulation appearance-none relative z-20"
             >
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
