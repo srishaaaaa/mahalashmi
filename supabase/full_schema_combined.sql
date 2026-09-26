@@ -1,19 +1,25 @@
 -- ============================================================================
--- Mahalashmi Stores - Consolidated Schema (clean, deduplicated snapshot)
+-- Mahalashmi Stores - Master Database Schema (Single Deployment File)
 --
--- This is NOT a concatenation of migration files. It is a hand-consolidated
--- rewrite that reflects today's final database state: one CREATE TABLE per
--- table with its final column set, one final version of every function
--- (superseded CREATE OR REPLACE bodies from earlier migrations are dropped),
--- and no historical one-off data fixes / rebrand UPDATE chains that only
--- mattered when transitioning an existing database from one state to
--- another. Individual migration files under supabase/migrations/ remain the
--- source of history; this file is for provisioning a fresh project in one
--- shot or for reading the schema as it stands today.
+-- PRODUCTION DEPLOYMENT FILE: This is the complete, final database schema
+-- reflecting the current state of all tables, functions, policies, storage,
+-- and seed data. Use this file to:
 --
--- Regenerate by hand after adding a new migration: add the new/changed
--- columns to the relevant CREATE TABLE, replace outdated function bodies
--- with the new ones, and update seed data if it changed.
+-- 1. Provision a fresh Supabase project from scratch
+-- 2. Review the complete database state
+-- 3. Deploy to production or staging environments
+--
+-- Contains:
+-- - 30+ tables with final columns and constraints
+-- - 15+ functions and 10+ triggers (all latest versions)
+-- - Row-level security policies for all tables
+-- - Storage buckets and object policies
+-- - Realtime subscriptions configuration
+-- - Seed data (sequences, categories, settings, expense types)
+-- - All migrations applied (updates, fixes, and data transformations)
+--
+-- Individual migration files under supabase/migrations/ are kept for
+-- historical reference and incremental deployments via Supabase CLI.
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
