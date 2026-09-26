@@ -134,7 +134,7 @@ export const DateInputDDMMYYYY: React.FC<DateInputDDMMYYYYProps> = ({
           placeholder={placeholder}
           required={required}
           disabled={disabled}
-          className={`w-full px-3 py-2 bg-white border rounded-xl focus:outline-none focus:border-[var(--accent)] text-[13px] font-bold text-[#111111] placeholder:text-gray-400 ${
+          className={`w-full px-3 py-2 bg-white border rounded-xl focus:outline-none focus:border-[var(--accent)] text-[13px] font-bold text-[#111111] placeholder:text-gray-400 pr-10 ${
             hasError ? 'border-red-500 focus:border-red-500' : 'border-gray-200'
           } ${className}`}
         />
@@ -143,19 +143,13 @@ export const DateInputDDMMYYYY: React.FC<DateInputDDMMYYYYProps> = ({
           type="date"
           onChange={handleNativeDateChange}
           disabled={disabled}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          className="absolute right-2 top-1/2 -translate-y-1/2 w-12 h-8 cursor-pointer opacity-0"
           aria-hidden="true"
-          tabIndex={-1}
+          style={{ pointerEvents: 'auto' }}
         />
-        <button
-          type="button"
-          onClick={() => nativeInputRef.current?.click()}
-          disabled={disabled}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[var(--accent)] transition-colors disabled:opacity-50 cursor-pointer"
-          tabIndex={-1}
-        >
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
           {hasError ? <AlertCircle size={18} className="text-red-600" /> : <Calendar size={18} />}
-        </button>
+        </div>
       </div>
       {hasError && (
         <p className="mt-1 text-[11px] text-red-600 font-bold flex items-center gap-1">
