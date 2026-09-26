@@ -67,15 +67,15 @@ export const StockHistoryDrawer: React.FC<StockHistoryDrawerProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-xs flex justify-end">
-      <div className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-200 border-l border-[#B7E1BE]">
+      <div className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-200 border-l border-[#B7E1BE] safe-area-inset-right">
         {/* Header */}
-        <div className="bg-[#0A0A0A] p-5 border-b border-[var(--accent-a30)] flex items-center justify-between text-white">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#1A1A1A] border border-[var(--accent)] flex items-center justify-center text-[var(--accent)]">
+        <div className="bg-[#0A0A0A] px-5 py-4 border-b border-[var(--accent-a30)] flex items-center justify-between text-white sticky top-0 z-10 safe-area-inset-top min-h-16">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 rounded-xl bg-[#1A1A1A] border border-[var(--accent)] flex items-center justify-center text-[var(--accent)] shrink-0">
               <History size={18} />
             </div>
-            <div>
-              <h2 className="text-base font-black tracking-wide text-white">
+            <div className="min-w-0">
+              <h2 className="text-base font-black tracking-wide text-white truncate">
                 Stock Audit Ledger
               </h2>
               <p className="text-xs text-[var(--accent)] font-semibold">
@@ -85,18 +85,19 @@ export const StockHistoryDrawer: React.FC<StockHistoryDrawerProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
+            title="Close"
+            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer shrink-0 ml-2"
           >
-            <X size={16} />
+            <X size={20} />
           </button>
         </div>
 
         {/* Item Summary Bar */}
-        <div className="bg-[#FBFAF6] border-b border-[#B7E1BE] p-4">
-          <div className="text-[10px] font-black uppercase tracking-wider text-[var(--accent-dark)]">
-            Target SKU
+        <div className="bg-[#FBFAF6] border-b border-[#B7E1BE] p-4 sticky top-16 z-10">
+          <div className="text-[11px] font-black uppercase tracking-wider text-[var(--accent-dark)] mb-1">
+            📦 Target SKU
           </div>
-          <div className="text-sm font-black text-black">{item.name}</div>
+          <div className="text-base font-black text-black break-words">{item.name}</div>
           {item.variant_name && (
             <div className="mt-1 inline-block text-xs font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
               Variant: {item.variant_name}
