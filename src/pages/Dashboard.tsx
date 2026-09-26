@@ -280,29 +280,33 @@ export default function Dashboard() {
 
   const deletedOrderIds = React.useRef<Set<string>>(new Set())
 
-  const toDashboardOrder = (row: Record<string, unknown>): DashboardOrder => ({
-    id: String(row.id || ''), invoice_no: String(row.invoice_no || ''),
-    customer_name: String(row.customer_name || ''), phone: String(row.phone || ''),
-    address: String(row.address || ''),
-    created_at: String(row.created_at || ''), total: toNumber(row.total, 0),
-    status: String(row.status || 'pending'),
-    order_mode: normalizeOrderMode(row.order_mode),
-    order_type: normalizeOrderType(row.order_type),
-    user_id: typeof row.user_id === 'string' ? row.user_id : null,
-    items: row.items,
-    coupon_code: String(row.coupon_code || ''),
-    discount_amount: toNumber(row.discount_amount, 0),
-    manual_discount_amount: toNumber(row.manual_discount_amount, 0),
-    delivery_charge: toNumber(row.delivery_charge, 0),
-    total_gst: toNumber(row.total_gst ?? row.gst_amount, 0),
-    payment_mode: String(row.payment_mode || row.payment_method || ''),
-    invoice_pdf_url: String(row.invoice_pdf_url || ''),
-    remarks: row.remarks ? String(row.remarks) : undefined,
-    reference_number: row.reference_number ? String(row.reference_number) : undefined,
-    credit_due_date: row.credit_due_date ? String(row.credit_due_date) : null,
-    credit_status: row.credit_status ? String(row.credit_status) : null,
-    credit_paid_at: row.credit_paid_at ? String(row.credit_paid_at) : null,
-  })
+  const toDashboardOrder = (row: Record<string, unknown>): DashboardOrder => {
+    if (!row.id) throw new Error('Order missing required field: id')
+    if (!row.invoice_no) throw new Error('Order missing required field: invoice_no')
+    return {
+      id: String(row.id), invoice_no: String(row.invoice_no),
+      customer_name: String(row.customer_name || ''), phone: String(row.phone || ''),
+      address: String(row.address || ''),
+      created_at: String(row.created_at || ''), total: toNumber(row.total, 0),
+      status: String(row.status || 'pending'),
+      order_mode: normalizeOrderMode(row.order_mode),
+      order_type: normalizeOrderType(row.order_type),
+      user_id: typeof row.user_id === 'string' ? row.user_id : null,
+      items: row.items,
+      coupon_code: String(row.coupon_code || ''),
+      discount_amount: toNumber(row.discount_amount, 0),
+      manual_discount_amount: toNumber(row.manual_discount_amount, 0),
+      delivery_charge: toNumber(row.delivery_charge, 0),
+      total_gst: toNumber(row.total_gst ?? row.gst_amount, 0),
+      payment_mode: String(row.payment_mode || row.payment_method || ''),
+      invoice_pdf_url: String(row.invoice_pdf_url || ''),
+      remarks: row.remarks ? String(row.remarks) : undefined,
+      reference_number: row.reference_number ? String(row.reference_number) : undefined,
+      credit_due_date: row.credit_due_date ? String(row.credit_due_date) : null,
+      credit_status: row.credit_status ? String(row.credit_status) : null,
+      credit_paid_at: row.credit_paid_at ? String(row.credit_paid_at) : null,
+    }
+  }
 
   const handleAdvanceOrderCompleted = useCallback((advance: AdvanceOrder) => {
     if (!advance.completed_order_id || !advance.invoice_number) return
