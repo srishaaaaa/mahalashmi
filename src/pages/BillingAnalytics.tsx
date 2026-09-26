@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  AlertCircle,
   BarChart2,
   Download,
   LayoutDashboard,
@@ -104,6 +105,12 @@ type AnalyticsModel = {
   weeklySales: { day: string; date: string; revenue: number }[]
   topProducts: ProductSummary[]
   topCoupons: BillingCoupon[]
+  // Credit sale metrics
+  totalCreditSales: number
+  creditPaidAmount: number
+  creditOutstandingAmount: number
+  creditPaidCount: number
+  creditOutstandingCount: number
 }
 
 const normalizeStatus = (value: unknown) => String(value || '').trim().toLowerCase()
@@ -325,7 +332,12 @@ export default function BillingAnalytics() {
 
     const nonCancelled = dated.filter((order) => normalizeStatus(order.status) !== 'cancelled')
     const completedOrders = nonCancelled.filter((order) => isCompletedStatus(order.status))
-    const billableCompleted = completedOrders.filter((order) => normalizeOrderType(order.order_type) !== 'online_request')
+    // Exclude unpaid credits from revenue (is_credit=true AND credit_status='outstanding')
+    // Only count paid credits (is_credit=true AND credit_status='paid') or non-credit orders
+    const billableCompleted = completedOrders.filter((order) => {
+      if ((order as any).is_credit === true && (order as any).credit_status === 'outstanding') return false
+      return normalizeOrderType(order.order_type) !== 'online_request'
+    })
 
     const offlinePOS = billableCompleted.filter(
       (order) => normalizeOrderType(order.order_type) === 'pos_sale' && normalizeOrderMode(order.order_mode) !== 'online',
@@ -339,6 +351,14 @@ export default function BillingAnalytics() {
     const posRevenue = offlinePOS.reduce((sum, order) => sum + toNumber(order.total, 0), 0)
     const onlinePosRevenue = onlinePOS.reduce((sum, order) => sum + toNumber(order.total, 0), 0)
     const manualRevenue = manualSales.reduce((sum, order) => sum + toNumber(order.total, 0), 0)
+
+    // Credit metrics: track paid vs outstanding amounts
+    const allCreditOrders = completedOrders.filter((order) => (order as any).is_credit === true)
+    const creditPaidOrders = allCreditOrders.filter((order) => (order as any).credit_status === 'paid')
+    const creditOutstandingOrders = allCreditOrders.filter((order) => (order as any).credit_status === 'outstanding')
+    const totalCreditSales = allCreditOrders.reduce((sum, order) => sum + toNumber(order.total, 0), 0)
+    const creditPaidAmount = creditPaidOrders.reduce((sum, order) => sum + toNumber(order.total, 0), 0)
+    const creditOutstandingAmount = creditOutstandingOrders.reduce((sum, order) => sum + toNumber(order.total, 0), 0)
 
     const todayKey = new Date().toISOString().slice(0, 10)
     const monthKey = todayKey.slice(0, 7)
@@ -473,6 +493,12 @@ export default function BillingAnalytics() {
       weeklySales,
       topProducts,
       topCoupons: Array.from(couponMap.values()).sort((a, b) => b.usage - a.usage),
+      // Credit sale metrics
+      totalCreditSales,
+      creditPaidAmount,
+      creditOutstandingAmount,
+      creditPaidCount: creditPaidOrders.length,
+      creditOutstandingCount: creditOutstandingOrders.length,
     }
   }, [analyticsDateFrom, analyticsDateTo, orderItems, orders, products])
 
@@ -566,6 +592,31 @@ export default function BillingAnalytics() {
       icon: <ShoppingCart size={18} />,
       color: 'text-indigo-700',
       bg: 'bg-indigo-50',
+    },
+    // Credit sale metrics
+    {
+      label: l('Total Credit Sales', 'மொத்த கடன் விற்பனை'),
+      helper: 'All credit sales (paid + unpaid)',
+      value: formatCurrency(analytics.totalCreditSales),
+      icon: <RMIcon size={18} />,
+      color: 'text-purple-700',
+      bg: 'bg-purple-50',
+    },
+    {
+      label: l('Credit Paid', 'கடன் பெற்றுள்ளது'),
+      helper: `${analytics.creditPaidCount} orders settled`,
+      value: formatCurrency(analytics.creditPaidAmount),
+      icon: <Trophy size={18} />,
+      color: 'text-green-700',
+      bg: 'bg-green-50',
+    },
+    {
+      label: l('Credit Outstanding', 'கடன் பகுதியாக'),
+      helper: `${analytics.creditOutstandingCount} orders pending`,
+      value: formatCurrency(analytics.creditOutstandingAmount),
+      icon: <AlertCircle size={18} />,
+      color: 'text-red-700',
+      bg: 'bg-red-50',
     },
   ]
 
