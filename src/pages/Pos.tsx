@@ -216,9 +216,14 @@ export default function Pos(props: PosProps = {}) {
 
     // Load active categories in sort_order
     supabase.from('categories').select('name_en').eq('is_active', true).order('sort_order')
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Failed to load categories:', error.message)
+          return
+        }
         if (data) setDbCategories(data.map(c => c.name_en as string))
       })
+      .catch(err => console.error('Category query error:', err))
 
     return () => { void supabase.removeChannel(productChannel) }
   }, [fetchProducts, fetchVariants])
@@ -657,8 +662,10 @@ export default function Pos(props: PosProps = {}) {
       }
 
       setAppliedCoupon({ code: String(data.code), percentage: Number(data.percentage), minOrderValue: Number(data.min_order_value || 0), discount: Number(data.discount || 0) })
-    } catch {
-      setCouponError('Failed to validate coupon. Try again.')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      console.error('Coupon validation error:', msg)
+      setCouponError('Coupon validation failed. Check your connection.')
     } finally {
       setCouponLoading(false)
     }
