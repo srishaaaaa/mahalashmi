@@ -278,22 +278,6 @@ export default function CustomerEvents() {
               placeholder="Search by name or phone"
             />
           </label>
-          <div className="flex flex-wrap gap-2">
-            {([
-              ['all', `All (${tracked.length})`],
-              ['birthday', 'Birthdays'],
-              ['anniversary', 'Anniversaries'],
-              ['today', `Today (${stats.today})`],
-            ] as const).map(([value, label]) => (
-              <button
-                key={value}
-                onClick={() => setFilter(value)}
-                className={`rounded-lg px-3 py-2 text-xs font-black cursor-pointer ${filter === value ? 'bg-[var(--accent-dark)] text-white' : 'bg-[#F5F3F7] text-[#626B61]'}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
 
         <div className="border-t border-[#E5E7EB] pt-3">
@@ -348,98 +332,182 @@ export default function CustomerEvents() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-[#ECE9E2] bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#F8F7F4] text-[10px] font-black uppercase tracking-wider text-[#737B72]">
-              <tr>
-                {['#', 'Name', 'Phone', 'Birthday', 'Anniversary', '', 'Actions'].map(h => (
-                  <th key={h} className="px-4 py-3.5 whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#F0EEE9]">
-              {loading ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-[#6B7280]"><RefreshCw size={18} className="animate-spin inline" /></td></tr>
-              ) : filtered.length === 0 ? (
+      {/* Birthdays Section */}
+      <div className="rounded-2xl border border-[#ECE9E2] bg-white shadow-sm overflow-hidden">
+        <div className="px-4 py-4 sm:px-5 sm:py-5 border-b border-[#E5E7EB] bg-[#FBFAF6] flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-pink-100 text-pink-600 flex items-center justify-center font-black">
+            <Cake size={18} />
+          </div>
+          <div>
+            <h3 className="font-black text-sm text-[#273126]">Birthdays</h3>
+            <p className="text-[11px] font-semibold text-[#6B7280] mt-0.5">Upcoming customer birthdays</p>
+          </div>
+        </div>
+        {loading ? (
+          <div className="px-4 py-12 text-center text-[#6B7280]"><RefreshCw size={18} className="animate-spin inline" /></div>
+        ) : filtered.filter(c => c.birthday).length === 0 ? (
+          <div className="px-4 py-12 text-center text-sm text-[#6B7280]">
+            {tracked.filter(c => c.birthday).length === 0 ? 'No birthdays saved yet.' : 'No birthdays match these filters.'}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs whitespace-nowrap">
+              <thead className="bg-[#F8F7F4] border-t border-[#E5E7EB] text-[10px] font-black uppercase tracking-wider text-[#737B72]">
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-[#6B7280]">
-                    {tracked.length === 0 ? (
-                      <>
-                        No birthdays or anniversaries saved yet.{' '}
-                        <button type="button" onClick={openAdd} className="font-bold text-[var(--accent)] hover:underline cursor-pointer">
-                          Add your first customer
-                        </button>
-                      </>
-                    ) : 'No customers match these filters.'}
-                  </td>
+                  <th className="px-4 py-3 whitespace-nowrap">#</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Name</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Phone</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Date</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Actions</th>
                 </tr>
-              ) : (
-                filtered.map((c, idx) => {
-                  const birthdayToday = isTodayMonthDay(c.birthday)
-                  const anniversaryToday = isTodayMonthDay(c.anniversary)
+              </thead>
+              <tbody className="divide-y divide-[#F0EEE9]">
+                {filtered.filter(c => c.birthday).map((c, idx) => {
+                  const isBirthdayToday = isTodayMonthDay(c.birthday)
                   return (
-                    <tr key={c.id} className={`transition-colors ${birthdayToday || anniversaryToday ? 'bg-pink-50/60 hover:bg-pink-50' : 'hover:bg-emerald-50/30'}`}>
-                      <td className="px-4 py-3.5 align-middle text-[#9CA3AF]">{idx + 1}</td>
-                      <td className="whitespace-nowrap px-4 py-3.5 align-middle font-bold text-[#273126]">{c.name || '—'}</td>
-                      <td className="px-4 py-3.5 align-middle text-[#6B7280] whitespace-nowrap">{formatPhoneDisplay(c.phone) || c.phone}</td>
-                      <td className="px-4 py-3.5 align-middle whitespace-nowrap">
-                        <span className={birthdayToday ? 'inline-flex items-center gap-1 rounded-full bg-pink-100 px-2.5 py-1 text-[11px] font-black text-pink-700' : 'text-[#6B7280]'}>
-                          {birthdayToday && <Cake size={12} />} {formatMonthDay(c.birthday)}
+                    <tr key={c.id} className={`transition-colors ${isBirthdayToday ? 'bg-pink-50/60 hover:bg-pink-50' : 'hover:bg-emerald-50/30'}`}>
+                      <td className="px-4 py-3.5 text-[#9CA3AF]">{idx + 1}</td>
+                      <td className="px-4 py-3.5 font-bold text-[#273126]">{c.name || '—'}</td>
+                      <td className="px-4 py-3.5 text-[#6B7280]">{formatPhoneDisplay(c.phone)}</td>
+                      <td className="px-4 py-3.5">
+                        <span className={isBirthdayToday ? 'inline-flex items-center gap-1 rounded-full bg-pink-100 px-2.5 py-1 text-[10px] font-black text-pink-700' : 'text-[#6B7280]'}>
+                          {isBirthdayToday && <Cake size={11} />} {formatMonthDay(c.birthday)}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 align-middle whitespace-nowrap">
-                        <span className={anniversaryToday ? 'inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-black text-rose-700' : 'text-[#6B7280]'}>
-                          {anniversaryToday && <Heart size={12} />} {formatMonthDay(c.anniversary)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 align-middle whitespace-nowrap">
-                        {(birthdayToday || anniversaryToday) && (
-                          <button
-                            type="button"
-                            onClick={() => sendWishes(c, birthdayToday ? 'birthday' : 'anniversary')}
-                            className="flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1.5 text-[11px] font-black text-white cursor-pointer"
-                          >
-                            <MessageCircle size={12} /> Send Wishes
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 align-middle whitespace-nowrap">
+                      <td className="px-4 py-3.5">
                         <div className="flex items-center gap-1.5">
+                          {isBirthdayToday && (
+                            <button
+                              type="button"
+                              onClick={() => sendWishes(c, 'birthday')}
+                              className="flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1.5 text-[10px] font-black text-white cursor-pointer"
+                            >
+                              <MessageCircle size={11} /> Send
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => openView(c)}
-                            className="flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:text-[var(--accent)] hover:border-[var(--accent)] hover:bg-[#EAF6EC] transition-all cursor-pointer"
+                            className="flex items-center justify-center w-6 h-6 rounded-lg border border-gray-200 text-gray-500 hover:text-[var(--accent)] hover:border-[var(--accent)] hover:bg-[#EAF6EC] transition-all cursor-pointer"
                             title={`View "${c.name}"`}
                           >
-                            <Eye size={13} />
+                            <Eye size={12} />
                           </button>
                           <button
                             type="button"
                             onClick={() => openEdit(c)}
-                            className="flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:text-[var(--accent)] hover:border-[var(--accent)] hover:bg-[#EAF6EC] transition-all cursor-pointer"
+                            className="flex items-center justify-center w-6 h-6 rounded-lg border border-gray-200 text-gray-500 hover:text-[var(--accent)] hover:border-[var(--accent)] hover:bg-[#EAF6EC] transition-all cursor-pointer"
                             title={`Edit "${c.name}"`}
                           >
-                            <Pencil size={13} />
+                            <Pencil size={12} />
                           </button>
                           <button
                             type="button"
                             onClick={() => void deleteCustomer(c)}
                             disabled={deletingId === c.id}
-                            className="flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer disabled:opacity-50"
+                            className="flex items-center justify-center w-6 h-6 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer disabled:opacity-50"
                             title={`Delete "${c.name}"`}
                           >
-                            {deletingId === c.id ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                            {deletingId === c.id ? <RefreshCw size={12} className="animate-spin" /> : <Trash2 size={12} />}
                           </button>
                         </div>
                       </td>
                     </tr>
                   )
-                })
-              )}
-            </tbody>
-          </table>
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Anniversaries Section */}
+      <div className="rounded-2xl border border-[#ECE9E2] bg-white shadow-sm overflow-hidden">
+        <div className="px-4 py-4 sm:px-5 sm:py-5 border-b border-[#E5E7EB] bg-[#FBFAF6] flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center font-black">
+            <Heart size={18} />
+          </div>
+          <div>
+            <h3 className="font-black text-sm text-[#273126]">Anniversaries</h3>
+            <p className="text-[11px] font-semibold text-[#6B7280] mt-0.5">Upcoming customer anniversaries</p>
+          </div>
         </div>
+        {loading ? (
+          <div className="px-4 py-12 text-center text-[#6B7280]"><RefreshCw size={18} className="animate-spin inline" /></div>
+        ) : filtered.filter(c => c.anniversary).length === 0 ? (
+          <div className="px-4 py-12 text-center text-sm text-[#6B7280]">
+            {tracked.filter(c => c.anniversary).length === 0 ? 'No anniversaries saved yet.' : 'No anniversaries match these filters.'}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs whitespace-nowrap">
+              <thead className="bg-[#F8F7F4] border-t border-[#E5E7EB] text-[10px] font-black uppercase tracking-wider text-[#737B72]">
+                <tr>
+                  <th className="px-4 py-3 whitespace-nowrap">#</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Name</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Phone</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Date</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#F0EEE9]">
+                {filtered.filter(c => c.anniversary).map((c, idx) => {
+                  const isAnniversaryToday = isTodayMonthDay(c.anniversary)
+                  return (
+                    <tr key={c.id} className={`transition-colors ${isAnniversaryToday ? 'bg-rose-50/60 hover:bg-rose-50' : 'hover:bg-emerald-50/30'}`}>
+                      <td className="px-4 py-3.5 text-[#9CA3AF]">{idx + 1}</td>
+                      <td className="px-4 py-3.5 font-bold text-[#273126]">{c.name || '—'}</td>
+                      <td className="px-4 py-3.5 text-[#6B7280]">{formatPhoneDisplay(c.phone)}</td>
+                      <td className="px-4 py-3.5">
+                        <span className={isAnniversaryToday ? 'inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-[10px] font-black text-rose-700' : 'text-[#6B7280]'}>
+                          {isAnniversaryToday && <Heart size={11} />} {formatMonthDay(c.anniversary)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-1.5">
+                          {isAnniversaryToday && (
+                            <button
+                              type="button"
+                              onClick={() => sendWishes(c, 'anniversary')}
+                              className="flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1.5 text-[10px] font-black text-white cursor-pointer"
+                            >
+                              <MessageCircle size={11} /> Send
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => openView(c)}
+                            className="flex items-center justify-center w-6 h-6 rounded-lg border border-gray-200 text-gray-500 hover:text-[var(--accent)] hover:border-[var(--accent)] hover:bg-[#EAF6EC] transition-all cursor-pointer"
+                            title={`View "${c.name}"`}
+                          >
+                            <Eye size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openEdit(c)}
+                            className="flex items-center justify-center w-6 h-6 rounded-lg border border-gray-200 text-gray-500 hover:text-[var(--accent)] hover:border-[var(--accent)] hover:bg-[#EAF6EC] transition-all cursor-pointer"
+                            title={`Edit "${c.name}"`}
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void deleteCustomer(c)}
+                            disabled={deletingId === c.id}
+                            className="flex items-center justify-center w-6 h-6 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer disabled:opacity-50"
+                            title={`Delete "${c.name}"`}
+                          >
+                            {deletingId === c.id ? <RefreshCw size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Add / Edit Modal */}
