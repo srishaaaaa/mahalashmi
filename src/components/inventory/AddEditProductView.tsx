@@ -71,7 +71,6 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
 
   // Form State
   const [name, setName] = useState('')
-  const [nameTa, setNameTa] = useState('')
   const [categoryId, setCategoryId] = useState<number | ''>('')
   const [price, setPrice] = useState<string>('')
   const [purchasePrice, setPurchasePrice] = useState<string>('')
@@ -134,7 +133,6 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
   const resetForm = () => {
     setSelectedProductId(null)
     setName('')
-    setNameTa('')
     setCategoryId('')
     setPrice('')
     setPurchasePrice('')
@@ -162,7 +160,6 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     setMobileView('form')
     setSelectedProductId(Number(p.id))
     setName(p.name || '')
-    setNameTa(p.nameTa || p.tamilName || '')
     setCategoryId(p.categoryId ? Number(p.categoryId) : '')
     setPrice(String(p.price || ''))
     setPurchasePrice(String(p.purchasePrice || ''))
@@ -347,7 +344,6 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
             .from('products')
             .update({
               name: trimmedName,
-              name_ta: nameTa.trim() || '',
               category: categoryName,
               category_id: categoryId ? Number(categoryId) : null,
               price: priceNum,
@@ -542,7 +538,6 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
             .from('products')
             .update({
               name: trimmedName,
-              name_ta: nameTa.trim() || '',
               category: categoryName,
               category_id: categoryId ? Number(categoryId) : null,
               price: priceNum,
@@ -584,7 +579,6 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
             .from('products')
             .insert({
               name: trimmedName,
-              name_ta: nameTa.trim() || '',
               category: categoryName,
               category_id: categoryId ? Number(categoryId) : null,
               price: priceNum,
@@ -661,7 +655,6 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
             .from('products')
             .insert({
               name: trimmedName,
-              name_ta: nameTa.trim() || '',
               category: categoryName,
               category_id: categoryId ? Number(categoryId) : null,
               price: priceNum,
@@ -975,18 +968,6 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                 />
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                  Tamil Name <span className="text-gray-400 font-normal ml-1">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. உப்பு, அரிசி, பால்"
-                  value={nameTa}
-                  onChange={(e) => setNameTa(e.target.value)}
-                  className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-                />
-              </div>
             </div>
 
             {!name.trim() ? (

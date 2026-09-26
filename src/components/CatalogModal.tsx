@@ -78,7 +78,6 @@ export default function CatalogModal({ isOpen, onClose, onAdd }: CatalogModalPro
     if (activeCategory !== 'All') src = src.filter(p => p.category === activeCategory)
     if (q) src = src.filter(p =>
       p.name.toLowerCase().includes(q) ||
-      (p.nameTa || '').toLowerCase().includes(q) ||
       p.category.toLowerCase().includes(q) ||
       (p.location || '').toLowerCase().includes(q)
     )
@@ -188,7 +187,7 @@ export default function CatalogModal({ isOpen, onClose, onAdd }: CatalogModalPro
                 <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#374151]" />
                 <input type="text" value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="Search by product name, Tamil name, or category..."
+                  placeholder="Search by product name or category..."
                   className="w-full pl-10 pr-4 py-3 bg-[#FAFAFA] border border-[#E5E7EB]/60 rounded-xl focus:outline-none focus:border-[var(--accent)] text-[13px] font-bold text-[#111111]" />
               </div>
               <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">

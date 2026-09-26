@@ -8,8 +8,6 @@ export interface InvoiceItem {
   id?: number | string
   product_id?: number | null
   name: string
-  nameTa?: string | null
-  tamil_name?: string | null
   qty: number
   quantity?: number
   unit?: string
@@ -190,13 +188,11 @@ export const Invoice: React.FC<InvoiceProps> = ({
           <tbody>
             {items.map((item, idx) => {
               const normalized = normalizeStructuredOrderItem(item as unknown as Record<string, unknown>)
-              const displayName = normalized.tamil_name || item.nameTa || normalized.name
               return (
                 <tr key={idx} style={{ borderBottom: '1px solid #f0f0f0' }}>
                   <td style={{ padding: '10px 8px', fontSize: 11, color: '#999', verticalAlign: 'top' }}>{idx + 1}</td>
                   <td style={{ padding: '10px 8px', verticalAlign: 'top' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: '#0A0A0A' }}>{normalized.name}</div>
-                    {displayName && displayName !== normalized.name && <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>{displayName}</div>}
                     {item.offerPrice && item.price !== item.offerPrice && (
                       <div style={{ fontSize: 10, color: '#aaa', textDecoration: 'line-through', marginTop: 2 }}>MRP ₹{item.price}</div>
                     )}

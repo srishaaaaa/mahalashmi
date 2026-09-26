@@ -113,7 +113,6 @@ export default function ImageMappingTool() {
     if (!q) return products
     return products.filter(p =>
       p.name.toLowerCase().includes(q) ||
-      (p.nameTa || '').toLowerCase().includes(q) ||
       p.category.toLowerCase().includes(q),
     )
   }, [products, productSearch])
@@ -606,7 +605,7 @@ export default function ImageMappingTool() {
                         <option value="">— Select product —</option>
                         {filteredProducts.map(p => (
                           <option key={p.id} value={String(p.id)}>
-                            {p.name}{p.nameTa ? ` / ${p.nameTa}` : ''} · {p.category}
+                            {p.name} · {p.category}
                           </option>
                         ))}
                       </select>

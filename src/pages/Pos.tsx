@@ -243,7 +243,6 @@ export default function Pos(props: PosProps = {}) {
     if (activeCategory !== 'All') src = src.filter(p => p.category === activeCategory)
     if (q) src = src.filter(p =>
       p.name.toLowerCase().includes(q) ||
-      (p.nameTa || '').toLowerCase().includes(q) ||
       p.category.toLowerCase().includes(q)
     )
     return src.slice(0, 120)
@@ -389,8 +388,6 @@ export default function Pos(props: PosProps = {}) {
         const item = makePosItem({
           id: targetId,
           name: scanned.product_name,
-          nameTa: scanned.name_ta || undefined,
-          tamilName: scanned.name_ta || undefined,
           category: scanned.category || 'Apparel',
           remedy: [],
           price: scanned.price,
@@ -496,8 +493,6 @@ export default function Pos(props: PosProps = {}) {
       const newItem: PosItem = {
         id: product.id,
         name: input.name,
-        nameTa: undefined,
-        tamilName: undefined,
         category: 'Unregistered',
         categoryId: undefined,
         remedy: [],
@@ -757,7 +752,6 @@ export default function Pos(props: PosProps = {}) {
           variantId:    item.variantId   ?? null,
           variantName:  item.variantName ?? null,
           name: item.name,
-          tamilName: item.tamilName || item.nameTa || null,
           quantity: item.qty,
           unit: item.selectedUnit,
           unitType: item.unitType,
@@ -949,7 +943,6 @@ export default function Pos(props: PosProps = {}) {
     const invoiceItems = invoice.items.map(item => ({
       id: item.id,
       name: item.name,
-      nameTa: item.nameTa,
       qty: item.qty,
       quantity: item.qty,
       unit: item.selectedUnit,

@@ -13,7 +13,6 @@ export const CategoryManagerView: React.FC = () => {
 
   // Form State for Add / Edit
   const [nameEn, setNameEn] = useState('')
-  const [nameTa, setNameTa] = useState('')
   const [sortOrder, setSortOrder] = useState<number>(0)
   const [isActive, setIsActive] = useState<boolean>(true)
   const [saving, setSaving] = useState(false)
@@ -40,7 +39,6 @@ export const CategoryManagerView: React.FC = () => {
   const resetForm = () => {
     setEditingId(null)
     setNameEn('')
-    setNameTa('')
     setSortOrder(categories.length)
     setIsActive(true)
     setErrorMessage('')
@@ -49,7 +47,6 @@ export const CategoryManagerView: React.FC = () => {
   const startEdit = (cat: CategoryRecord) => {
     setEditingId(cat.id)
     setNameEn(cat.name_en)
-    setNameTa(cat.name_ta || '')
     setSortOrder(cat.sort_order ?? 0)
     setIsActive(cat.is_active !== false)
     setErrorMessage('')
@@ -73,7 +70,6 @@ export const CategoryManagerView: React.FC = () => {
         // Update
         await inventoryService.updateCategory(editingId, {
           name_en: trimmedEn,
-          name_ta: nameTa.trim() || undefined,
           sort_order: sortOrder,
           is_active: isActive,
         })
@@ -83,7 +79,6 @@ export const CategoryManagerView: React.FC = () => {
         // Create
         await inventoryService.createCategory({
           name_en: trimmedEn,
-          name_ta: nameTa.trim() || undefined,
           sort_order: sortOrder,
           is_active: isActive,
         })
@@ -222,19 +217,6 @@ export const CategoryManagerView: React.FC = () => {
                 placeholder="e.g. Linen Shirts, Sarees, Trousers"
                 value={nameEn}
                 onChange={(e) => setNameEn(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-black uppercase tracking-wider text-gray-700 mb-1">
-                Category Name (Tamil - Optional)
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. சட்டை வகைகள்"
-                value={nameTa}
-                onChange={(e) => setNameTa(e.target.value)}
                 className="w-full h-10 px-3 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
               />
             </div>

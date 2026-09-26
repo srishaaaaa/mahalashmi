@@ -21,8 +21,6 @@ export type { ProductVariant }
 export interface Product {
   id: string | number // Support both legacy numeric IDs and new UUIDs
   name: string
-  nameTa?: string
-  tamilName?: string
   category: string
   categoryId?: number | string | null
   remedy: string[]
@@ -230,8 +228,6 @@ const mapDbProduct = (input: unknown, categoriesById: Record<string, string> = {
   return {
     id: String(p.id || ''),
     name: readString(p.name, 'Product'),
-    nameTa: readString(p.name_ta) || readString(p.tamil_name),
-    tamilName: readString(p.tamil_name) || readString(p.name_ta),
     category: categoriesById[String(categoryId)] || (() => {
       const legacyCategory = readString(p.category).trim()
       return LEGACY_CATEGORY_NAMES.has(legacyCategory.toLowerCase()) ? '' : legacyCategory
