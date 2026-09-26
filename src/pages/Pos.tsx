@@ -38,6 +38,7 @@ import { QuickAddScannedProductModal } from '../components/pos/QuickAddScannedPr
 import { AddUnregisteredItemModal } from '../components/pos/AddUnregisteredItemModal'
 import { getOrCreateUnregisteredProduct } from '../services/productService'
 import { customerService } from '../services/customerService'
+import { DateInputDDMMYYYY } from '../components/DateInputDDMMYYYY'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type PosItem = Product & {
@@ -1143,23 +1144,21 @@ export default function Pos(props: PosProps = {}) {
                 />
               </div>
               <div>
-                <label className="block text-[11px] md:text-[10px] font-bold text-[#374151] mb-1">Birthday <span className="text-gray-400 font-normal">(DD-MM-YYYY)</span></label>
-                <input
-                  type="date"
+                <DateInputDDMMYYYY
+                  label="Birthday"
                   value={customerBirthday}
-                  onChange={e => setCustomerBirthday(e.target.value)}
-                  className="w-full h-10 sm:h-11 px-3 sm:px-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[var(--accent)] text-[13px] font-bold text-[#111111]"
-                  title="Enter birth date in DD-MM-YYYY format"
+                  onChange={setCustomerBirthday}
+                  placeholder="DD/MM/YYYY"
+                  className="h-10 sm:h-11 px-3 sm:px-4"
                 />
               </div>
               <div>
-                <label className="block text-[11px] md:text-[10px] font-bold text-[#374151] mb-1">Anniversary <span className="text-gray-400 font-normal">(DD-MM-YYYY)</span></label>
-                <input
-                  type="date"
+                <DateInputDDMMYYYY
+                  label="Anniversary"
                   value={customerAnniversary}
-                  onChange={e => setCustomerAnniversary(e.target.value)}
-                  className="w-full h-10 sm:h-11 px-3 sm:px-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[var(--accent)] text-[13px] font-bold text-[#111111]"
-                  title="Enter anniversary date in DD-MM-YYYY format"
+                  onChange={setCustomerAnniversary}
+                  placeholder="DD/MM/YYYY"
+                  className="h-10 sm:h-11 px-3 sm:px-4"
                 />
               </div>
               <div>

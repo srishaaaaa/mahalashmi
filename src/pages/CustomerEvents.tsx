@@ -6,6 +6,7 @@ import { customerService, type CustomerRecord } from '../services/customerServic
 import { getErrorMessage } from '../lib/errorMessage'
 import { toWhatsAppUrl, formatPhoneDisplay } from '../lib/phone'
 import { BRAND_EN } from '../lib/brand'
+import { DateInputDDMMYYYY } from '../components/DateInputDDMMYYYY'
 
 type FilterKey = 'all' | 'birthday' | 'anniversary' | 'today'
 
@@ -385,21 +386,21 @@ export default function CustomerEvents() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-[#374151] mb-1">Birthday</label>
-                  <input
-                    type="date"
+                  <DateInputDDMMYYYY
+                    label="Birthday"
                     value={form.birthday}
-                    onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))}
-                    className="w-full px-3 py-2 bg-[#FBFAF6] border border-gray-200 rounded-xl text-xs font-bold text-[#111111] focus:outline-none focus:border-[#0A0A0A] focus:bg-white"
+                    onChange={v => setForm(f => ({ ...f, birthday: v }))}
+                    placeholder="DD/MM/YYYY"
+                    className="px-3 py-2 bg-[#FBFAF6] text-xs"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-[#374151] mb-1">Anniversary</label>
-                  <input
-                    type="date"
+                  <DateInputDDMMYYYY
+                    label="Anniversary"
                     value={form.anniversary}
-                    onChange={e => setForm(f => ({ ...f, anniversary: e.target.value }))}
-                    className="w-full px-3 py-2 bg-[#FBFAF6] border border-gray-200 rounded-xl text-xs font-bold text-[#111111] focus:outline-none focus:border-[#0A0A0A] focus:bg-white"
+                    onChange={v => setForm(f => ({ ...f, anniversary: v }))}
+                    placeholder="DD/MM/YYYY"
+                    className="px-3 py-2 bg-[#FBFAF6] text-xs"
                   />
                 </div>
               </div>

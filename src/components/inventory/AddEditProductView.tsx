@@ -23,6 +23,7 @@ import { normalizeBarcode } from '../../lib/barcode'
 import { roundTo } from '../../lib/retail'
 import { UNIT_OPTIONS, UNIT_GROUPS, findUnitOption } from '../../lib/units'
 import { formatDateDDMMYYYY } from '../../lib/dateFormat'
+import { DateInputDDMMYYYY } from '../DateInputDDMMYYYY'
 
 export interface VariantInputRow {
   id: string
@@ -1354,31 +1355,21 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                         />
                       </div>
 
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                          Mfg Date <span className="text-gray-400 font-normal ml-1">(DD-MM-YYYY)</span>
-                        </label>
-                        <input
-                          type="date"
-                          value={mfgDate}
-                          onChange={(e) => setMfgDate(e.target.value)}
-                          className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-                          title="Enter manufacture date in DD-MM-YYYY format"
-                        />
-                      </div>
+                      <DateInputDDMMYYYY
+                        label="Mfg Date"
+                        value={mfgDate}
+                        onChange={setMfgDate}
+                        placeholder="DD/MM/YYYY"
+                        className="h-10 px-3.5 text-xs"
+                      />
 
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
-                          Expiry Date <span className="text-gray-400 font-normal ml-1">(DD-MM-YYYY)</span>
-                        </label>
-                        <input
-                          type="date"
-                          value={expiryDate}
-                          onChange={(e) => setExpiryDate(e.target.value)}
-                          className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
-                          title="Enter expiry date in DD-MM-YYYY format"
-                        />
-                      </div>
+                      <DateInputDDMMYYYY
+                        label="Expiry Date"
+                        value={expiryDate}
+                        onChange={setExpiryDate}
+                        placeholder="DD/MM/YYYY"
+                        className="h-10 px-3.5 text-xs"
+                      />
                     </div>
 
                     {/* Description */}
