@@ -970,13 +970,8 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
 
             </div>
 
-            {!name.trim() ? (
-              <div className="flex items-center gap-2 text-[11px] text-gray-400 font-semibold px-1 py-2">
-                <Ruler size={13} /> Type a product name above — unit &amp; pricing questions will appear next.
-              </div>
-            ) : (
-              <>
-                {/* Step 2: Unit of Measure */}
+            <>
+              {/* Step 2: Unit of Measure */}
                 <div className="p-3.5 bg-white border border-gray-200 rounded-xl space-y-2.5">
                   <label className="block text-[11px] font-black uppercase tracking-wide text-gray-700 flex items-center gap-1.5">
                     <Ruler size={13} className="text-[var(--accent)]" /> 2. What unit is it sold in?
@@ -1445,8 +1440,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                     </div>
                   </div>
                 </div>
-              </>
-            )}
+            </>
           </div>
 
           {/* Pinned Bottom Actions */}

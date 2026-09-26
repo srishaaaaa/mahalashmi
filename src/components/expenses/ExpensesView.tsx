@@ -45,7 +45,7 @@ export const ExpensesView: React.FC = () => {
   // Filters
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
-  const [activePreset, setActivePreset] = useState<'all' | 'today' | 'week' | 'month'>('all')
+  const [activePreset, setActivePreset] = useState<'all' | 'today' | 'week' | 'month' | 'year'>('all')
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -106,7 +106,7 @@ export const ExpensesView: React.FC = () => {
   }, [expenses, searchQuery])
 
   // Handle Preset Clicks (Synchronizes FROM and TO dates)
-  const applyDatePreset = (preset: 'all' | 'today' | 'week' | 'month') => {
+  const applyDatePreset = (preset: 'all' | 'today' | 'week' | 'month' | 'year') => {
     setActivePreset(preset)
     const today = new Date()
     const todayStr = today.toISOString().slice(0, 10)
@@ -126,6 +126,10 @@ export const ExpensesView: React.FC = () => {
     } else if (preset === 'month') {
       const monthStart = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`
       setFromDate(monthStart)
+      setToDate(todayStr)
+    } else if (preset === 'year') {
+      const yearStart = `${today.getFullYear()}-01-01`
+      setFromDate(yearStart)
       setToDate(todayStr)
     }
   }
@@ -282,7 +286,7 @@ export const ExpensesView: React.FC = () => {
 
                 {/* Preset Buttons */}
                 <div className="flex items-center gap-1.5 bg-[#FAFAFA] p-1 rounded-xl border border-gray-200">
-                  {(['all', 'today', 'week', 'month'] as const).map((p) => (
+                  {(['all', 'today', 'week', 'month', 'year'] as const).map((p) => (
                     <button
                       key={p}
                       type="button"
@@ -293,7 +297,7 @@ export const ExpensesView: React.FC = () => {
                           : 'text-gray-600 hover:text-black'
                       }`}
                     >
-                      {p === 'all' ? 'All Time' : p === 'today' ? 'Today' : p === 'week' ? 'This Week' : 'Month'}
+                      {p === 'all' ? 'All Time' : p === 'today' ? 'Today' : p === 'week' ? 'This Week' : p === 'month' ? 'This Month' : 'This Year'}
                     </button>
                   ))}
                 </div>
