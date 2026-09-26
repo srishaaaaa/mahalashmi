@@ -1844,6 +1844,17 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- Update any existing legacy store names to Mahalashmi Stores
+UPDATE public.store_settings
+SET name = 'Mahalashmi Stores',
+    updated_at = NOW()
+WHERE id = 1 AND (
+  name = 'YG ENTERPRISES' OR
+  name = 'New Mahalashmi Stores' OR
+  name = 'CLAD' OR
+  name IS NULL
+);
+
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -1863,5 +1874,16 @@ INSERT INTO public.expense_categories (name, is_active) VALUES
   ('Salaries', TRUE),
   ('Supplies', TRUE)
 ON CONFLICT (name) DO NOTHING;
+
+-- ============================================================================
+-- Notes on Migrations (for reference only - not executed here)
+-- ============================================================================
+-- Migration: 20260926_0040_update_store_name_to_mahalashmi
+-- Description: Updates existing databases with legacy store names to "Mahalashmi Stores"
+--              Not needed for fresh databases (seed already uses correct name)
+--
+-- Migration: 20260926_0041_fix_duplicate_get_next_invoice_no
+-- Description: Cleans up duplicate function definitions
+--              Not needed (function defined correctly above)
 
 NOTIFY pgrst, 'reload schema';
