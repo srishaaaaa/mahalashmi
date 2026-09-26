@@ -141,6 +141,20 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
             <div className="text-[14px] sm:text-lg font-black text-red-700 break-words">{formatCurrency(totalOverdue)}</div>
           </div>
         </div>
+
+        {/* Paid Credits Summary Card */}
+        <div className="bg-white border border-[#B7E1BE] rounded-2xl p-3 sm:p-4 shadow-sm flex items-center gap-2.5 sm:gap-3">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-green-50 text-green-700 border border-green-200 flex items-center justify-center font-black shrink-0">
+            <CheckCircle2 size={20} />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold text-gray-500">Paid Credits</div>
+            <div className="text-[14px] sm:text-lg font-black text-green-700 break-words">
+              {/* Count from history tab - paid orders */}
+              {filteredHistory.filter((o) => (o as any).credit_status === 'paid').length}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Tab switcher + Search */}
