@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { AlertCircle } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { AlertCircle, Calendar } from 'lucide-react'
 
 export interface DateInputDDMMYYYYProps {
   value: string
@@ -24,20 +24,24 @@ export const DateInputDDMMYYYY: React.FC<DateInputDDMMYYYYProps> = ({
 }) => {
   const [inputValue, setInputValue] = useState('')
   const [error, setError] = useState('')
+  const nativeInputRef = useRef<HTMLInputElement>(null)
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!value) {
       setInputValue('')
+      if (nativeInputRef.current) nativeInputRef.current.value = ''
     } else {
       try {
         const parts = value.split('-')
         const [year, month, day] = parts
         if (year && month && day) {
           setInputValue(`${day}/${month}/${year}`)
+          if (nativeInputRef.current) nativeInputRef.current.value = value
         }
       } catch {
         setInputValue('')
+        if (nativeInputRef.current) nativeInputRef.current.value = ''
       }
     }
   }, [value])
@@ -96,6 +100,26 @@ export const DateInputDDMMYYYY: React.FC<DateInputDDMMYYYYProps> = ({
     }
   }
 
+  const handleNativeDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const dateStr = e.target.value
+    if (!dateStr) {
+      setInputValue('')
+      setError('')
+      onChange('')
+      return
+    }
+
+    const [year, month, day] = dateStr.split('-')
+    const formattedInput = `${day}/${month}/${year}`
+    setInputValue(formattedInput)
+
+    const { iso, error: validationError } = validateAndConvert(formattedInput)
+    setError(validationError)
+    if (!validationError) {
+      onChange(iso)
+    }
+  }
+
   const hasError = showError && error
 
   return (
@@ -114,11 +138,24 @@ export const DateInputDDMMYYYY: React.FC<DateInputDDMMYYYYProps> = ({
             hasError ? 'border-red-500 focus:border-red-500' : 'border-gray-200'
           } ${className}`}
         />
-        {hasError && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-red-600">
-            <AlertCircle size={18} />
-          </div>
-        )}
+        <input
+          ref={nativeInputRef}
+          type="date"
+          onChange={handleNativeDateChange}
+          disabled={disabled}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          aria-hidden="true"
+          tabIndex={-1}
+        />
+        <button
+          type="button"
+          onClick={() => nativeInputRef.current?.click()}
+          disabled={disabled}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[var(--accent)] transition-colors disabled:opacity-50 cursor-pointer"
+          tabIndex={-1}
+        >
+          {hasError ? <AlertCircle size={18} className="text-red-600" /> : <Calendar size={18} />}
+        </button>
       </div>
       {hasError && (
         <p className="mt-1 text-[11px] text-red-600 font-bold flex items-center gap-1">
