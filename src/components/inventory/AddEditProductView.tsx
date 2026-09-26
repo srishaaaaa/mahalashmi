@@ -1269,15 +1269,15 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                 )}
 
                 {/* Additional Details (secondary, always reachable, no extra clicks) */}
-                <div className="pt-1">
-                  <div className="flex items-center gap-2 mb-2.5 px-0.5">
-                    <SlidersHorizontal size={13} className="text-gray-400" />
-                    <span className="text-[11px] font-black uppercase tracking-wide text-gray-500">Additional Details (Optional)</span>
+                <div className="pt-1 space-y-4">
+                  <div className="flex items-center gap-2 px-0.5">
+                    <SlidersHorizontal size={13} className="text-[var(--accent)]" />
+                    <span className="text-[11px] font-black uppercase tracking-wide text-gray-600">Additional Details (Optional)</span>
                   </div>
 
                   <div className="space-y-4">
                     {/* Category, Barcode, Storage Location, Low Stock Alert, Manufacture Date, and Expiry Date */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
                       <div>
                         <label className="block text-[11px] font-bold text-gray-700 mb-1.5 h-4 flex items-center">
                           Category
@@ -1285,7 +1285,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                         <select
                           value={categoryId}
                           onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : '')}
-                          className="w-full h-10 px-3 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A] touch-manipulation appearance-none relative z-20"
+                          className="w-full h-10 px-3.5 rounded-xl border border-gray-200 bg-[#FAFAFA] text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A] touch-manipulation appearance-none relative z-20"
                         >
                           <option value="">-- Select Category --</option>
                           {categories.map((c) => (
@@ -1310,7 +1310,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                           autoCorrect="off"
                           autoComplete="off"
                           spellCheck={false}
-                          className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A] disabled:bg-gray-100 disabled:text-gray-400"
+                          className="w-full h-10 px-3.5 rounded-xl border border-gray-200 bg-[#FAFAFA] text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A] disabled:bg-gray-100 disabled:text-gray-400"
                           title="Enter the product barcode (EAN/UPC code printed on the package). Used for quick scanning in billing."
                         />
                         <p className="text-[10px] text-gray-500 font-medium mt-1">
@@ -1329,7 +1329,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                           placeholder="e.g. Rack 3, Row 2"
                           value={location}
                           onChange={(e) => setLocation(e.target.value)}
-                          className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                          className="w-full h-10 px-3.5 rounded-xl border border-gray-200 bg-[#FAFAFA] text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
                         />
                       </div>
 
@@ -1343,7 +1343,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                           placeholder="5"
                           value={lowStockAlert}
                           onChange={(e) => setLowStockAlert(e.target.value)}
-                          className="w-full h-10 px-3.5 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
+                          className="w-full h-10 px-3.5 rounded-xl border border-gray-200 bg-[#FAFAFA] text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"
                         />
                       </div>
 
@@ -1386,7 +1386,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                         placeholder="Product material, care instructions, or rack location notes..."
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        className="w-full p-3 rounded-xl border border-gray-300 bg-white text-xs font-medium text-gray-900 outline-none focus:border-[#0A0A0A] resize-none"
+                        className="w-full p-3.5 rounded-xl border border-gray-200 bg-[#FAFAFA] text-xs font-medium text-gray-900 outline-none focus:border-[#0A0A0A] resize-none"
                       />
                     </div>
 
