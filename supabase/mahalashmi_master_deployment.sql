@@ -215,13 +215,13 @@ CREATE TABLE IF NOT EXISTS public.invoice_counter (
 
 CREATE TABLE IF NOT EXISTS public.store_settings (
   id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-  name TEXT NOT NULL DEFAULT 'Mahalashmi Stores',
+  name TEXT NOT NULL DEFAULT 'New Mahalashmi Stores',
   owner_name TEXT NOT NULL DEFAULT 'M. Senthamil',
-  phone TEXT NOT NULL DEFAULT '+91 98659 75714',
+  phone TEXT NOT NULL DEFAULT '9865975714, 8668151051',
   email TEXT NOT NULL DEFAULT 'senthamil75714@gmail.com',
   address TEXT NOT NULL DEFAULT '5/85, Teacher''s Colony, Masinaickanpatty, Ayyothiyapattanam, Salem - 636103',
   gst_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-  instagram_handle TEXT NOT NULL DEFAULT '',
+  instagram_handle TEXT NOT NULL DEFAULT '@mahalashmi_stores',
   low_stock_threshold NUMERIC(12,3) NOT NULL DEFAULT 5,
   logo_url TEXT,
   admin_id TEXT,
@@ -231,7 +231,7 @@ CREATE TABLE IF NOT EXISTS public.store_settings (
   expiry_alert_days INTEGER NOT NULL DEFAULT 30,
   accent_color TEXT NOT NULL DEFAULT '#2E7D32',
   business_type TEXT NOT NULL DEFAULT '',
-  shop_contact_number TEXT NOT NULL DEFAULT '',
+  shop_contact_number TEXT NOT NULL DEFAULT '9865975714, 8668151051',
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -755,18 +755,29 @@ INSERT INTO public.invoice_counter (id, counter, year)
 VALUES (1, 0, EXTRACT(YEAR FROM NOW())::INTEGER)
 ON CONFLICT (id) DO NOTHING;
 
--- MIGRATION: 20260926_0040 - Update store name to Mahalashmi Stores
--- Seed store settings with Mahalashmi branding
-INSERT INTO public.store_settings (id, name, owner_name, phone, email, address)
+-- MIGRATION: 20260926_0040 - Update store name to New Mahalashmi Stores
+-- Seed store settings with correct branding (Note: "New" should display in smaller size)
+INSERT INTO public.store_settings (id, name, owner_name, phone, email, address, instagram_handle, shop_contact_number, accent_color)
 VALUES (
   1,
-  'Mahalashmi Stores',
+  'New Mahalashmi Stores',
   'M. Senthamil',
-  '+91 98659 75714',
+  '9865975714, 8668151051',
   'senthamil75714@gmail.com',
-  '5/85, Teacher''s Colony, Masinaickanpatty, Ayyothiyapattanam, Salem - 636103'
+  '5/85, Teacher''s Colony, Masinaickanpatty, Ayyothiyapattanam, Salem - 636103',
+  '@mahalashmi_stores',
+  '9865975714, 8668151051',
+  '#2E7D32'
 )
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  name = 'New Mahalashmi Stores',
+  owner_name = 'M. Senthamil',
+  phone = '9865975714, 8668151051',
+  email = 'senthamil75714@gmail.com',
+  address = '5/85, Teacher''s Colony, Masinaickanpatty, Ayyothiyapattanam, Salem - 636103',
+  instagram_handle = '@mahalashmi_stores',
+  shop_contact_number = '9865975714, 8668151051',
+  accent_color = '#2E7D32';
 
 -- Create default category
 DO $$
