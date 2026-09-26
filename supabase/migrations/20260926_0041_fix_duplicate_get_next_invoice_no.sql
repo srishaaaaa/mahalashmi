@@ -15,7 +15,7 @@ DECLARE
   v_invoice_no VARCHAR;
 BEGIN
   -- Get the next invoice number from the sequence
-  v_next_number := nextval('invoice_sequence');
+  v_next_number := nextval('public.invoice_number_seq');
 
   -- Format as 8-digit zero-padded number
   v_invoice_no := LPAD(v_next_number::TEXT, 8, '0');

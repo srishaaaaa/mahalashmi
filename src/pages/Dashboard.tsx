@@ -30,7 +30,7 @@ const RMIcon = ({ size = 16, className = '' }: { size?: number; className?: stri
       stroke="none"
       fill="currentColor"
       fontFamily="Arial, sans-serif"
-    >₹</text>
+    >RM</text>
   </svg>
 )
 import { Link, useLocation, useNavigate } from 'react-router-dom'
@@ -3370,7 +3370,7 @@ export default function Dashboard() {
 
                             <p className="text-[12px] font-semibold text-[var(--accent)]">
                               {coupon.percentage}% off
-                              {coupon.min_order_value > 0 && ` • min ₹${coupon.min_order_value}`}
+                              {coupon.min_order_value > 0 && ` • min RM${coupon.min_order_value}`}
                             </p>
 
                             <p className="text-[11px] text-[#6C665C]">

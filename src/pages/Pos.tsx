@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState, useCallback, type FormEvent } from 'react'
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   Search, Trash2, Plus, Receipt, Printer,
   RefreshCw, ShoppingBag, MessageCircle,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Wifi, WifiOff, Layers, X, ChevronDown, Power
+  X, ChevronDown, Power
 } from 'lucide-react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { getErrorMessage } from '../lib/errorMessage'
