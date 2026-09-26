@@ -3592,7 +3592,7 @@ export default function Dashboard() {
         </div>
         {/* Footer */}
         <div className="shrink-0 border-t border-gray-100 bg-white/80 py-2 text-center text-[12px] font-semibold text-[#7A8A78] tracking-wide print:hidden">
-          Powered by Mahalashmi Stores © 2026
+          Powered by Cenexa Systems © 2026
         </div>
       </main>
 
