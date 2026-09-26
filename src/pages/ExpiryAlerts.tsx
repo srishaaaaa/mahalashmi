@@ -8,6 +8,7 @@ import { getErrorMessage } from '../lib/errorMessage'
 import { inventoryService } from '../services/inventoryService'
 
 type StatusFilter = 'expired' | 'soon' | 'all'
+type DatePreset = 'today' | 'week' | 'month' | 'year' | 'all' | 'custom'
 
 export default function ExpiryAlerts() {
   const { products, fetchProducts } = useProductStore()
@@ -17,6 +18,9 @@ export default function ExpiryAlerts() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('expired')
+  const [datePreset, setDatePreset] = useState<DatePreset>('all')
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
   const [bulkOpen, setBulkOpen] = useState(false)
   const [bulkSearch, setBulkSearch] = useState('')
   const [pendingMfgDates, setPendingMfgDates] = useState<Record<string, string>>({})
@@ -34,6 +38,43 @@ export default function ExpiryAlerts() {
   // the store's 5-minute fetch cache would otherwise show a stale snapshot
   // here right after such an edit.
   useEffect(() => { void fetchProducts(true) }, [fetchProducts])
+
+  const applyDatePreset = (preset: DatePreset) => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const from = new Date(today)
+    const to = new Date(today)
+
+    switch (preset) {
+      case 'today':
+        setFromDate(today.toISOString().split('T')[0])
+        setToDate(today.toISOString().split('T')[0])
+        break
+      case 'week':
+        from.setDate(today.getDate() - today.getDay())
+        to.setDate(today.getDate() + (6 - today.getDay()))
+        setFromDate(from.toISOString().split('T')[0])
+        setToDate(to.toISOString().split('T')[0])
+        break
+      case 'month':
+        from.setDate(1)
+        to.setMonth(today.getMonth() + 1)
+        to.setDate(0)
+        setFromDate(from.toISOString().split('T')[0])
+        setToDate(to.toISOString().split('T')[0])
+        break
+      case 'year':
+        from.setMonth(0, 1)
+        to.setMonth(11, 31)
+        setFromDate(from.toISOString().split('T')[0])
+        setToDate(to.toISOString().split('T')[0])
+        break
+      default:
+        setFromDate('')
+        setToDate('')
+    }
+    setDatePreset(preset)
+  }
 
   const untracked = useMemo(() => {
     return products
@@ -143,6 +184,15 @@ export default function ExpiryAlerts() {
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       (p.category || '').toLowerCase().includes(search.toLowerCase())
     )
+    .filter(p => {
+      if (!fromDate && !toDate) return true
+      const expiryDate = new Date(`${p.expiryDate}T00:00:00`)
+      const from = fromDate ? new Date(fromDate) : null
+      const to = toDate ? new Date(toDate) : null
+      if (from && expiryDate < from) return false
+      if (to && expiryDate > to) return false
+      return true
+    })
 
   const exportCSV = () => {
     const header = ['Product', 'Category', 'Stock', 'Price (INR)', 'Mfg Date', 'Expiry Date', 'Status']
@@ -321,7 +371,7 @@ export default function ExpiryAlerts() {
         ))}
       </div>
 
-      <div className="rounded-2xl border border-[#ECE9E2] bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-[#ECE9E2] bg-white p-4 shadow-sm space-y-3">
         <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
           <label className="relative">
             <Search className="absolute left-3 top-3 text-[#9CA3AF]" size={17} />
@@ -346,6 +396,47 @@ export default function ExpiryAlerts() {
                 {label}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className="border-t border-[#E5E7EB] pt-3">
+          <p className="text-xs font-bold text-[#6B7280] mb-2">Filter by Expiry Date</p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {([
+              ['today', 'Today'],
+              ['week', 'This Week'],
+              ['month', 'This Month'],
+              ['year', 'This Year'],
+              ['all', 'All'],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => applyDatePreset(value)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${datePreset === value ? 'bg-emerald-100 text-emerald-700' : 'bg-[#F5F3F7] text-[#626B61] hover:bg-[#E5E3ED]'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div>
+              <label className="block text-[10px] font-bold text-[#6B7280] mb-1">From Date</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={e => { setFromDate(e.target.value); setDatePreset('custom') }}
+                className="w-full h-9 rounded-lg border border-[#E5E7EB] bg-white px-3 text-xs font-semibold text-[#273126] outline-none focus:border-[var(--accent)]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-[#6B7280] mb-1">To Date</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={e => { setToDate(e.target.value); setDatePreset('custom') }}
+                className="w-full h-9 rounded-lg border border-[#E5E7EB] bg-white px-3 text-xs font-semibold text-[#273126] outline-none focus:border-[var(--accent)]"
+              />
+            </div>
           </div>
         </div>
       </div>
