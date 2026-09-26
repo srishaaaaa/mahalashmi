@@ -1895,7 +1895,7 @@ export default function Pos(props: PosProps = {}) {
       {/* Variant Picker Modal for Multi-Variant Products */}
       {variantPickerProduct && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] border border-[#B7E1BE] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] border border-[#B7E1BE] shadow-2xl overflow-y-auto flex flex-col animate-in zoom-in-95 duration-150">
             <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-[#FBFAF6]">
               <div>
                 <h3 className="text-sm font-black uppercase tracking-wider text-[#0A0A0A]">

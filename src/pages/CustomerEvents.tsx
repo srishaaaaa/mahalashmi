@@ -339,7 +339,7 @@ export default function CustomerEvents() {
       {/* Add / Edit Modal */}
       {(modalMode === 'add' || modalMode === 'edit') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-pink-200 animate-in fade-in zoom-in-95">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl overflow-y-auto border border-pink-200 animate-in fade-in zoom-in-95">
             <div className="px-4 sm:px-5 py-3 border-b border-gray-200 flex items-center justify-between bg-[#FBFAF6] shrink-0">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-pink-500/10 flex items-center justify-center text-pink-600">
@@ -446,7 +446,7 @@ export default function CustomerEvents() {
       {/* View Modal */}
       {modalMode === 'view' && activeCustomer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden border border-pink-200 animate-in fade-in zoom-in-95">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-y-auto border border-pink-200 animate-in fade-in zoom-in-95">
             <div className="px-4 sm:px-5 py-3 border-b border-gray-200 flex items-center justify-between bg-[#FBFAF6]">
               <h3 className="font-bold text-sm text-[#111111] flex items-center gap-2">
                 <Eye className="w-4 h-4 text-pink-600" /> Customer Details
