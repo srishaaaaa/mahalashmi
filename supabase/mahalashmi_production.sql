@@ -432,6 +432,19 @@ CREATE TABLE IF NOT EXISTS public.customers (
 -- INDEXES
 -- ============================================================================
 
+-- Ensure expiry_date column exists before creating index
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+    AND table_name = 'product_variants'
+    AND column_name = 'expiry_date'
+  ) THEN
+    ALTER TABLE public.product_variants ADD COLUMN expiry_date DATE;
+  END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_unit_conversions ON public.unit_conversions(from_unit_id, to_unit_id);
 CREATE INDEX IF NOT EXISTS idx_price_history_product ON public.product_price_history(product_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_damage_stock_product ON public.damage_stock(product_id, created_at DESC);
