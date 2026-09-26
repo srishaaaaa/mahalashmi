@@ -22,24 +22,26 @@ export const DateInputDDMMYYYY: React.FC<DateInputDDMMYYYYProps> = ({
   label,
   showError = true,
 }) => {
-  const [displayValue, setDisplayValue] = useState('')
+  const [inputValue, setInputValue] = useState('')
   const [error, setError] = useState('')
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (value) {
+    if (!value) {
+      setInputValue('')
+    } else {
       try {
-        const [year, month, day] = value.split('-')
+        const parts = value.split('-')
+        const [year, month, day] = parts
         if (year && month && day) {
-          setDisplayValue(`${day}/${month}/${year}`)
+          setInputValue(`${day}/${month}/${year}`)
         }
       } catch {
-        setDisplayValue('')
+        setInputValue('')
       }
-    } else {
-      setDisplayValue('')
     }
-    setError('')
   }, [value])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const validateAndConvert = (input: string): { iso: string; error: string } => {
     const cleaned = input.trim()
@@ -79,7 +81,7 @@ export const DateInputDDMMYYYY: React.FC<DateInputDDMMYYYYProps> = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value
-    setDisplayValue(input)
+    setInputValue(input)
 
     if (!input) {
       setError('')
@@ -103,7 +105,7 @@ export const DateInputDDMMYYYY: React.FC<DateInputDDMMYYYYProps> = ({
         <input
           type="text"
           inputMode="numeric"
-          value={displayValue}
+          value={inputValue}
           onChange={handleChange}
           placeholder={placeholder}
           required={required}

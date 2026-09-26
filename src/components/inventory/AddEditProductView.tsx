@@ -22,7 +22,6 @@ import { getErrorMessage } from '../../lib/errorMessage'
 import { normalizeBarcode } from '../../lib/barcode'
 import { roundTo } from '../../lib/retail'
 import { UNIT_OPTIONS, UNIT_GROUPS, findUnitOption } from '../../lib/units'
-import { formatDateDDMMYYYY } from '../../lib/dateFormat'
 import { DateInputDDMMYYYY } from '../DateInputDDMMYYYY'
 
 export interface VariantInputRow {
