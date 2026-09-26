@@ -119,11 +119,8 @@ export const inventoryService = {
     }
 
     for (const p of products || []) {
-      // Exclude ad-hoc non-inventory unregistered items
-      if (
-        (p.category && p.category.trim().toLowerCase() === 'unregistered') ||
-        p.category_id === 4
-      ) {
+      // Exclude ad-hoc non-inventory unregistered items (check by name, not hardcoded ID)
+      if (p.category && p.category.trim().toLowerCase() === 'unregistered') {
         continue
       }
 

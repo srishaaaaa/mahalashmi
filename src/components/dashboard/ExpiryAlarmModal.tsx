@@ -66,7 +66,7 @@ export default function ExpiryAlarmModal({ triggerKey }: { triggerKey?: string |
       const msPerDay = 24 * 60 * 60 * 1000
 
       const expiring = (data as ProductExpiryRow[])
-        .filter(p => !(p.category?.trim().toLowerCase() === 'unregistered' || p.category_id === 4))
+        .filter(p => !(p.category?.trim().toLowerCase() === 'unregistered'))
         .map(p => {
           const expiry = new Date(`${p.expiry_date}T00:00:00`)
           const daysLeft = Math.round((expiry.getTime() - today.getTime()) / msPerDay)

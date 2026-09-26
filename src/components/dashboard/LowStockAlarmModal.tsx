@@ -57,7 +57,7 @@ export default function LowStockAlarmModal({ triggerKey }: { triggerKey?: string
       // are deliberately excluded from Inventory's own stock tracking — the
       // alarm should respect the same exclusion instead of alerting on them.
       const low = (data as ProductStockRow[])
-        .filter(p => !(p.category?.trim().toLowerCase() === 'unregistered' || p.category_id === 4))
+        .filter(p => !(p.category?.trim().toLowerCase() === 'unregistered'))
         .filter(p => p.stock_quantity <= (p.low_stock_alert || 5))
         .map(p => ({
           id: p.id, name: p.name, category: p.category,

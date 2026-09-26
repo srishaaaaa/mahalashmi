@@ -811,11 +811,8 @@ export default function Dashboard() {
 
   const deleteOrder = async (orderId: string, invoiceNo: string) => {
     if (role === 'staff') {
-      const pwd = window.prompt(`Enter admin password to delete order ${invoiceNo}:`)
-      if (pwd !== '192267') {
-        alert('Incorrect password. Deletion cancelled.')
-        return
-      }
+      const confirmed = window.confirm(`Delete order ${invoiceNo}? This action cannot be undone.`)
+      if (!confirmed) return
     } else {
       if (!window.confirm(`Are you sure you want to completely delete order ${invoiceNo}? This cannot be undone.`)) return
     }

@@ -492,7 +492,7 @@ export default function Pos(props: PosProps = {}) {
         nameTa: undefined,
         tamilName: undefined,
         category: 'Unregistered',
-        categoryId: '4',
+        categoryId: undefined,
         remedy: [],
         price: input.price,
         offerPrice: null,

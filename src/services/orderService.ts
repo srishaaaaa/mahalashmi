@@ -153,6 +153,7 @@ export const createOrderWithStock = async (input: CreateOrderInput): Promise<Cre
           .eq('id', legacyOrderId)
       }
     }
+    }
   }
 }
 
