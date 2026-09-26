@@ -9,8 +9,11 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- ============================================================================
--- DROP EXISTING RPC FUNCTIONS (Handle signature conflicts from old versions)
+-- DROP EXISTING RPC FUNCTIONS (Handle ALL signature conflicts)
+-- Aggressive cleanup for function overloads and old versions
 -- ============================================================================
+
+-- Drop all function overloads (CASCADE removes all versions)
 DROP FUNCTION IF EXISTS public.complete_advance_order_v2 CASCADE;
 DROP FUNCTION IF EXISTS public.add_advance_order_event CASCADE;
 DROP FUNCTION IF EXISTS public.update_advance_order_status CASCADE;
@@ -21,6 +24,28 @@ DROP FUNCTION IF EXISTS public.create_order_without_stock CASCADE;
 DROP FUNCTION IF EXISTS public.create_order_with_stock CASCADE;
 DROP FUNCTION IF EXISTS public.complete_pos_sale_with_inventory CASCADE;
 DROP FUNCTION IF EXISTS public.adjust_inventory_stock CASCADE;
+
+-- Clean up any stray function references by schema
+DO $$
+DECLARE
+  func_record RECORD;
+BEGIN
+  FOR func_record IN
+    SELECT p.oid::regprocedure
+    FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE n.nspname = 'public'
+    AND p.proname IN (
+      'complete_advance_order_v2', 'add_advance_order_event',
+      'update_advance_order_status', 'create_advance_order',
+      'create_barcode_and_receive_stock', 'get_public_invoice_by_number',
+      'create_order_without_stock', 'create_order_with_stock',
+      'complete_pos_sale_with_inventory', 'adjust_inventory_stock'
+    )
+  LOOP
+    EXECUTE 'DROP FUNCTION IF EXISTS ' || func_record.oid::regprocedure || ' CASCADE';
+  END LOOP;
+END $$;
 
 -- ============================================================================
 -- SEQUENCES
