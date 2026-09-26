@@ -238,6 +238,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
   reference_number TEXT NOT NULL DEFAULT '',
   billing_date TIMESTAMPTZ,
   invoice_pdf_url TEXT,
+  is_credit BOOLEAN NOT NULL DEFAULT FALSE,
   credit_due_date DATE,
   credit_status TEXT,
   credit_paid_at TIMESTAMPTZ,
