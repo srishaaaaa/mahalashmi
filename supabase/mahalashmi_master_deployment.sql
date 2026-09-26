@@ -19,7 +19,32 @@ CREATE SEQUENCE IF NOT EXISTS public.barcode_product_seq START WITH 10000001;
 CREATE SEQUENCE IF NOT EXISTS public.barcode_variant_seq START WITH 10000001;
 
 -- ============================================================================
--- TABLES
+-- TABLES - UNITS & MEASUREMENTS
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS public.unit_types (
+  id BIGSERIAL PRIMARY KEY,
+  code TEXT NOT NULL UNIQUE,
+  name_en TEXT NOT NULL UNIQUE,
+  name_ta TEXT NOT NULL DEFAULT '',
+  abbreviation TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('weight', 'volume', 'count', 'length', 'area')),
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.unit_conversions (
+  id BIGSERIAL PRIMARY KEY,
+  from_unit_id BIGINT NOT NULL REFERENCES public.unit_types(id) ON DELETE RESTRICT,
+  to_unit_id BIGINT NOT NULL REFERENCES public.unit_types(id) ON DELETE RESTRICT,
+  conversion_factor NUMERIC(12,4) NOT NULL CHECK (conversion_factor > 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(from_unit_id, to_unit_id)
+);
+
+-- ============================================================================
+-- TABLES - CORE
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS public.profiles (
@@ -102,6 +127,8 @@ CREATE TABLE IF NOT EXISTS public.product_variants (
   product_id BIGINT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
   variant_name TEXT NOT NULL,
   size_label TEXT,
+  quantity NUMERIC(12,3),
+  quantity_unit_id BIGINT REFERENCES public.unit_types(id) ON DELETE SET NULL,
   weight_value NUMERIC(12,3),
   weight_unit TEXT,
   sku TEXT,
@@ -110,6 +137,8 @@ CREATE TABLE IF NOT EXISTS public.product_variants (
   mrp NUMERIC(12,2),
   price NUMERIC(12,2) NOT NULL DEFAULT 0,
   stock NUMERIC(12,3) NOT NULL DEFAULT 0,
+  damage_stock NUMERIC(12,3) NOT NULL DEFAULT 0,
+  expiry_date DATE,
   is_default BOOLEAN NOT NULL DEFAULT FALSE,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   sort_order INTEGER NOT NULL DEFAULT 0,
@@ -121,6 +150,30 @@ CREATE TABLE IF NOT EXISTS public.product_variants (
 
 CREATE UNIQUE INDEX IF NOT EXISTS product_variants_product_name_unique
   ON public.product_variants (product_id, LOWER(BTRIM(variant_name)));
+
+CREATE TABLE IF NOT EXISTS public.product_price_history (
+  id BIGSERIAL PRIMARY KEY,
+  product_id BIGINT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  variant_id UUID REFERENCES public.product_variants(id) ON DELETE CASCADE,
+  old_purchase_price NUMERIC(12,2),
+  new_purchase_price NUMERIC(12,2) NOT NULL,
+  old_selling_price NUMERIC(12,2),
+  new_selling_price NUMERIC(12,2) NOT NULL,
+  change_reason TEXT,
+  changed_by_name TEXT NOT NULL DEFAULT 'Staff',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.damage_stock (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id BIGINT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  variant_id UUID REFERENCES public.product_variants(id) ON DELETE CASCADE,
+  quantity NUMERIC(12,3) NOT NULL CHECK (quantity > 0),
+  unit_id BIGINT REFERENCES public.unit_types(id) ON DELETE SET NULL,
+  reason TEXT NOT NULL,
+  reported_by_name TEXT NOT NULL DEFAULT 'Staff',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 CREATE TABLE IF NOT EXISTS public.coupons (
   id BIGSERIAL PRIMARY KEY,
@@ -378,6 +431,11 @@ CREATE TABLE IF NOT EXISTS public.customers (
 -- ============================================================================
 -- INDEXES
 -- ============================================================================
+
+CREATE INDEX IF NOT EXISTS idx_unit_conversions ON public.unit_conversions(from_unit_id, to_unit_id);
+CREATE INDEX IF NOT EXISTS idx_price_history_product ON public.product_price_history(product_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_damage_stock_product ON public.damage_stock(product_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_product_variants_expiry ON public.product_variants(expiry_date) WHERE expiry_date IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS products_category_id_idx ON public.products(category_id);
 CREATE INDEX IF NOT EXISTS products_active_sort_idx ON public.products(is_active, sort_order);
@@ -802,6 +860,32 @@ INSERT INTO public.expense_categories (name, is_active) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 -- ============================================================================
+-- SEED DATA - UNIT TYPES
+-- ============================================================================
+
+-- Weight Units
+INSERT INTO public.unit_types (code, name_en, name_ta, abbreviation, category, is_active) VALUES
+  ('gram', 'Gram', 'கிராம்', 'gm', 'weight', TRUE),
+  ('kilogram', 'Kilogram', 'கிலோகிராம்', 'kg', 'weight', TRUE),
+  ('milligram', 'Milligram', 'மிகிராம்', 'mg', 'weight', TRUE)
+ON CONFLICT (code) DO NOTHING;
+
+-- Volume Units
+INSERT INTO public.unit_types (code, name_en, name_ta, abbreviation, category, is_active) VALUES
+  ('millilitre', 'Millilitre', 'மிலிலிட்டர்', 'ml', 'volume', TRUE),
+  ('litre', 'Litre', 'லிட்டர்', 'L', 'volume', TRUE)
+ON CONFLICT (code) DO NOTHING;
+
+-- Count Units
+INSERT INTO public.unit_types (code, name_en, name_ta, abbreviation, category, is_active) VALUES
+  ('piece', 'Piece', 'துண்டு', 'pcs', 'count', TRUE),
+  ('box', 'Box', 'பெட்டி', 'box', 'count', TRUE),
+  ('packet', 'Packet', 'பாக்கெட்', 'pkt', 'count', TRUE),
+  ('bottle', 'Bottle', 'பாட்டில்', 'btl', 'count', TRUE),
+  ('bag', 'Bag', 'பை', 'bag', 'count', TRUE)
+ON CONFLICT (code) DO NOTHING;
+
+-- ============================================================================
 -- SEED PRODUCTS - MAHALASHMI STORES
 -- ============================================================================
 
@@ -962,6 +1046,8 @@ CREATE TABLE IF NOT EXISTS public.product_variants (
   product_id BIGINT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
   variant_name TEXT NOT NULL,
   size_label TEXT,
+  quantity NUMERIC(12,3),
+  quantity_unit_id BIGINT REFERENCES public.unit_types(id) ON DELETE SET NULL,
   weight_value NUMERIC(12,3),
   weight_unit TEXT,
   sku TEXT,
@@ -970,6 +1056,8 @@ CREATE TABLE IF NOT EXISTS public.product_variants (
   mrp NUMERIC(12,2),
   price NUMERIC(12,2) NOT NULL DEFAULT 0,
   stock NUMERIC(12,3) NOT NULL DEFAULT 0,
+  damage_stock NUMERIC(12,3) NOT NULL DEFAULT 0,
+  expiry_date DATE,
   is_default BOOLEAN NOT NULL DEFAULT FALSE,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   sort_order INTEGER NOT NULL DEFAULT 0,
@@ -981,6 +1069,30 @@ CREATE TABLE IF NOT EXISTS public.product_variants (
 
 CREATE UNIQUE INDEX IF NOT EXISTS product_variants_product_name_unique
   ON public.product_variants (product_id, LOWER(BTRIM(variant_name)));
+
+CREATE TABLE IF NOT EXISTS public.product_price_history (
+  id BIGSERIAL PRIMARY KEY,
+  product_id BIGINT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  variant_id UUID REFERENCES public.product_variants(id) ON DELETE CASCADE,
+  old_purchase_price NUMERIC(12,2),
+  new_purchase_price NUMERIC(12,2) NOT NULL,
+  old_selling_price NUMERIC(12,2),
+  new_selling_price NUMERIC(12,2) NOT NULL,
+  change_reason TEXT,
+  changed_by_name TEXT NOT NULL DEFAULT 'Staff',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.damage_stock (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id BIGINT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  variant_id UUID REFERENCES public.product_variants(id) ON DELETE CASCADE,
+  quantity NUMERIC(12,3) NOT NULL CHECK (quantity > 0),
+  unit_id BIGINT REFERENCES public.unit_types(id) ON DELETE SET NULL,
+  reason TEXT NOT NULL,
+  reported_by_name TEXT NOT NULL DEFAULT 'Staff',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 CREATE TABLE IF NOT EXISTS public.coupons (
   id BIGSERIAL PRIMARY KEY,
