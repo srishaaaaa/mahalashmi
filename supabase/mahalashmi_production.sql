@@ -9,6 +9,20 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- ============================================================================
+-- DROP EXISTING RPC FUNCTIONS (Handle signature conflicts from old versions)
+-- ============================================================================
+DROP FUNCTION IF EXISTS public.complete_advance_order_v2 CASCADE;
+DROP FUNCTION IF EXISTS public.add_advance_order_event CASCADE;
+DROP FUNCTION IF EXISTS public.update_advance_order_status CASCADE;
+DROP FUNCTION IF EXISTS public.create_advance_order CASCADE;
+DROP FUNCTION IF EXISTS public.create_barcode_and_receive_stock CASCADE;
+DROP FUNCTION IF EXISTS public.get_public_invoice_by_number CASCADE;
+DROP FUNCTION IF EXISTS public.create_order_without_stock CASCADE;
+DROP FUNCTION IF EXISTS public.create_order_with_stock CASCADE;
+DROP FUNCTION IF EXISTS public.complete_pos_sale_with_inventory CASCADE;
+DROP FUNCTION IF EXISTS public.adjust_inventory_stock CASCADE;
+
+-- ============================================================================
 -- SEQUENCES
 -- ============================================================================
 
