@@ -813,6 +813,19 @@ INSERT INTO public.invoice_counter (id, counter, year)
 VALUES (1, 0, EXTRACT(YEAR FROM NOW())::INTEGER)
 ON CONFLICT (id) DO NOTHING;
 
+-- Create product categories for Mahalashmi Stores
+INSERT INTO public.categories (name_en, name_ta, is_active, sort_order) VALUES
+  ('Spices', 'Spices', TRUE, 1),
+  ('Grains', 'Grains', TRUE, 2),
+  ('Beverages', 'Beverages', TRUE, 3),
+  ('Oils & Condiments', 'Oils & Condiments', TRUE, 4),
+  ('Snacks & Dry Fruits', 'Snacks & Dry Fruits', TRUE, 5),
+  ('Dairy & Eggs', 'Dairy & Eggs', TRUE, 6),
+  ('Vegetables', 'Vegetables', TRUE, 7),
+  ('Fruits', 'Fruits', TRUE, 8),
+  ('Unregistered', 'Unregistered', TRUE, 999)
+ON CONFLICT (name_en) DO NOTHING;
+
 -- MIGRATION: 20260926_0040 - Update store name to New Mahalashmi Stores
 -- Seed store settings with correct branding (Note: "New" should display in smaller size)
 INSERT INTO public.store_settings (id, name, owner_name, phone, email, address, instagram_handle, shop_contact_number, accent_color)
@@ -836,200 +849,4 @@ ON CONFLICT (id) DO UPDATE SET
   instagram_handle = '@mahalashmi_stores',
   shop_contact_number = '9865975714, 8668151051',
   accent_color = '#2E7D32';
-
--- Create default category
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM public.categories
-    WHERE LOWER(name_en) = 'unregistered'
-  ) THEN
-    INSERT INTO public.categories (name_en, name_ta, is_active, sort_order)
-    VALUES ('Unregistered', 'à®ªà®¤à®¿à®µà¯à®šà¯†à®¯à¯à®¯à®ªà¯à®ªà®Ÿà®¾à®¤à®¤à¯', TRUE, 999);
-  END IF;
-END $$;
-
--- Seed expense categories
-INSERT INTO public.expense_categories (name, is_active) VALUES
-  ('Maintenance', TRUE),
-  ('Marketing', TRUE),
-  ('Other', TRUE),
-  ('Rent', TRUE),
-  ('Salaries', TRUE),
-  ('Supplies', TRUE)
-ON CONFLICT (name) DO NOTHING;
-
--- ============================================================================
--- SEED DATA - UNIT TYPES
--- ============================================================================
-
--- Weight Units
-INSERT INTO public.unit_types (code, name_en, name_ta, abbreviation, category, is_active) VALUES
-  ('gram', 'Gram', 'கிராம்', 'gm', 'weight', TRUE),
-  ('kilogram', 'Kilogram', 'கிலோகிராம்', 'kg', 'weight', TRUE),
-  ('milligram', 'Milligram', 'மிகிராம்', 'mg', 'weight', TRUE)
-ON CONFLICT (code) DO NOTHING;
-
--- Volume Units
-INSERT INTO public.unit_types (code, name_en, name_ta, abbreviation, category, is_active) VALUES
-  ('millilitre', 'Millilitre', 'மிலிலிட்டர்', 'ml', 'volume', TRUE),
-  ('litre', 'Litre', 'லிட்டர்', 'L', 'volume', TRUE)
-ON CONFLICT (code) DO NOTHING;
-
--- Count Units
-INSERT INTO public.unit_types (code, name_en, name_ta, abbreviation, category, is_active) VALUES
-  ('piece', 'Piece', 'துண்டு', 'pcs', 'count', TRUE),
-  ('box', 'Box', 'பெட்டி', 'box', 'count', TRUE),
-  ('packet', 'Packet', 'பாக்கெட்', 'pkt', 'count', TRUE),
-  ('bottle', 'Bottle', 'பாட்டில்', 'btl', 'count', TRUE),
-  ('bag', 'Bag', 'பை', 'bag', 'count', TRUE)
-ON CONFLICT (code) DO NOTHING;
-
--- ============================================================================
--- SEED PRODUCTS - MAHALASHMI STORES
--- ============================================================================
-
--- Spices Category
-INSERT INTO public.products (name, name_ta, tamil_name, category, price, purchase_price, mrp, gst_percent, unit, stock_quantity, stock, low_stock_alert, is_active) VALUES
-  ('Turmeric Powder', 'à®®à®žà¯à®šà®³à¯ à®ªà¯Šà®Ÿà®¿', 'à®®à®žà¯à®šà®³à¯ à®ªà¯Šà®Ÿà®¿', 'Spices', 250.00, 180.00, 280.00, 5.0, 'piece', 50.00, 50, 5, TRUE),
-  ('Black Pepper', 'à®•à®°à¯à®ªà¯à®ªà¯ à®®à®¿à®³à®•à¯', 'à®•à®°à¯à®ªà¯à®ªà¯ à®®à®¿à®³à®•à¯', 'Spices', 320.00, 250.00, 350.00, 5.0, 'piece', 30.00, 30, 5, TRUE),
-  ('Cumin Seeds', 'à®šà¯€à®°à®•à®®à¯', 'à®šà¯€à®°à®•à®®à¯', 'Spices', 180.00, 140.00, 200.00, 5.0, 'piece', 40.00, 40, 5, TRUE),
-  ('Coriander Powder', 'à®•à¯Šà®¤à¯à®¤à®®à®²à¯à®²à®¿ à®ªà¯Šà®Ÿà®¿', 'à®•à¯Šà®¤à¯à®¤à®®à®²à¯à®²à®¿ à®ªà¯Šà®Ÿà®¿', 'Spices', 220.00, 160.00, 250.00, 5.0, 'piece', 45.00, 45, 5, TRUE),
-  ('Chili Powder', 'à®®à®¿à®³à®•à®¾à®¯à¯ à®ªà¯Šà®Ÿà®¿', 'à®®à®¿à®³à®•à®¾à®¯à¯ à®ªà¯Šà®Ÿà®¿', 'Spices', 280.00, 200.00, 320.00, 5.0, 'piece', 35.00, 35, 5, TRUE);
-
--- Grains Category
-INSERT INTO public.products (name, name_ta, tamil_name, category, price, purchase_price, mrp, gst_percent, unit, stock_quantity, stock, low_stock_alert, is_active) VALUES
-  ('Basmati Rice', 'à®ªà®¾à®¸à¯à®®à®¤à®¿ à®…à®°à®¿à®šà®¿', 'à®ªà®¾à®¸à¯à®®à®¤à®¿ à®…à®°à®¿à®šà®¿', 'Grains', 500.00, 400.00, 550.00, 5.0, 'piece', 100.00, 100, 10, TRUE),
-  ('White Rice', 'à®µà¯†à®³à¯à®³à¯ˆ à®…à®°à®¿à®šà®¿', 'à®µà¯†à®³à¯à®³à¯ˆ à®…à®°à®¿à®šà®¿', 'Grains', 350.00, 280.00, 400.00, 5.0, 'piece', 80.00, 80, 10, TRUE),
-  ('Wheat Flour', 'à®•à¯‹à®¤à¯à®®à¯ˆ à®®à®¾à®µà¯', 'à®•à¯‹à®¤à¯à®®à¯ˆ à®®à®¾à®µà¯', 'Grains', 150.00, 120.00, 170.00, 5.0, 'piece', 120.00, 120, 15, TRUE),
-  ('Chickpea', 'à®•à¯Šà®£à¯à®Ÿà¯ˆà®•à¯à®•à®Ÿà®²à¯ˆ', 'à®•à¯Šà®£à¯à®Ÿà¯ˆà®•à¯à®•à®Ÿà®²à¯ˆ', 'Grains', 220.00, 170.00, 250.00, 5.0, 'piece', 60.00, 60, 8, TRUE);
-
--- Beverages Category
-INSERT INTO public.products (name, name_ta, tamil_name, category, price, purchase_price, mrp, gst_percent, unit, stock_quantity, stock, low_stock_alert, is_active) VALUES
-  ('Green Tea', 'à®ªà®šà¯à®šà¯ˆ à®¤à¯‡à®¨à¯€à®°à¯', 'à®ªà®šà¯à®šà¯ˆ à®¤à¯‡à®¨à¯€à®°à¯', 'Beverages', 150.00, 100.00, 180.00, 5.0, 'piece', 75.00, 75, 10, TRUE),
-  ('Black Tea', 'à®•à®±à¯à®ªà¯à®ªà¯ à®¤à¯‡à®¨à¯€à®°à¯', 'à®•à®±à¯à®ªà¯à®ªà¯ à®¤à¯‡à®¨à¯€à®°à¯', 'Beverages', 180.00, 130.00, 210.00, 5.0, 'piece', 85.00, 85, 10, TRUE),
-  ('Coffee Powder', 'à®•à®¾à®ªà®¿ à®ªà¯Šà®Ÿà®¿', 'à®•à®¾à®ªà®¿ à®ªà¯Šà®Ÿà®¿', 'Beverages', 320.00, 240.00, 380.00, 5.0, 'piece', 40.00, 40, 5, TRUE),
-  ('Milk Powder', 'à®ªà®¾à®²à¯ à®ªà¯Šà®Ÿà®¿', 'à®ªà®¾à®²à¯ à®ªà¯Šà®Ÿà®¿', 'Beverages', 450.00, 350.00, 520.00, 5.0, 'piece', 50.00, 50, 8, TRUE);
-
--- Oils & Condiments Category
-INSERT INTO public.products (name, name_ta, tamil_name, category, price, purchase_price, mrp, gst_percent, unit, stock_quantity, stock, low_stock_alert, is_active) VALUES
-  ('Coconut Oil', 'à®¤à¯‡à®™à¯à®•à®¾à®¯à¯ à®Žà®£à¯à®£à¯†à®¯à¯', 'à®¤à¯‡à®™à¯à®•à®¾à®¯à¯ à®Žà®£à¯à®£à¯†à®¯à¯', 'Oils & Condiments', 380.00, 300.00, 420.00, 5.0, 'piece', 60.00, 60, 8, TRUE),
-  ('Sesame Oil', 'à®Žà®³à¯ à®Žà®£à¯à®£à¯†à®¯à¯', 'à®Žà®³à¯ à®Žà®£à¯à®£à¯†à®¯à¯', 'Oils & Condiments', 420.00, 330.00, 480.00, 5.0, 'piece', 45.00, 45, 6, TRUE),
-  ('Ghee', 'à®¨à¯†à®¯à¯', 'à®¨à¯†à®¯à¯', 'Oils & Condiments', 550.00, 450.00, 600.00, 5.0, 'piece', 35.00, 35, 5, TRUE),
-  ('Honey', 'à®¤à¯‡à®©à¯', 'à®¤à¯‡à®©à¯', 'Oils & Condiments', 280.00, 200.00, 320.00, 5.0, 'piece', 25.00, 25, 3, TRUE);
-
--- Snacks & Dry Fruits Category
-INSERT INTO public.products (name, name_ta, tamil_name, category, price, purchase_price, mrp, gst_percent, unit, stock_quantity, stock, low_stock_alert, is_active) VALUES
-  ('Almonds', 'à®ªà®¾à®¤à®¾à®®à¯', 'à®ªà®¾à®¤à®¾à®®à¯', 'Snacks & Dry Fruits', 680.00, 550.00, 750.00, 5.0, 'piece', 30.00, 30, 5, TRUE),
-  ('Cashews', 'à®®à¯à®¨à¯à®¤à®¿à®°à®¿à®ªà¯à®ªà®°à¯à®ªà¯à®ªà¯', 'à®®à¯à®¨à¯à®¤à®¿à®°à®¿à®ªà¯à®ªà®°à¯à®ªà¯à®ªà¯', 'Snacks & Dry Fruits', 720.00, 600.00, 800.00, 5.0, 'piece', 25.00, 25, 4, TRUE),
-  ('Raisins', 'à®‰à®²à®°à¯à®¨à¯à®¤ à®¤à®¿à®°à®¾à®Ÿà¯à®šà¯ˆ', 'à®‰à®²à®°à¯à®¨à¯à®¤ à®¤à®¿à®°à®¾à®Ÿà¯à®šà¯ˆ', 'Snacks & Dry Fruits', 480.00, 380.00, 530.00, 5.0, 'piece', 35.00, 35, 5, TRUE),
-  ('Peanuts', 'à®µà¯‡à®°à¯à®•à¯à®•à®Ÿà®²à¯ˆ', 'à®µà¯‡à®°à¯à®•à¯à®•à®Ÿà®²à¯ˆ', 'Snacks & Dry Fruits', 220.00, 150.00, 250.00, 5.0, 'piece', 70.00, 70, 10, TRUE);
-
--- Dairy & Eggs Category
-INSERT INTO public.products (name, name_ta, tamil_name, category, price, purchase_price, mrp, gst_percent, unit, stock_quantity, stock, low_stock_alert, is_active) VALUES
-  ('Yogurt', 'à®¤à®¯à®¿à®°à¯', 'à®¤à®¯à®¿à®°à¯', 'Dairy & Eggs', 80.00, 50.00, 100.00, 5.0, 'piece', 40.00, 40, 8, TRUE),
-  ('Paneer', 'à®ªà®©à¯€à®°à¯', 'à®ªà®©à¯€à®°à¯', 'Dairy & Eggs', 320.00, 250.00, 380.00, 5.0, 'piece', 20.00, 20, 3, TRUE),
-  ('Cheese', 'à®šà¯€à®¸à¯', 'à®šà¯€à®¸à¯', 'Dairy & Eggs', 280.00, 200.00, 320.00, 5.0, 'piece', 15.00, 15, 3, TRUE),
-  ('Butter', 'à®µà¯†à®£à¯à®£à¯†à®¯à¯', 'à®µà¯†à®£à¯à®£à¯†à®¯à¯', 'Dairy & Eggs', 350.00, 280.00, 400.00, 5.0, 'piece', 25.00, 25, 5, TRUE);
-
--- Vegetables Category
-INSERT INTO public.products (name, name_ta, tamil_name, category, price, purchase_price, mrp, gst_percent, unit, stock_quantity, stock, low_stock_alert, is_active) VALUES
-  ('Tomato', 'à®¤à®•à¯à®•à®¾à®³à®¿', 'à®¤à®•à¯à®•à®¾à®³à®¿', 'Vegetables', 50.00, 30.00, 60.00, 5.0, 'piece', 100.00, 100, 20, TRUE),
-  ('Onion', 'à®µà¯†à®™à¯à®•à®¾à®¯à®®à¯', 'à®µà¯†à®™à¯à®•à®¾à®¯à®®à¯', 'Vegetables', 40.00, 25.00, 50.00, 5.0, 'piece', 120.00, 120, 25, TRUE),
-  ('Potato', 'à®‰à®°à¯à®³à¯ˆà®•à¯à®•à®¿à®´à®™à¯à®•à¯', 'à®‰à®°à¯à®³à¯ˆà®•à¯à®•à®¿à®´à®™à¯à®•à¯', 'Vegetables', 35.00, 20.00, 45.00, 5.0, 'piece', 150.00, 150, 30, TRUE),
-  ('Carrot', 'à®•à¯‡à®°à®Ÿà¯', 'à®•à¯‡à®°à®Ÿà¯', 'Vegetables', 60.00, 40.00, 75.00, 5.0, 'piece', 80.00, 80, 15, TRUE);
-
--- Fruits Category
-INSERT INTO public.products (name, name_ta, tamil_name, category, price, purchase_price, mrp, gst_percent, unit, stock_quantity, stock, low_stock_alert, is_active) VALUES
-  ('Banana', 'à®µà®¾à®´à¯ˆà®ªà¯à®ªà®´à®®à¯', 'à®µà®¾à®´à¯ˆà®ªà¯à®ªà®´à®®à¯', 'Fruits', 45.00, 25.00, 55.00, 5.0, 'piece', 90.00, 90, 15, TRUE),
-  ('Orange', 'à®†à®°à®žà¯à®šà¯', 'à®†à®°à®žà¯à®šà¯', 'Fruits', 80.00, 50.00, 100.00, 5.0, 'piece', 50.00, 50, 10, TRUE),
-  ('Apple', 'à®†à®ªà¯à®ªà®¿à®³à¯', 'à®†à®ªà¯à®ªà®¿à®³à¯', 'Fruits', 120.00, 80.00, 150.00, 5.0, 'piece', 40.00, 40, 8, TRUE),
-  ('Mango', 'à®®à®¾à®®à¯à®ªà®´à®®à¯', 'à®®à®¾à®®à¯à®ªà®´à®®à¯', 'Fruits', 90.00, 60.00, 110.00, 5.0, 'piece', 60.00, 60, 12, TRUE);
-
--- ============================================================================
--- NOTIFY SUPABASE TO RELOAD SCHEMA
--- ============================================================================
-
-NOTIFY pgrst, 'reload schema';
-
--- ============================================================================
--- END OF DEPLOYMENT SCHEMA
--- ============================================================================
--- Complete Mahalashmi Stores Database Schema
--- All migrations applied, all fixes included
--- Production Ready: 2026-09-26
--- ============================================================================
-
--- ============================================================================
--- Migration: 20260921_0033_store_appearance_and_profile.sql
--- Description: Adds a site-wide accent colour, business type, and a separate
---              shop contact number to store_settings for the redesigned
---              Store Settings page (Shop Profile / Contact Details / Shop
---              Information / Appearance / Product Catalogue).
--- ============================================================================
-
-ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS accent_color TEXT NOT NULL DEFAULT '#2E7D32';
-ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS business_type TEXT NOT NULL DEFAULT '';
-ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS shop_contact_number TEXT NOT NULL DEFAULT '';
-
-NOTIFY pgrst, 'reload schema';
-
-
--- ============================================================================
--- Migration: 20260923_0034_customer_event_acknowledgement.sql
--- Description: Lets a birthday/anniversary notification be dismissed
---              permanently for the day it fires (ticking it, or sending the
---              WhatsApp wish, both count as acknowledged) instead of
---              re-appearing on every login for the same occasion.
--- ============================================================================
-
-ALTER TABLE public.customers
-  ADD COLUMN IF NOT EXISTS birthday_wish_sent_on DATE,
-  ADD COLUMN IF NOT EXISTS anniversary_wish_sent_on DATE;
-
-NOTIFY pgrst, 'reload schema';
-
-
--- ============================================================================
--- Migration: 20260926_0040_update_store_name_to_mahalashmi.sql
--- Description: Update store name from "YG ENTERPRISES" or similar legacy names
---              to "Mahalashmi Stores" for consistent branding
--- ============================================================================
-
-UPDATE public.store_settings
-SET name = 'Mahalashmi Stores',
-    updated_at = NOW()
-WHERE id = 1 AND (
-  name = 'YG ENTERPRISES' OR
-  name = 'New Mahalashmi Stores' OR
-  name = 'CLAD' OR
-  name IS NULL
-);
-
-
--- ============================================================================
--- Migration: 20260926_0041_fix_duplicate_get_next_invoice_no.sql
--- Description: Fix duplicate function definition causing "is not unique" error
---              Drop all versions and recreate the correct one
--- ============================================================================
-
--- Drop the ambiguous function (CASCADE will handle dependencies)
-DROP FUNCTION IF EXISTS public.get_next_invoice_no() CASCADE;
-
--- Recreate the correct, latest version
-CREATE OR REPLACE FUNCTION public.get_next_invoice_no()
-RETURNS VARCHAR AS $$
-DECLARE
-  v_next_number INT;
-  v_invoice_no VARCHAR;
-BEGIN
-  -- Get the next invoice number from the sequence
-  v_next_number := nextval('public.invoice_number_seq');
-
-  -- Format as 8-digit zero-padded number
-  v_invoice_no := LPAD(v_next_number::TEXT, 8, '0');
-
-  RETURN v_invoice_no;
-END;
-$$ LANGUAGE plpgsql;
 
