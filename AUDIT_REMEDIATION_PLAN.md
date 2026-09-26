@@ -121,6 +121,21 @@ const toDashboardOrder = (row: Order) => {
 - Phone number validation missing
 - Large dataset pagination missing
 
+### ADDITIONAL ISSUE FOUND: Tamil Text Encoding
+
+**Severity:** MEDIUM - Affects product display  
+**File:** Database seed data and/or Supabase connection  
+**Issue:** Tamil text displaying as mojibake (character codes instead of proper Tamil)
+- Example: `à®®à¯à®¨à¯à®¤à®¿à®°à®¿` instead of `மூந்திரிப்பார்`
+- HTML charset is correct (UTF-8)
+- Issue is in database storage/retrieval
+
+**Root cause:** Data inserted with wrong collation/encoding to PostgreSQL  
+**Fix:** 
+1. Check Supabase database collation (should be UTF8)
+2. May need to re-seed data with proper UTF-8 encoding
+3. Or use CONVERT function to fix existing data
+
 ---
 
 ## 📊 Fix Priority Sequence
