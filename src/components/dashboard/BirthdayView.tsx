@@ -140,19 +140,19 @@ export default function BirthdayView() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
-            <div className="mb-4 grid grid-cols-7 gap-2 text-center text-xs font-bold text-[#6B7280]">
+          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-3">
+            <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-[#6B7280]">
               {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day) => <div key={day}>{day}</div>)}
             </div>
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-1">
               {days.map((day, idx) => (
-                <div key={idx} className={`aspect-square flex items-center justify-center rounded-lg text-sm font-bold ${day === null ? '' : daysWithBirthdays.has(day) ? 'relative border-2 border-pink-500 bg-pink-50 text-[#111111]' : 'border border-[#E5E7EB] text-[#6B7280]'}`}>
+                <div key={idx} className={`h-8 flex items-center justify-center rounded text-xs font-bold ${day === null ? '' : daysWithBirthdays.has(day) ? 'relative border border-pink-500 bg-pink-50 text-[#111111]' : 'border border-[#E5E7EB] text-[#6B7280]'}`}>
                   {day}
-                  {day && daysWithBirthdays.has(day) && <div className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-pink-500"></div>}
+                  {day && daysWithBirthdays.has(day) && <div className="absolute bottom-0.5 h-1 w-1 rounded-full bg-pink-500"></div>}
                 </div>
               ))}
             </div>
-            <p className="mt-4 text-xs text-[#6B7280]">🔴 Dot = day with birthday</p>
+            <p className="mt-2 text-[10px] text-[#6B7280]">🔴 Dot = day with birthday</p>
           </div>
 
           <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
