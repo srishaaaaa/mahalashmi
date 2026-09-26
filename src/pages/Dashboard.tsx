@@ -48,6 +48,7 @@ import Pos from './Pos'
 import AdvanceOrders from './AdvanceOrders'
 import ExpiryAlerts from './ExpiryAlerts'
 import CustomerEvents from './CustomerEvents'
+import BirthdayDashboard from '../components/dashboard/BirthdayDashboard'
 import type { AdvanceOrder } from '../services/advanceOrderService'
 import { InventoryTable } from '../components/inventory/InventoryTable'
 import { ExpensesView } from '../components/expenses/ExpensesView'
@@ -2907,7 +2908,7 @@ export default function Dashboard() {
         )}
 
         {tab === 'expiry_alerts' && <ExpiryAlerts />}
-        {tab === 'customer_events' && <CustomerEvents />}
+        {tab === 'customer_events' && <BirthdayDashboard />}
 
         {/* ── ORDER MANAGEMENT ── */}
         {tab === 'history' && (
