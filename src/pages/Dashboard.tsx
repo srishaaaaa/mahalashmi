@@ -133,15 +133,27 @@ const getOrderHistoryDate = (order: { created_at: string; credit_status?: string
   order.credit_status === 'paid' && order.credit_paid_at ? order.credit_paid_at : order.created_at
 
 const exportCSV = (orders: DashboardOrder[]) => {
+  if (!orders || orders.length === 0) {
+    alert('No orders to export')
+    return
+  }
   const header = ['Order Ref', 'Customer', 'Phone', 'Date', 'Total (INR)', 'Order Type', 'Status']
-  const rows = orders.map(o => [
-    o.order_type === 'online_request' ? o.id : o.invoice_no, o.customer_name,
-    o.phone,
-    new Date(getOrderHistoryDate(o)).toLocaleDateString('en-MY'),
-    getOrderTotal(o).toFixed(2), o.order_type, o.status,
-  ])
-  const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
+  const rows = orders.map(o => {
+    const historyDate = getOrderHistoryDate(o)
+    const dateStr = historyDate ? new Date(historyDate).toLocaleDateString('en-MY') : 'N/A'
+    const total = getOrderTotal(o) || 0
+    return [
+      o.order_type === 'online_request' ? o.id : o.invoice_no,
+      o.customer_name || 'Customer',
+      o.phone || '',
+      dateStr,
+      total.toFixed(2),
+      o.order_type || 'unknown',
+      o.status || 'pending',
+    ]
+  })
+  const csv = [header, ...rows].map(r => r.map(c => `"${String(c || '').replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
