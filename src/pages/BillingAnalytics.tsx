@@ -9,6 +9,10 @@ import {
   Search,
   ShoppingCart,
   Trophy,
+  Wallet,
+  CreditCard,
+  Smartphone,
+  Zap,
 } from 'lucide-react'
 import CompactAnalytics from '../components/dashboard/CompactAnalytics'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
@@ -58,6 +62,7 @@ type BillingOrder = {
   coupon_code: string
   discount_amount: number
   delivery_charge: number
+  payment_method?: string
 }
 
 type BillingOrderItem = {
@@ -111,10 +116,16 @@ type AnalyticsModel = {
   creditOutstandingAmount: number
   creditPaidCount: number
   creditOutstandingCount: number
+  // Payment mode breakdown
+  cashRevenue: number
+  cardRevenue: number
+  qrRevenue: number
+  creditRevenue: number
 }
 
 const normalizeStatus = (value: unknown) => String(value || '').trim().toLowerCase()
 const normalizeOrderType = (value: unknown) => String(value || '').trim().toLowerCase() || 'pos_sale'
+const normalizePaymentMethod = (value: unknown) => String(value || '').trim().toLowerCase()
 const isCompletedStatus = (value: unknown) => {
   const status = normalizeStatus(value)
   return status === 'completed' || status === 'paid'
@@ -349,12 +360,24 @@ export default function BillingAnalytics() {
     const onlinePosRevenue = onlinePOS.reduce((sum, order) => sum + toNumber(order.total, 0), 0)
     const manualRevenue = manualSales.reduce((sum, order) => sum + toNumber(order.total, 0), 0)
 
+    // Payment mode breakdown
+    const cashRevenue = billableCompleted
+      .filter((order) => normalizePaymentMethod(order.payment_method) === 'cash')
+      .reduce((sum, order) => sum + toNumber(order.total, 0), 0)
+    const cardRevenue = billableCompleted
+      .filter((order) => normalizePaymentMethod(order.payment_method) === 'card')
+      .reduce((sum, order) => sum + toNumber(order.total, 0), 0)
+    const qrRevenue = billableCompleted
+      .filter((order) => normalizePaymentMethod(order.payment_method) === 'upi')
+      .reduce((sum, order) => sum + toNumber(order.total, 0), 0)
+
     // Credit metrics: will be enabled once database is migrated with is_credit and credit_status columns
     const totalCreditSales = 0
     const creditPaidAmount = 0
     const creditOutstandingAmount = 0
     const creditPaidCount = 0
     const creditOutstandingCount = 0
+    const creditRevenue = 0
 
     const todayKey = new Date().toISOString().slice(0, 10)
     const monthKey = todayKey.slice(0, 7)
@@ -495,6 +518,11 @@ export default function BillingAnalytics() {
       creditOutstandingAmount,
       creditPaidCount,
       creditOutstandingCount,
+      // Payment mode breakdown
+      cashRevenue,
+      cardRevenue,
+      qrRevenue,
+      creditRevenue,
     }
   }, [analyticsDateFrom, analyticsDateTo, orderItems, orders, products])
 
@@ -589,7 +617,39 @@ export default function BillingAnalytics() {
       color: 'text-indigo-700',
       bg: 'bg-indigo-50',
     },
-    // Credit sale metrics will be added once database migration is applied
+    // Payment mode breakdown
+    {
+      label: 'CASH',
+      helper: 'Cash payments received',
+      value: formatCurrency(analytics.cashRevenue),
+      icon: <Wallet size={18} />,
+      color: 'text-green-700',
+      bg: 'bg-green-50',
+    },
+    {
+      label: 'CARD',
+      helper: 'Credit/debit card payments',
+      value: formatCurrency(analytics.cardRevenue),
+      icon: <CreditCard size={18} />,
+      color: 'text-blue-700',
+      bg: 'bg-blue-50',
+    },
+    {
+      label: 'QR / UPI',
+      helper: 'QR code & UPI payments',
+      value: formatCurrency(analytics.qrRevenue),
+      icon: <Smartphone size={18} />,
+      color: 'text-purple-700',
+      bg: 'bg-purple-50',
+    },
+    {
+      label: 'CREDIT',
+      helper: 'Pending credit sales',
+      value: formatCurrency(analytics.creditRevenue),
+      icon: <Zap size={18} />,
+      color: 'text-amber-700',
+      bg: 'bg-amber-50',
+    },
   ]
 
   if (authLoading || loading) {
