@@ -79,6 +79,16 @@ export default defineConfig({
   ],
   build: {
     target: 'esnext',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
+    sourcemap: false,
+    reportCompressedSize: false,
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
         manualChunks: (id: string) => {
@@ -90,6 +100,7 @@ export default defineConfig({
           if (id.includes('lucide-react')) return 'icons'
           if (id.includes('jsbarcode') || id.includes('@zxing')) return 'barcode'
           if (id.includes('workbox') || id.includes('vite-plugin-pwa')) return 'pwa'
+          if (id.includes('html2canvas') || id.includes('jspdf') || id.includes('exceljs')) return 'export-tools'
           return 'vendor'
         },
       },
@@ -99,6 +110,7 @@ export default defineConfig({
     esbuildOptions: {
       target: 'esnext',
     },
+    exclude: ['html2canvas', 'jspdf', 'exceljs'],
   },
   server: {
     allowedHosts: true,
