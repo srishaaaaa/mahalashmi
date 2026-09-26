@@ -57,6 +57,8 @@ function ActionButtons({ order, onView, onPrint, onDownload, onShare, onDelete }
   )
 }
 
+type DatePreset = 'today' | 'week' | 'month' | 'year' | 'all' | 'custom'
+
 export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
   orders, historyOrders, onSettled, onDueDateChanged, onView, onPrint, onDownload, onShare, onDelete,
 }) => {
@@ -65,12 +67,76 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
   const [savingDueDateId, setSavingDueDateId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState<'outstanding' | 'history'>('outstanding')
+  const [datePreset, setDatePreset] = useState<DatePreset>('all')
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+
+  const applyDatePreset = (preset: DatePreset) => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const from = new Date(today)
+    const to = new Date(today)
+
+    switch (preset) {
+      case 'today':
+        setFromDate(today.toISOString().split('T')[0])
+        setToDate(today.toISOString().split('T')[0])
+        break
+      case 'week':
+        from.setDate(today.getDate() - today.getDay())
+        to.setDate(today.getDate() + (6 - today.getDay()))
+        setFromDate(from.toISOString().split('T')[0])
+        setToDate(to.toISOString().split('T')[0])
+        break
+      case 'month':
+        from.setDate(1)
+        to.setMonth(today.getMonth() + 1)
+        to.setDate(0)
+        setFromDate(from.toISOString().split('T')[0])
+        setToDate(to.toISOString().split('T')[0])
+        break
+      case 'year':
+        from.setMonth(0, 1)
+        to.setMonth(11, 31)
+        setFromDate(from.toISOString().split('T')[0])
+        setToDate(to.toISOString().split('T')[0])
+        break
+      default:
+        setFromDate('')
+        setToDate('')
+    }
+    setDatePreset(preset)
+  }
 
   const items = useMemo(
-    () => orders.filter(o => matchesSearch(o, search)).map(o => ({ ...o, daysOverdue: toDaysOverdue(o.credit_due_date || null) })),
-    [orders, search]
+    () => orders
+      .filter(o => matchesSearch(o, search))
+      .filter(o => {
+        if (!fromDate && !toDate) return true
+        const saleDate = new Date(`${o.created_at.split('T')[0]}T00:00:00`)
+        const from = fromDate ? new Date(fromDate) : null
+        const to = toDate ? new Date(toDate) : null
+        if (from && saleDate < from) return false
+        if (to && saleDate > to) return false
+        return true
+      })
+      .map(o => ({ ...o, daysOverdue: toDaysOverdue(o.credit_due_date || null) })),
+    [orders, search, fromDate, toDate]
   )
-  const filteredHistory = useMemo(() => historyOrders.filter(o => matchesSearch(o, search)), [historyOrders, search])
+  const filteredHistory = useMemo(() =>
+    historyOrders
+      .filter(o => matchesSearch(o, search))
+      .filter(o => {
+        if (!fromDate && !toDate) return true
+        const saleDate = new Date(`${o.created_at.split('T')[0]}T00:00:00`)
+        const from = fromDate ? new Date(fromDate) : null
+        const to = toDate ? new Date(toDate) : null
+        if (from && saleDate < from) return false
+        if (to && saleDate > to) return false
+        return true
+      }),
+    [historyOrders, search, fromDate, toDate]
+  )
 
   const handleMarkAsPaid = async (order: DashboardOrder) => {
     if (!window.confirm(`Mark ${formatCurrency(order.total)} from "${order.customer_name}" (${formatInvoiceNo(order.invoice_no)}) as paid?`)) {
@@ -157,36 +223,79 @@ export const OutstandingCreditsView: React.FC<OutstandingCreditsViewProps> = ({
         </div>
       </div>
 
-      {/* Tab switcher + Search */}
-      <div className="flex flex-col gap-4 border-b border-[#E7E7E7] pb-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex gap-6">
-          {([
-            { id: 'outstanding' as const, label: 'OUTSTANDING', count: items.length },
-            { id: 'history' as const, label: 'HISTORY', count: filteredHistory.length },
-          ]).map(({ id, label, count }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setActiveTab(id)}
-              className={`pb-2 md:pb-4 text-left text-[13px] font-bold tracking-wide transition-colors relative whitespace-nowrap ${
-                activeTab === id ? 'text-[#0A0A0A]' : 'text-[#6B7280] hover:text-[#111111]'
-              }`}
-            >
-              {label} <span className="text-[11px] font-semibold text-gray-400">({count})</span>
-              {activeTab === id && <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#0A0A0A] rounded-t-md" />}
-            </button>
-          ))}
+      {/* Tab switcher + Search + Filters */}
+      <div className="space-y-4 border-b border-[#E7E7E7] pb-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex gap-6">
+            {([
+              { id: 'outstanding' as const, label: 'OUTSTANDING', count: items.length },
+              { id: 'history' as const, label: 'HISTORY', count: filteredHistory.length },
+            ]).map(({ id, label, count }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActiveTab(id)}
+                className={`pb-2 md:pb-4 text-left text-[13px] font-bold tracking-wide transition-colors relative whitespace-nowrap ${
+                  activeTab === id ? 'text-[#0A0A0A]' : 'text-[#6B7280] hover:text-[#111111]'
+                }`}
+              >
+                {label} <span className="text-[11px] font-semibold text-gray-400">({count})</span>
+                {activeTab === id && <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#0A0A0A] rounded-t-md" />}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative w-full md:w-64">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search invoice, customer, phone..."
+              className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 bg-[#FBFAF6] text-xs font-semibold text-gray-800 outline-none focus:border-[var(--accent)] transition-colors"
+            />
+          </div>
         </div>
 
-        <div className="relative w-full md:w-64">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search invoice, customer, phone..."
-            className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 bg-[#FBFAF6] text-xs font-semibold text-gray-800 outline-none focus:border-[var(--accent)] transition-colors"
-          />
+        <div className="space-y-2">
+          <p className="text-xs font-bold text-gray-500">Filter by Sale Date</p>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {([
+              ['today', 'Today'],
+              ['week', 'This Week'],
+              ['month', 'This Month'],
+              ['year', 'This Year'],
+              ['all', 'All'],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => applyDatePreset(value)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${datePreset === value ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 mb-1">From Date</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={e => { setFromDate(e.target.value); setDatePreset('custom') }}
+                className="w-full h-9 rounded-lg border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-800 outline-none focus:border-[var(--accent)]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 mb-1">To Date</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={e => { setToDate(e.target.value); setDatePreset('custom') }}
+                className="w-full h-9 rounded-lg border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-800 outline-none focus:border-[var(--accent)]"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
