@@ -13,7 +13,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- Aggressive cleanup for function overloads and old versions
 -- ============================================================================
 
--- Drop all function overloads (CASCADE removes all versions)
+-- Drop all function overloads (CASCADE removes all versions and dependents)
 DROP FUNCTION IF EXISTS public.complete_advance_order_v2 CASCADE;
 DROP FUNCTION IF EXISTS public.add_advance_order_event CASCADE;
 DROP FUNCTION IF EXISTS public.update_advance_order_status CASCADE;
@@ -24,20 +24,6 @@ DROP FUNCTION IF EXISTS public.create_order_without_stock CASCADE;
 DROP FUNCTION IF EXISTS public.create_order_with_stock CASCADE;
 DROP FUNCTION IF EXISTS public.complete_pos_sale_with_inventory CASCADE;
 DROP FUNCTION IF EXISTS public.adjust_inventory_stock CASCADE;
-
--- Additional cleanup: Remove any lingering function definitions
-BEGIN;
-  DROP FUNCTION IF EXISTS public.complete_advance_order_v2(uuid,text,numeric,text,numeric,numeric,text) CASCADE;
-  DROP FUNCTION IF EXISTS public.add_advance_order_event(uuid,text,text,text) CASCADE;
-  DROP FUNCTION IF EXISTS public.update_advance_order_status(uuid,text,text) CASCADE;
-  DROP FUNCTION IF EXISTS public.create_advance_order(text,text,text,text,text,text,numeric,numeric,text,text,text,text,jsonb) CASCADE;
-  DROP FUNCTION IF EXISTS public.create_barcode_and_receive_stock(integer,text,numeric,numeric,text,text,text) CASCADE;
-  DROP FUNCTION IF EXISTS public.get_public_invoice_by_number(text) CASCADE;
-  DROP FUNCTION IF EXISTS public.create_order_without_stock(text,text,text,jsonb,numeric,text,text,text,numeric,numeric,numeric,text,numeric,text,numeric) CASCADE;
-  DROP FUNCTION IF EXISTS public.create_order_with_stock(text,text,text,jsonb,numeric,text,text,text,numeric,numeric,numeric,text,numeric,text,numeric,numeric,boolean,text,jsonb) CASCADE;
-  DROP FUNCTION IF EXISTS public.complete_pos_sale_with_inventory(text,text,text,jsonb,numeric,text,text,text,numeric,numeric,numeric,text,numeric,text,numeric,numeric,boolean,text,jsonb,text,boolean) CASCADE;
-  DROP FUNCTION IF EXISTS public.adjust_inventory_stock(integer,text,numeric,text,text,text) CASCADE;
-COMMIT;
 
 -- ============================================================================
 -- SEQUENCES
