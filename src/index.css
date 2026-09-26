@@ -204,6 +204,17 @@
     overscroll-behavior: contain;
   }
 
+  /* Fix scrolling in all overflow containers */
+  .overflow-y-auto, .overflow-x-auto, .overflow-auto {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Ensure tables scroll properly */
+  table {
+    -webkit-overflow-scrolling: touch;
+  }
+
   /* Ensure main app container scrolls properly */
   #root {
     width: 100%;
@@ -295,6 +306,26 @@
   .hide-scrollbar::-webkit-scrollbar { display: none; }
   .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+  /* Visible scrollbar styling */
+  .scrollbar-visible::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-visible::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+  .scrollbar-visible::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+  }
+  .scrollbar-visible::-webkit-scrollbar-thumb:hover {
+    background: #555;
+  }
+  .scrollbar-visible {
+    scrollbar-width: thin;
+    scrollbar-color: #888 #f1f1f1;
+  }
+
   /* Smooth scrolling utilities */
   .smooth-scroll {
     -webkit-overflow-scrolling: touch;
@@ -315,6 +346,17 @@
   .scroll-contain {
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+  }
+
+  /* Force scroll on element */
+  .force-scroll {
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent scroll chaining */
+  .scroll-lock {
+    overscroll-behavior: none;
   }
 
   /* Touch optimization */
