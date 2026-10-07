@@ -149,6 +149,9 @@ export default function Pos(props: PosProps = {}) {
   // Cart line whose rate is being edited, and the typed value before it is applied.
   const [editingRateId, setEditingRateId] = useState<string | number | null>(null)
   const [rateDraft, setRateDraft] = useState('')
+  // Same for a cart line's quantity.
+  const [editingQtyId, setEditingQtyId] = useState<string | number | null>(null)
+  const [qtyDraft, setQtyDraft] = useState('')
   const [quickAddBarcode, setQuickAddBarcode] = useState('')
   const [scanResetTick, setScanResetTick] = useState(0)
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '' })
@@ -706,6 +709,57 @@ export default function Pos(props: PosProps = {}) {
       >
         ₹{Number(item.basePrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
         <Pencil size={isMobile ? 13 : 11} className="text-[#9CA3AF]" />
+      </button>
+    )
+  }
+
+  const commitQtyEdit = () => {
+    if (editingQtyId == null) return
+    const parsed = Number(qtyDraft)
+    if (qtyDraft.trim() !== '' && Number.isFinite(parsed)) {
+      if (parsed <= 0) removeItem(editingQtyId)
+      else updateItem(editingQtyId, 'qty', parsed)
+    }
+    setEditingQtyId(null)
+  }
+
+  const renderQty = (item: PosItem, size: 'mobile' | 'desktop') => {
+    const isMobile = size === 'mobile'
+    if (editingQtyId === item.id) {
+      return (
+        <input
+          type="number"
+          min={item.allowDecimalQuantity ? '0.001' : '1'}
+          step={item.allowDecimalQuantity ? '0.001' : '1'}
+          inputMode={item.allowDecimalQuantity ? 'decimal' : 'numeric'}
+          autoFocus
+          value={qtyDraft}
+          onChange={e => setQtyDraft(e.target.value)}
+          onFocus={e => e.target.select()}
+          onBlur={commitQtyEdit}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.preventDefault(); commitQtyEdit() }
+            if (e.key === 'Escape') setEditingQtyId(null)
+          }}
+          aria-label={`Quantity for ${item.name}`}
+          className={isMobile
+            ? 'h-11 w-full min-w-0 rounded-lg border border-[var(--accent)] bg-white text-[18px] font-black text-[#111111] text-center outline-none'
+            : 'w-14 rounded-md border border-[var(--accent)] bg-white py-0.5 text-[13px] font-black text-[#111111] text-center outline-none'}
+        />
+      )
+    }
+    return (
+      <button
+        type="button"
+        onClick={() => { setEditingQtyId(item.id); setQtyDraft(String(item.qty)) }}
+        title="Edit quantity"
+        aria-label={`Edit quantity for ${item.name}`}
+        className={isMobile
+          ? 'h-11 w-full min-w-0 rounded-lg flex items-center justify-center gap-1.5 text-[18px] font-black text-[#111111] hover:bg-[#FAFAFA] cursor-pointer'
+          : 'inline-flex items-center justify-center gap-1 min-w-[28px] rounded-md px-1 text-[13px] font-black text-[#111111] hover:bg-[#F3F4F6] cursor-pointer'}
+      >
+        {item.qty}
+        <Pencil size={isMobile ? 13 : 10} className="text-[#9CA3AF]" />
       </button>
     )
   }
@@ -1611,19 +1665,7 @@ export default function Pos(props: PosProps = {}) {
                           onClick={() => bumpQty(item.id, item.allowDecimalQuantity ? -0.1 : -1)}
                           className="w-11 h-11 rounded-xl hover:bg-[#FAFAFA] flex items-center justify-center text-[#374151] font-bold text-[20px] cursor-pointer"
                         >-</button>
-                        {item.allowDecimalQuantity ? (
-                          <input
-                            type="number"
-                            min="0.001"
-                            step="0.001"
-                            inputMode="decimal"
-                            value={item.qty}
-                            onChange={e => updateItem(item.id, 'qty', e.target.value)}
-                            className="w-full text-[18px] font-black text-[#111111] text-center bg-transparent outline-none"
-                          />
-                        ) : (
-                          <span className="text-[18px] font-black text-[#111111] text-center">{item.qty}</span>
-                        )}
+                        {renderQty(item, 'mobile')}
                         <button
                           onClick={() => bumpQty(item.id, item.allowDecimalQuantity ? 0.1 : 1)}
                           className="w-11 h-11 rounded-xl hover:bg-[#FAFAFA] flex items-center justify-center text-[#374151] font-bold text-[20px] cursor-pointer"
@@ -1714,20 +1756,7 @@ export default function Pos(props: PosProps = {}) {
                         onClick={() => bumpQty(item.id, item.allowDecimalQuantity ? -0.1 : -1)}
                         className="w-6 h-6 rounded-md hover:bg-[#FAFAFA] flex items-center justify-center text-[#374151] font-bold cursor-pointer"
                       >-</button>
-                      {item.allowDecimalQuantity ? (
-                        <input
-                          type="number"
-                          min="0.001"
-                          step="0.001"
-                          inputMode="decimal"
-                          value={item.qty}
-                          onChange={e => updateItem(item.id, 'qty', e.target.value)}
-                          title={`Quantity in ${item.unitLabel}`}
-                          className="w-14 text-[13px] font-black text-[#111111] text-center bg-transparent outline-none"
-                        />
-                      ) : (
-                        <span className="text-[13px] font-black text-[#111111] min-w-[20px] text-center">{item.qty}</span>
-                      )}
+                      {renderQty(item, 'desktop')}
                       <button
                         onClick={() => bumpQty(item.id, item.allowDecimalQuantity ? 0.1 : 1)}
                         className="w-6 h-6 rounded-md hover:bg-[#FAFAFA] flex items-center justify-center text-[#374151] font-bold cursor-pointer"
