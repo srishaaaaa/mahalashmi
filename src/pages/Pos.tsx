@@ -152,6 +152,7 @@ export default function Pos(props: PosProps = {}) {
   // Same for a cart line's quantity.
   const [editingQtyId, setEditingQtyId] = useState<string | number | null>(null)
   const [qtyDraft, setQtyDraft] = useState('')
+  const cancelQtyEditRef = useRef(false)
   const [quickAddBarcode, setQuickAddBarcode] = useState('')
   const [scanResetTick, setScanResetTick] = useState(0)
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '' })
@@ -715,6 +716,11 @@ export default function Pos(props: PosProps = {}) {
 
   const commitQtyEdit = () => {
     if (editingQtyId == null) return
+    if (cancelQtyEditRef.current) {
+      cancelQtyEditRef.current = false
+      setEditingQtyId(null)
+      return
+    }
     const parsed = Number(qtyDraft)
     if (qtyDraft.trim() !== '' && Number.isFinite(parsed)) {
       if (parsed <= 0) removeItem(editingQtyId)
@@ -723,44 +729,34 @@ export default function Pos(props: PosProps = {}) {
     setEditingQtyId(null)
   }
 
+  // The quantity is always a typing box: focusing it starts an edit, Enter or
+  // leaving the box applies it (typing every keystroke straight into the cart
+  // would clamp half-typed values like "0." or "").
   const renderQty = (item: PosItem, size: 'mobile' | 'desktop') => {
     const isMobile = size === 'mobile'
-    if (editingQtyId === item.id) {
-      return (
-        <input
-          type="number"
-          min={item.allowDecimalQuantity ? '0.001' : '1'}
-          step={item.allowDecimalQuantity ? '0.001' : '1'}
-          inputMode={item.allowDecimalQuantity ? 'decimal' : 'numeric'}
-          autoFocus
-          value={qtyDraft}
-          onChange={e => setQtyDraft(e.target.value)}
-          onFocus={e => e.target.select()}
-          onBlur={commitQtyEdit}
-          onKeyDown={e => {
-            if (e.key === 'Enter') { e.preventDefault(); commitQtyEdit() }
-            if (e.key === 'Escape') setEditingQtyId(null)
-          }}
-          aria-label={`Quantity for ${item.name}`}
-          className={isMobile
-            ? 'h-11 w-full min-w-0 rounded-lg border border-[var(--accent)] bg-white text-[18px] font-black text-[#111111] text-center outline-none'
-            : 'w-14 rounded-md border border-[var(--accent)] bg-white py-0.5 text-[13px] font-black text-[#111111] text-center outline-none'}
-        />
-      )
-    }
+    const editing = editingQtyId === item.id
     return (
-      <button
-        type="button"
-        onClick={() => { setEditingQtyId(item.id); setQtyDraft(String(item.qty)) }}
-        title="Edit quantity"
-        aria-label={`Edit quantity for ${item.name}`}
+      <input
+        id={`qty-input-${size}-${item.id}`}
+        type="number"
+        min={item.allowDecimalQuantity ? '0.001' : '1'}
+        step={item.allowDecimalQuantity ? '0.001' : '1'}
+        inputMode={item.allowDecimalQuantity ? 'decimal' : 'numeric'}
+        enterKeyHint="done"
+        value={editing ? qtyDraft : String(item.qty)}
+        onFocus={e => { setEditingQtyId(item.id); setQtyDraft(String(item.qty)); e.target.select() }}
+        onChange={e => { setEditingQtyId(item.id); setQtyDraft(e.target.value) }}
+        onBlur={commitQtyEdit}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() }
+          if (e.key === 'Escape') { cancelQtyEditRef.current = true; e.currentTarget.blur() }
+        }}
+        title={item.allowDecimalQuantity ? `Quantity in ${item.unitLabel}` : 'Quantity'}
+        aria-label={`Quantity for ${item.name}`}
         className={isMobile
-          ? 'h-11 w-full min-w-0 rounded-lg flex items-center justify-center gap-1.5 text-[18px] font-black text-[#111111] hover:bg-[#FAFAFA] cursor-pointer'
-          : 'inline-flex items-center justify-center gap-1 min-w-[28px] rounded-md px-1 text-[13px] font-black text-[#111111] hover:bg-[#F3F4F6] cursor-pointer'}
-      >
-        {item.qty}
-        <Pencil size={isMobile ? 13 : 10} className="text-[#9CA3AF]" />
-      </button>
+          ? 'h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-[#FAFAFA] text-[18px] font-black text-[#111111] text-center outline-none focus:border-[var(--accent)] focus:bg-white'
+          : 'w-14 rounded-md border border-gray-300 bg-[#FAFAFA] py-0.5 text-[13px] font-black text-[#111111] text-center outline-none focus:border-[var(--accent)] focus:bg-white'}
+      />
     )
   }
 
@@ -1645,7 +1641,17 @@ export default function Pos(props: PosProps = {}) {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <p className="text-[12px] font-black uppercase tracking-wider text-[#374151] mb-1">Unit Price</p>
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <p className="text-[12px] font-black uppercase tracking-wider text-[#374151]">Unit Price</p>
+                          <button
+                          type="button"
+                          onClick={() => startRateEdit(item)}
+                          aria-label={`Edit rate for ${item.name}`}
+                          className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-black normal-case tracking-normal text-[var(--accent)] cursor-pointer"
+                        >
+                          <Pencil size={11} /> Edit
+                        </button>
+                        </div>
                         {renderRate(item, 'mobile')}
                       </div>
                       <div>
@@ -1657,9 +1663,19 @@ export default function Pos(props: PosProps = {}) {
                     </div>
 
                     <div>
-                      <p className="text-[13px] font-black uppercase tracking-wider text-[#374151] mb-1">
-                        Quantity {item.allowDecimalQuantity ? `(${item.unitLabel})` : ''}
-                      </p>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <p className="text-[13px] font-black uppercase tracking-wider text-[#374151]">
+                          Quantity {item.allowDecimalQuantity ? `(${item.unitLabel})` : ''}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById(`qty-input-mobile-${item.id}`)?.focus()}
+                          aria-label={`Edit quantity for ${item.name}`}
+                          className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-black normal-case tracking-normal text-[var(--accent)] cursor-pointer"
+                        >
+                          <Pencil size={11} /> Edit
+                        </button>
+                      </div>
                       <div className="grid grid-cols-[48px_1fr_48px] items-center gap-2 border border-gray-200 rounded-xl px-2 py-2 bg-white">
                         <button
                           onClick={() => bumpQty(item.id, item.allowDecimalQuantity ? -0.1 : -1)}
