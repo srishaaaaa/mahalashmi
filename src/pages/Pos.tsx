@@ -754,8 +754,8 @@ export default function Pos(props: PosProps = {}) {
         title={item.allowDecimalQuantity ? `Quantity in ${item.unitLabel}` : 'Quantity'}
         aria-label={`Quantity for ${item.name}`}
         className={isMobile
-          ? 'h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-[#FAFAFA] text-[18px] font-black text-[#111111] text-center outline-none focus:border-[var(--accent)] focus:bg-white'
-          : 'w-14 rounded-md border border-gray-300 bg-[#FAFAFA] py-0.5 text-[13px] font-black text-[#111111] text-center outline-none focus:border-[var(--accent)] focus:bg-white'}
+          ? '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-[#FAFAFA] text-[18px] font-black text-[#111111] text-center outline-none focus:border-[var(--accent)] focus:bg-white'
+          : '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none w-12 min-w-0 rounded-md border border-gray-300 bg-[#FAFAFA] py-0.5 text-[13px] font-black text-[#111111] text-center outline-none focus:border-[var(--accent)] focus:bg-white'}
       />
     )
   }
@@ -1767,15 +1767,17 @@ export default function Pos(props: PosProps = {}) {
                     </div>
 
                     {/* Quantity Controls */}
-                    <div className="flex items-center justify-between border border-gray-200 rounded-lg px-2 py-1 bg-white">
+                    <div className="flex items-center justify-between gap-1 border border-gray-200 rounded-lg px-1.5 py-1 bg-white">
                       <button
                         onClick={() => bumpQty(item.id, item.allowDecimalQuantity ? -0.1 : -1)}
-                        className="w-6 h-6 rounded-md hover:bg-[#FAFAFA] flex items-center justify-center text-[#374151] font-bold cursor-pointer"
+                        aria-label={`Decrease ${item.name}`}
+                        className="w-6 h-6 shrink-0 rounded-md hover:bg-[#FAFAFA] flex items-center justify-center text-[#374151] font-bold cursor-pointer"
                       >-</button>
                       {renderQty(item, 'desktop')}
                       <button
                         onClick={() => bumpQty(item.id, item.allowDecimalQuantity ? 0.1 : 1)}
-                        className="w-6 h-6 rounded-md hover:bg-[#FAFAFA] flex items-center justify-center text-[#374151] font-bold cursor-pointer"
+                        aria-label={`Increase ${item.name}`}
+                        className="w-6 h-6 shrink-0 rounded-md hover:bg-[#FAFAFA] flex items-center justify-center text-[#374151] font-bold cursor-pointer"
                       >+</button>
                     </div>
 
