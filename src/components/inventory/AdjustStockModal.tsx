@@ -71,7 +71,7 @@ const MODES: Record<AdjustMode, {
     stepBtn: 'hover:bg-rose-100 text-rose-900 border-rose-300',
     input: 'border-rose-400 text-rose-950 focus:border-rose-600',
     presetActive: 'bg-rose-600 text-white border-rose-600', presetIdle: 'text-rose-900 border-rose-200 hover:bg-rose-100',
-    qtyLabel: 'Quantity to Deduct (Loss / Damaged)', notePlaceholder: 'e.g. Torn fabric, stain, missing piece',
+    qtyLabel: 'Quantity to Deduct (Loss / Damaged)', notePlaceholder: 'e.g. Damaged pack, expired, spilled',
   },
   CORRECTION: {
     label: 'Reconciliation', hint: 'Set Exact Count', Icon: Target, reason: 'CORRECTION',

@@ -214,7 +214,7 @@ export const CategoryManagerView: React.FC = () => {
               <input
                 type="text"
                 required
-                placeholder="e.g. Linen Shirts, Sarees, Trousers"
+                placeholder="e.g. Rice, Dals & Pulses, Oils"
                 value={nameEn}
                 onChange={(e) => setNameEn(e.target.value)}
                 className="w-full h-10 px-3 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-900 outline-none focus:border-[#0A0A0A]"

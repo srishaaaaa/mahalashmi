@@ -458,7 +458,7 @@ export default function Pos(props: PosProps = {}) {
         const item = makePosItem({
           id: targetId,
           name: scanned.product_name,
-          category: scanned.category || 'Apparel',
+          category: scanned.category || 'General',
           remedy: [],
           price: scanned.price,
           offerPrice: scanned.offer_price || null,

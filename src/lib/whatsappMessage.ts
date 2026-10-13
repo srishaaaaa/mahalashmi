@@ -208,13 +208,13 @@ We have successfully received your initial advance payment!
 
 🧾 *Advance Order Details* 👇
 📦 Deposit ID: #${input.depositId}
-👔 Product: ${input.productName}
+🛒 Items: ${input.productName}
 💵 Total Order Amount: ₹${input.totalAmount}
 💰 Advance Paid: ₹${input.depositAmount}${input.paymentMethod ? ` (${input.paymentMethod.toLowerCase() === 'upi' ? 'QR' : input.paymentMethod.toUpperCase()})` : ''}
 🔴 Balance to Pay on Delivery: ₹${input.remainingBalance}
 📅 Expected Delivery Date: ${deliveryDateFormatted}
 
-Your garments are being prepared with utmost care. We will have everything ready on or before ${deliveryDateFormatted}!
+We are getting your order ready with care. Everything will be packed and ready on or before ${deliveryDateFormatted}!
 
 📞 *Shop Contact:* ${shop.phone}
 📷 *Instagram:* @${shop.instagramHandle}`

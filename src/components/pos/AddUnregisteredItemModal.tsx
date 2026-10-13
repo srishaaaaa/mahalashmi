@@ -218,7 +218,7 @@ export const AddUnregisteredItemModal: React.FC<Props> = ({ isOpen, onClose, onS
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder={l('e.g. Size 38, Maroon, Urgent Stitching', 'எ.கா. அளவு 38, அவசரம்')}
+              placeholder={l('e.g. Loose, 2 packs, Urgent', 'எ.கா. உதிரி, 2 பாக்கெட், அவசரம்')}
               className="w-full px-3 py-2 bg-[#FBFAF6] border border-gray-200 rounded-xl text-xs font-semibold text-[#111111] focus:outline-none focus:border-[#0A0A0A] focus:bg-white transition-colors"
             />
           </div>
