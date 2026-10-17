@@ -250,6 +250,11 @@ export default function CatalogModal({ isOpen, onClose, onAdd }: CatalogModalPro
                                 </span>
                               )}
                             </div>
+                            {product.description?.trim() && (
+                              <p className="mt-1 text-[12px] font-medium text-[#4B5563] break-words line-clamp-2" title={product.description.trim()}>
+                                {product.description.trim()}
+                              </p>
+                            )}
                             {product.location && /^[a-zA-Z0-9\s,\-./]+$/.test(product.location) && (
                               <p className="flex items-center gap-1 text-[10px] font-bold text-[var(--accent)] mt-1">
                                 <MapPin size={11} /> {product.location}

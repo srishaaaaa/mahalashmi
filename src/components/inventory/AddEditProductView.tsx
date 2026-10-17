@@ -44,6 +44,31 @@ export interface VariantInputRow {
   expiryDate?: string
 }
 
+// Unsaved "Add New Product" form, kept in this browser so a refresh or moving
+// to another page does not lose what was typed. Cleared on save or Cancel.
+const NEW_PRODUCT_DRAFT_KEY = 'mahalashmi_new_product_draft_v1'
+
+type NewProductDraft = {
+  name: string; nameTa: string; categoryId: number | ''; price: string; purchasePrice: string
+  unitChoice: string; customUnitLabel: string; contentSize: string; contentUnit: string
+  stockQuantity: string; lowStockAlert: string; expiryDate: string; mfgDate: string
+  location: string; barcode: string; description: string; hasVariants: boolean; soldByWeight: boolean
+  hasSpecialOffer: boolean; specialOfferNote: string; specialOfferCost: string; variantRows: VariantInputRow[]
+}
+
+const loadNewProductDraft = (): Partial<NewProductDraft> | null => {
+  try {
+    const raw = localStorage.getItem(NEW_PRODUCT_DRAFT_KEY)
+    return raw ? JSON.parse(raw) as Partial<NewProductDraft> : null
+  } catch { return null }
+}
+
+const isBlankDraft = (d: NewProductDraft) =>
+  !d.name.trim() && !d.nameTa.trim() && d.categoryId === '' && !d.price && !d.purchasePrice &&
+  !d.barcode.trim() && !d.description.trim() && !d.location.trim() && !d.expiryDate && !d.mfgDate &&
+  !d.specialOfferNote.trim() && !d.specialOfferCost && d.variantRows.length === 0 &&
+  (d.stockQuantity === '0' || d.stockQuantity === '') && !d.hasVariants && !d.hasSpecialOffer
+
 /** Saves a pack size's batch dates. Works before the mfg_date column exists (then saves expiry only). */
 async function saveVariantDates(variantId: string, row: VariantInputRow) {
   const expiry_date = row.expiryDate || null
@@ -103,33 +128,34 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [search, setSearch] = useState('')
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
-  const [mobileView, setMobileView] = useState<'catalog' | 'form'>('catalog')
+  const [draft] = useState(loadNewProductDraft)
+  const [mobileView, setMobileView] = useState<'catalog' | 'form'>(() => (draft ? 'form' : 'catalog'))
 
   // Form State
-  const [name, setName] = useState('')
-  const [nameTa, setNameTa] = useState('')
-  const [categoryId, setCategoryId] = useState<number | ''>('')
-  const [price, setPrice] = useState<string>('')
-  const [purchasePrice, setPurchasePrice] = useState<string>('')
-  const [unitChoice, setUnitChoice] = useState<string>('pcs')
-  const [customUnitLabel, setCustomUnitLabel] = useState<string>('')
-  const [contentSize, setContentSize] = useState<string>('') // e.g. "200ml", "500g" for packets
-  const [contentUnit, setContentUnit] = useState<string>('') // e.g. "ml", "g"
-  const [stockQuantity, setStockQuantity] = useState<string>('0')
-  const [lowStockAlert, setLowStockAlert] = useState<string>(() => String(defaultLowStockThreshold()))
-  const [expiryDate, setExpiryDate] = useState<string>('')
-  const [mfgDate, setMfgDate] = useState<string>('')
-  const [location, setLocation] = useState<string>('')
-  const [barcode, setBarcode] = useState<string>('')
-  const [description, setDescription] = useState<string>('')
-  const [hasVariants, setHasVariants] = useState<boolean>(false)
-  const [soldByWeight, setSoldByWeight] = useState<boolean>(false)
-  const [hasSpecialOffer, setHasSpecialOffer] = useState<boolean>(false)
-  const [specialOfferNote, setSpecialOfferNote] = useState<string>('')
-  const [specialOfferCost, setSpecialOfferCost] = useState<string>('')
+  const [name, setName] = useState(draft?.name ?? '')
+  const [nameTa, setNameTa] = useState(draft?.nameTa ?? '')
+  const [categoryId, setCategoryId] = useState<number | ''>(draft?.categoryId ?? '')
+  const [price, setPrice] = useState<string>(draft?.price ?? '')
+  const [purchasePrice, setPurchasePrice] = useState<string>(draft?.purchasePrice ?? '')
+  const [unitChoice, setUnitChoice] = useState<string>(draft?.unitChoice ?? 'pcs')
+  const [customUnitLabel, setCustomUnitLabel] = useState<string>(draft?.customUnitLabel ?? '')
+  const [contentSize, setContentSize] = useState<string>(draft?.contentSize ?? '') // e.g. "200ml", "500g" for packets
+  const [contentUnit, setContentUnit] = useState<string>(draft?.contentUnit ?? '') // e.g. "ml", "g"
+  const [stockQuantity, setStockQuantity] = useState<string>(draft?.stockQuantity ?? '0')
+  const [lowStockAlert, setLowStockAlert] = useState<string>(() => draft?.lowStockAlert ?? String(defaultLowStockThreshold()))
+  const [expiryDate, setExpiryDate] = useState<string>(draft?.expiryDate ?? '')
+  const [mfgDate, setMfgDate] = useState<string>(draft?.mfgDate ?? '')
+  const [location, setLocation] = useState<string>(draft?.location ?? '')
+  const [barcode, setBarcode] = useState<string>(draft?.barcode ?? '')
+  const [description, setDescription] = useState<string>(draft?.description ?? '')
+  const [hasVariants, setHasVariants] = useState<boolean>(draft?.hasVariants ?? false)
+  const [soldByWeight, setSoldByWeight] = useState<boolean>(draft?.soldByWeight ?? false)
+  const [hasSpecialOffer, setHasSpecialOffer] = useState<boolean>(draft?.hasSpecialOffer ?? false)
+  const [specialOfferNote, setSpecialOfferNote] = useState<string>(draft?.specialOfferNote ?? '')
+  const [specialOfferCost, setSpecialOfferCost] = useState<string>(draft?.specialOfferCost ?? '')
 
   // Variants Rows for dynamic addition
-  const [variantRows, setVariantRows] = useState<VariantInputRow[]>([])
+  const [variantRows, setVariantRows] = useState<VariantInputRow[]>(Array.isArray(draft?.variantRows) ? draft.variantRows : [])
 
   const [loading, setLoading] = useState(false)
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -167,7 +193,25 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     inventoryService.fetchCategories().then(setCategories).catch(console.error)
   }, [fetchProducts])
 
+  // Keep the new-product form as a draft while it is being filled in. Editing an
+  // existing product is not drafted (its saved values are reloaded instead).
+  useEffect(() => {
+    if (selectedProductId !== null) return
+    const current: NewProductDraft = {
+      name, nameTa, categoryId, price, purchasePrice, unitChoice, customUnitLabel, contentSize, contentUnit,
+      stockQuantity, lowStockAlert, expiryDate, mfgDate, location, barcode, description, hasVariants,
+      soldByWeight, hasSpecialOffer, specialOfferNote, specialOfferCost, variantRows,
+    }
+    try {
+      if (isBlankDraft(current)) localStorage.removeItem(NEW_PRODUCT_DRAFT_KEY)
+      else localStorage.setItem(NEW_PRODUCT_DRAFT_KEY, JSON.stringify(current))
+    } catch { /* storage unavailable: the form still works, just without a draft */ }
+  }, [selectedProductId, name, nameTa, categoryId, price, purchasePrice, unitChoice, customUnitLabel, contentSize,
+    contentUnit, stockQuantity, lowStockAlert, expiryDate, mfgDate, location, barcode, description, hasVariants,
+    soldByWeight, hasSpecialOffer, specialOfferNote, specialOfferCost, variantRows])
+
   const resetForm = () => {
+    try { localStorage.removeItem(NEW_PRODUCT_DRAFT_KEY) } catch { /* ignore */ }
     setSelectedProductId(null)
     setName('')
     setNameTa('')
@@ -900,6 +944,11 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                       <div className="mt-0.5 text-[11px] font-semibold uppercase text-gray-500 truncate">
                         {p.category || 'General'}{p.hasVariants ? ' • Multiple pack sizes' : ''}
                       </div>
+                      {p.description?.trim() && (
+                        <div className="mt-1 text-[11px] font-medium text-gray-600 break-words line-clamp-2" title={p.description.trim()}>
+                          {p.description.trim()}
+                        </div>
+                      )}
                     </div>
                     <div className="shrink-0 text-right">
                       <div className="text-sm font-black text-gray-900 whitespace-nowrap">₹{p.price}</div>
@@ -1445,7 +1494,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                         </label>
                         <textarea
                         rows={1}
-                        placeholder="Product material, care instructions, or rack location notes..."
+                        placeholder="Brand, pack details, usage or storage notes..."
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         className="w-full h-10 px-3.5 py-2.5 leading-5 rounded-xl border border-gray-200 bg-[#FAFAFA] text-xs font-medium text-gray-900 outline-none focus:border-[#0A0A0A] resize-none"
@@ -1515,7 +1564,7 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
                       </label>
                       <textarea
                         rows={2}
-                        placeholder="Product material, care instructions, or rack location notes..."
+                        placeholder="Brand, pack details, usage or storage notes..."
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         className="w-full p-3.5 rounded-xl border border-gray-200 bg-[#FAFAFA] text-xs font-medium text-gray-900 outline-none focus:border-[#0A0A0A] resize-none"
