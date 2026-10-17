@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Plus,
   Trash2,
@@ -44,9 +44,13 @@ export interface VariantInputRow {
   expiryDate?: string
 }
 
-// Unsaved "Add New Product" form, kept in this browser so a refresh or moving
-// to another page does not lose what was typed. Cleared on save or Cancel.
+// Unsaved product form, kept in this browser so a refresh or moving to another
+// page does not lose what was typed. New products use one draft; each existing
+// product being edited gets its own. Cleared on save/update or Cancel.
 const NEW_PRODUCT_DRAFT_KEY = 'mahalashmi_new_product_draft_v1'
+const EDIT_PRODUCT_DRAFT_PREFIX = 'mahalashmi_edit_product_draft_v1_'
+// Product whose edit form had unsaved changes, so it reopens after a refresh.
+const LAST_EDITED_PRODUCT_KEY = 'mahalashmi_last_edited_product_v1'
 
 type NewProductDraft = {
   name: string; nameTa: string; categoryId: number | ''; price: string; purchasePrice: string
@@ -56,10 +60,20 @@ type NewProductDraft = {
   hasSpecialOffer: boolean; specialOfferNote: string; specialOfferCost: string; variantRows: VariantInputRow[]
 }
 
-const loadNewProductDraft = (): Partial<NewProductDraft> | null => {
+const readDraft = (key: string): Partial<NewProductDraft> | null => {
   try {
-    const raw = localStorage.getItem(NEW_PRODUCT_DRAFT_KEY)
+    const raw = localStorage.getItem(key)
     return raw ? JSON.parse(raw) as Partial<NewProductDraft> : null
+  } catch { return null }
+}
+const loadNewProductDraft = () => readDraft(NEW_PRODUCT_DRAFT_KEY)
+const editDraftKey = (productId: number) => `${EDIT_PRODUCT_DRAFT_PREFIX}${productId}`
+const storageRemove = (key: string) => { try { localStorage.removeItem(key) } catch { /* ignore */ } }
+const storageSet = (key: string, value: string) => { try { localStorage.setItem(key, value) } catch { /* ignore */ } }
+const readLastEditedProductId = (): number | null => {
+  try {
+    const id = Number(localStorage.getItem(LAST_EDITED_PRODUCT_KEY))
+    return Number.isFinite(id) && id > 0 && readDraft(editDraftKey(id)) ? id : null
   } catch { return null }
 }
 
@@ -129,7 +143,11 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
   const [search, setSearch] = useState('')
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
   const [draft] = useState(loadNewProductDraft)
-  const [mobileView, setMobileView] = useState<'catalog' | 'form'>(() => (draft ? 'form' : 'catalog'))
+  const [mobileView, setMobileView] = useState<'catalog' | 'form'>(() => (draft || readLastEditedProductId() ? 'form' : 'catalog'))
+  // The product's saved values as loaded into the edit form; an edit draft is
+  // only kept while the form differs from these.
+  const editBaselineRef = useRef<{ id: number; json: string } | null>(null)
+  const [pendingReopenId, setPendingReopenId] = useState<number | null>(readLastEditedProductId)
 
   // Form State
   const [name, setName] = useState(draft?.name ?? '')
@@ -177,12 +195,12 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     const mfgDaysAgo = Math.floor(Math.random() * 30) + 1
     const mfgDate = new Date(today)
     mfgDate.setDate(mfgDate.getDate() - mfgDaysAgo)
-    const mfgFormatted = `${String(mfgDate.getDate()).padStart(2, '0')}/${String(mfgDate.getMonth() + 1).padStart(2, '0')}/${mfgDate.getFullYear()}`
+    const mfgFormatted = `${mfgDate.getFullYear()}-${String(mfgDate.getMonth() + 1).padStart(2, '0')}-${String(mfgDate.getDate()).padStart(2, '0')}`
 
     const expiryDaysFromToday = Math.floor(Math.random() * 335) + 30
     const expiryDate = new Date(today)
     expiryDate.setDate(expiryDate.getDate() + expiryDaysFromToday)
-    const expiryFormatted = `${String(expiryDate.getDate()).padStart(2, '0')}/${String(expiryDate.getMonth() + 1).padStart(2, '0')}/${expiryDate.getFullYear()}`
+    const expiryFormatted = `${expiryDate.getFullYear()}-${String(expiryDate.getMonth() + 1).padStart(2, '0')}-${String(expiryDate.getDate()).padStart(2, '0')}`
 
     setMfgDate(mfgFormatted)
     setExpiryDate(expiryFormatted)
@@ -193,25 +211,68 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     inventoryService.fetchCategories().then(setCategories).catch(console.error)
   }, [fetchProducts])
 
-  // Keep the new-product form as a draft while it is being filled in. Editing an
-  // existing product is not drafted (its saved values are reloaded instead).
+  // Keep the form as a draft while it is being filled in.
   useEffect(() => {
-    if (selectedProductId !== null) return
     const current: NewProductDraft = {
       name, nameTa, categoryId, price, purchasePrice, unitChoice, customUnitLabel, contentSize, contentUnit,
       stockQuantity, lowStockAlert, expiryDate, mfgDate, location, barcode, description, hasVariants,
       soldByWeight, hasSpecialOffer, specialOfferNote, specialOfferCost, variantRows,
     }
-    try {
-      if (isBlankDraft(current)) localStorage.removeItem(NEW_PRODUCT_DRAFT_KEY)
-      else localStorage.setItem(NEW_PRODUCT_DRAFT_KEY, JSON.stringify(current))
-    } catch { /* storage unavailable: the form still works, just without a draft */ }
+    if (selectedProductId === null) {
+      if (isBlankDraft(current)) storageRemove(NEW_PRODUCT_DRAFT_KEY)
+      else storageSet(NEW_PRODUCT_DRAFT_KEY, JSON.stringify(current))
+      return
+    }
+    const baseline = editBaselineRef.current
+    if (!baseline || baseline.id !== selectedProductId) return // product still loading
+    const json = JSON.stringify(current)
+    if (json === baseline.json) {
+      storageRemove(editDraftKey(selectedProductId))
+      storageRemove(LAST_EDITED_PRODUCT_KEY)
+    } else {
+      storageSet(editDraftKey(selectedProductId), json)
+      storageSet(LAST_EDITED_PRODUCT_KEY, String(selectedProductId))
+    }
   }, [selectedProductId, name, nameTa, categoryId, price, purchasePrice, unitChoice, customUnitLabel, contentSize,
     contentUnit, stockQuantity, lowStockAlert, expiryDate, mfgDate, location, barcode, description, hasVariants,
     soldByWeight, hasSpecialOffer, specialOfferNote, specialOfferCost, variantRows])
 
+  const applyFormValues = (v: Partial<NewProductDraft>) => {
+    if (v.name !== undefined) setName(v.name)
+    if (v.nameTa !== undefined) setNameTa(v.nameTa)
+    if (v.categoryId !== undefined) setCategoryId(v.categoryId)
+    if (v.price !== undefined) setPrice(v.price)
+    if (v.purchasePrice !== undefined) setPurchasePrice(v.purchasePrice)
+    if (v.unitChoice !== undefined) setUnitChoice(v.unitChoice)
+    if (v.customUnitLabel !== undefined) setCustomUnitLabel(v.customUnitLabel)
+    if (v.contentSize !== undefined) setContentSize(v.contentSize)
+    if (v.contentUnit !== undefined) setContentUnit(v.contentUnit)
+    if (v.stockQuantity !== undefined) setStockQuantity(v.stockQuantity)
+    if (v.lowStockAlert !== undefined) setLowStockAlert(v.lowStockAlert)
+    if (v.expiryDate !== undefined) setExpiryDate(v.expiryDate)
+    if (v.mfgDate !== undefined) setMfgDate(v.mfgDate)
+    if (v.location !== undefined) setLocation(v.location)
+    if (v.barcode !== undefined) setBarcode(v.barcode)
+    if (v.description !== undefined) setDescription(v.description)
+    if (v.hasVariants !== undefined) setHasVariants(v.hasVariants)
+    if (v.soldByWeight !== undefined) setSoldByWeight(v.soldByWeight)
+    if (v.hasSpecialOffer !== undefined) setHasSpecialOffer(v.hasSpecialOffer)
+    if (v.specialOfferNote !== undefined) setSpecialOfferNote(v.specialOfferNote)
+    if (v.specialOfferCost !== undefined) setSpecialOfferCost(v.specialOfferCost)
+    if (Array.isArray(v.variantRows)) setVariantRows(v.variantRows)
+  }
+
+  /** Clears the form (Cancel, or after saving) and drops its draft. Leaving an
+   *  edit goes back to a new product, restoring any unfinished new-product draft. */
   const resetForm = () => {
-    try { localStorage.removeItem(NEW_PRODUCT_DRAFT_KEY) } catch { /* ignore */ }
+    const leavingEdit = selectedProductId !== null
+    if (leavingEdit) {
+      storageRemove(editDraftKey(selectedProductId))
+      storageRemove(LAST_EDITED_PRODUCT_KEY)
+    } else {
+      storageRemove(NEW_PRODUCT_DRAFT_KEY)
+    }
+    editBaselineRef.current = null
     setSelectedProductId(null)
     setName('')
     setNameTa('')
@@ -236,9 +297,12 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     setSpecialOfferCost('')
     setVariantRows([])
     setStatusMessage(null)
+    const newDraft = leavingEdit ? loadNewProductDraft() : null
+    if (newDraft) applyFormValues(newDraft)
   }
 
   const startEditProduct = async (p: Product) => {
+    editBaselineRef.current = null
     setMobileView('form')
     setSelectedProductId(Number(p.id))
     setName(p.name || '')
@@ -268,11 +332,12 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
     setSpecialOfferCost(p.specialOfferCost != null ? String(p.specialOfferCost) : '')
     setStatusMessage(null)
 
+    let loadedRows: VariantInputRow[] = []
     if (p.hasVariants) {
       try {
         const [vars, dates] = await Promise.all([fetchVariantsByProduct(String(p.id)), loadVariantDates(String(p.id))])
         const defaultUnit = matchedUnit?.suffix || 'gm'
-        setVariantRows(
+        loadedRows = (
           vars.map((v) => {
             const parsed = parseQtyAndUnitFromLabel(v.sizeLabel || v.variantName, defaultUnit)
             return {
@@ -291,10 +356,51 @@ export const AddEditProductView: React.FC<{ onStockUpdated?: () => void }> = ({ 
       } catch (err) {
         console.error('Failed to load variants for edit:', err)
       }
-    } else {
-      setVariantRows([])
+    }
+    setVariantRows(loadedRows)
+
+    // Remember the saved values, then bring back any unsaved edits for this product.
+    const id = Number(p.id)
+    const loaded: NewProductDraft = {
+      name: p.name || '',
+      nameTa: p.nameTa || (p as unknown as { name_ta?: string }).name_ta || '',
+      categoryId: p.categoryId ? Number(p.categoryId) : '',
+      price: String(p.price || ''),
+      purchasePrice: String(p.purchasePrice || ''),
+      unitChoice: matchedUnit ? matchedUnit.value : 'custom',
+      customUnitLabel: matchedUnit ? '' : (p.unitLabel || ''),
+      contentSize,
+      contentUnit,
+      stockQuantity: String(p.stockQuantity ?? p.stock ?? 0),
+      lowStockAlert: p.lowStockAlert ? String(p.lowStockAlert) : String(defaultLowStockThreshold()),
+      expiryDate: p.expiryDate || '',
+      mfgDate: p.mfgDate || '',
+      location: p.location || '',
+      barcode: p.barcode || '',
+      description: p.description || '',
+      hasVariants: Boolean(p.hasVariants),
+      soldByWeight: Boolean(p.allowDecimalQuantity),
+      hasSpecialOffer: Boolean(p.hasSpecialOffer),
+      specialOfferNote: p.specialOfferNote || '',
+      specialOfferCost: p.specialOfferCost != null ? String(p.specialOfferCost) : '',
+      variantRows: loadedRows,
+    }
+    editBaselineRef.current = { id, json: JSON.stringify(loaded) }
+    const saved = readDraft(editDraftKey(id))
+    if (saved) {
+      applyFormValues(saved)
+      setStatusMessage({ type: 'success', text: 'Restored your unsaved changes. Click Update Product to save them, or Cancel to discard.' })
     }
   }
+
+  // After a refresh, reopen the product whose edits were not saved yet.
+  useEffect(() => {
+    if (pendingReopenId === null || products.length === 0) return
+    const product = products.find((item) => Number(item.id) === pendingReopenId)
+    setPendingReopenId(null)
+    if (product) void startEditProduct(product)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingReopenId, products])
 
   const handleAddVariantRow = () => {
     const baseP = parseFloat(price) || 0

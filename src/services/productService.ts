@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase'
  */
 const PRODUCT_COLUMNS = [
   'id', 'name', 'name_ta', 'tamil_name', 'category', 'category_id',
-  'remedy', 'price', 'offer_price', 'unit_type', 'unit_label',
+  'remedy', 'price', 'offer_price', 'purchase_price', 'unit_type', 'unit_label',
   'base_quantity', 'stock_quantity', 'stock_unit', 'allow_decimal_quantity',
   'predefined_options', 'is_active', 'sort_order', 'unit', 'rating',
   'description', 'description_ta', 'benefits', 'benefits_ta',
