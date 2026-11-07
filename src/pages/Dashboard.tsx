@@ -178,6 +178,8 @@ const exportCSV = (orders: DashboardOrder[]) => {
   URL.revokeObjectURL(url)
 }
 
+const HISTORY_BATCH_SIZE = 50
+
 export default function Dashboard() {
   const { user } = useAuthStore()
   const { products, fetchProducts } = useProductStore()
@@ -248,6 +250,8 @@ export default function Dashboard() {
   const [productAnalyticsSearch, setProductAnalyticsSearch] = useState('')
   const [datePreset, setDatePreset] = useState<'today' | 'week' | 'month' | 'year' | 'custom' | ''>('')
   const [searchResults, setSearchResults] = useState<DashboardOrder[]>([])
+  // Order History renders bills in batches so long lists stay responsive.
+  const [historyVisibleCount, setHistoryVisibleCount] = useState(HISTORY_BATCH_SIZE)
   const [searchLoading, setSearchLoading] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
@@ -3241,7 +3245,11 @@ export default function Dashboard() {
                 </div>
               </form>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-[11px] font-semibold text-[#374151]">{filteredSearchResults.length} {l('result(s)', 'முடிவுகள்')}</p>
+                <p className="text-[11px] font-semibold text-[#374151]">
+                  {filteredSearchResults.length > historyVisibleCount
+                    ? l(`Showing ${historyVisibleCount} of ${filteredSearchResults.length} result(s)`, `${filteredSearchResults.length} முடிவுகளில் ${historyVisibleCount} காட்டப்படுகிறது`)
+                    : <>{filteredSearchResults.length} {l('result(s)', 'முடிவுகள்')}</>}
+                </p>
                 {filteredSearchResults.length > 0 && (
                   <button onClick={() => exportCSV(filteredSearchResults)}
                     className="flex items-center gap-1 text-[11px] font-bold text-[var(--accent)] hover:underline">
@@ -3250,7 +3258,7 @@ export default function Dashboard() {
                 )}
               </div>
               <div className="md:hidden rounded-xl border border-[#E5E7EB]/60 divide-y divide-[#E5E7EB]/60 overflow-hidden bg-[#FBFAF6]">
-                {filteredSearchResults.slice(0, 50).map(o => {
+                {filteredSearchResults.slice(0, historyVisibleCount).map(o => {
                   const billTypeLabel = normalizeOrderType(o.order_type) === 'manual_sale' ? 'MANUAL' : normalizeOrderMode(o.order_mode) === 'online' ? 'ONLINE' : 'OFFLINE'
                   const billTypeClass = normalizeOrderType(o.order_type) === 'manual_sale' ? 'bg-purple-50 text-purple-700' : normalizeOrderMode(o.order_mode) === 'online' ? 'bg-blue-50 text-blue-700' : 'bg-orange-50 text-orange-700'
                   const refNumber = (o as unknown as Record<string,unknown>).reference_number as string
@@ -3326,7 +3334,7 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E5E7EB]/30 bg-white">
-                    {filteredSearchResults.slice(0, 50).map(o => {
+                    {filteredSearchResults.slice(0, historyVisibleCount).map(o => {
                       const billTypeLabel = normalizeOrderType(o.order_type) === 'manual_sale' ? 'MANUAL' : normalizeOrderMode(o.order_mode) === 'online' ? 'ONLINE' : 'OFFLINE'
                       const billTypeClass = normalizeOrderType(o.order_type) === 'manual_sale' ? 'bg-purple-50 text-purple-700' : normalizeOrderMode(o.order_mode) === 'online' ? 'bg-blue-50 text-blue-700' : 'bg-orange-50 text-orange-700'
                       return (
@@ -3442,6 +3450,18 @@ export default function Dashboard() {
                   </tbody>
                 </table>
               </div>
+              {filteredSearchResults.length > historyVisibleCount && (
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                  <button type="button" onClick={() => setHistoryVisibleCount(n => n + HISTORY_BATCH_SIZE)}
+                    className="min-h-[44px] rounded-xl bg-[#111111] px-4 py-2 text-[12px] font-black text-white shadow-sm cursor-pointer">
+                    {l(`Show ${HISTORY_BATCH_SIZE} more`, `மேலும் ${HISTORY_BATCH_SIZE} காட்டு`)}
+                  </button>
+                  <button type="button" onClick={() => setHistoryVisibleCount(filteredSearchResults.length)}
+                    className="min-h-[44px] rounded-xl border border-[#E5E7EB] bg-white px-4 py-2 text-[12px] font-black text-[#111111] cursor-pointer">
+                    {l(`Show all ${filteredSearchResults.length}`, `அனைத்து ${filteredSearchResults.length} காட்டு`)}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
