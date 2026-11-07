@@ -178,7 +178,7 @@ const exportCSV = (orders: DashboardOrder[]) => {
   URL.revokeObjectURL(url)
 }
 
-const HISTORY_BATCH_SIZE = 50
+const HISTORY_BATCH_SIZE = 100
 
 export default function Dashboard() {
   const { user } = useAuthStore()
